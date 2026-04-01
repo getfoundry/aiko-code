@@ -34,41 +34,41 @@ type Segments = {
 const POSES: Record<ClawdPose, Segments> = {
   default: {
     r1L: ' ╭',
-    r1E: '○ ○ ',
+    r1E: '◌ ◌ ',
     r1R: '╮',
-    r2L: ' │',
-    r2R: '│ '
+    r2L: ' ┆',
+    r2R: '┆ '
   },
   'look-left': {
     r1L: ' ╭',
-    r1E: '◔ ○ ',
+    r1E: '◔ ◌ ',
     r1R: '╮',
-    r2L: ' │',
-    r2R: '│ '
+    r2L: ' ┆',
+    r2R: '┆ '
   },
   'look-right': {
     r1L: ' ╭',
-    r1E: '○ ◔ ',
+    r1E: '◌ ◔ ',
     r1R: '╮',
-    r2L: ' │',
-    r2R: '│ '
+    r2L: ' ┆',
+    r2R: '┆ '
   },
   'arms-up': {
     r1L: '\\╭',
-    r1E: '○ ○ ',
+    r1E: '◌ ◌ ',
     r1R: '╮/',
-    r2L: ' │',
-    r2R: '│ '
+    r2L: ' ┆',
+    r2R: '┆ '
   }
 };
 
 // Apple Terminal uses a bg-fill trick (see below), so only eye poses make
 // sense. Arm poses fall back to default.
 const APPLE_EYES: Record<ClawdPose, string> = {
-  default: ' ○ ○  ',
-  'look-left': ' ◔ ○  ',
-  'look-right': ' ○ ◔  ',
-  'arms-up': ' ○ ○  '
+  default: ' ◌ ◌  ',
+  'look-left': ' ◔ ◌  ',
+  'look-right': ' ◌ ◔  ',
+  'arms-up': ' ◌ ◌  '
 };
 export function Clawd(t0) {
   const $ = _c(26);
@@ -98,7 +98,7 @@ export function Clawd(t0) {
   const p = POSES[pose];
   let t3;
   if ($[4] !== p.r1L) {
-    t3 = <Text color="clawd_body">{p.r1L}</Text>;
+    t3 = <Text color="text">{p.r1L}</Text>;
     $[4] = p.r1L;
     $[5] = t3;
   } else {
@@ -106,7 +106,7 @@ export function Clawd(t0) {
   }
   let t4;
   if ($[6] !== p.r1E) {
-    t4 = <Text color="clawd_body" backgroundColor="clawd_background">{p.r1E}</Text>;
+    t4 = <Text color="text">{p.r1E}</Text>;
     $[6] = p.r1E;
     $[7] = t4;
   } else {
@@ -114,7 +114,7 @@ export function Clawd(t0) {
   }
   let t5;
   if ($[8] !== p.r1R) {
-    t5 = <Text color="clawd_body">{p.r1R}</Text>;
+    t5 = <Text color="text">{p.r1R}</Text>;
     $[8] = p.r1R;
     $[9] = t5;
   } else {
@@ -132,7 +132,7 @@ export function Clawd(t0) {
   }
   let t7;
   if ($[14] !== p.r2L) {
-    t7 = <Text color="clawd_body">{p.r2L}</Text>;
+    t7 = <Text color="text">{p.r2L}</Text>;
     $[14] = p.r2L;
     $[15] = t7;
   } else {
@@ -140,14 +140,14 @@ export function Clawd(t0) {
   }
   let t8;
   if ($[16] === Symbol.for("react.memo_cache_sentinel")) {
-    t8 = <Text color="clawd_body" backgroundColor="clawd_background">OPEN </Text>;
+    t8 = <Text color="text"> OC  </Text>;
     $[16] = t8;
   } else {
     t8 = $[16];
   }
   let t9;
   if ($[17] !== p.r2R) {
-    t9 = <Text color="clawd_body">{p.r2R}</Text>;
+    t9 = <Text color="text">{p.r2R}</Text>;
     $[17] = p.r2R;
     $[18] = t9;
   } else {
@@ -164,7 +164,7 @@ export function Clawd(t0) {
   }
   let t11;
   if ($[22] === Symbol.for("react.memo_cache_sentinel")) {
-    t11 = <Text color="clawd_body">{"  "}╰─◡─╯{"  "}</Text>;
+    t11 = <Text color="inactive">{"  "}╰─◠─╯{" "}</Text>;
     $[22] = t11;
   } else {
     t11 = $[22];
@@ -187,7 +187,7 @@ function AppleTerminalClawd(t0) {
   } = t0;
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = <Text color="clawd_body">▗</Text>;
+    t1 = <Text color="text">▗</Text>;
     $[0] = t1;
   } else {
     t1 = $[0];
@@ -195,7 +195,7 @@ function AppleTerminalClawd(t0) {
   const t2 = APPLE_EYES[pose];
   let t3;
   if ($[1] !== t2) {
-    t3 = <Text color="clawd_background" backgroundColor="clawd_body">{t2}</Text>;
+    t3 = <Text color="text">{t2}</Text>;
     $[1] = t2;
     $[2] = t3;
   } else {
@@ -203,7 +203,7 @@ function AppleTerminalClawd(t0) {
   }
   let t4;
   if ($[3] === Symbol.for("react.memo_cache_sentinel")) {
-    t4 = <Text color="clawd_body">▖</Text>;
+    t4 = <Text color="text">▖</Text>;
     $[3] = t4;
   } else {
     t4 = $[3];

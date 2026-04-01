@@ -250,8 +250,8 @@ export function LogoV2() {
   }
   const layoutMode = getLayoutMode(columns);
   const userTheme = resolveThemeSetting(getGlobalConfig().theme);
-  const borderTitle = ` ${color("claude", userTheme)("Claude Code")} ${color("inactive", userTheme)(`v${version}`)} `;
-  const compactBorderTitle = color("claude", userTheme)(" Claude Code ");
+  const borderTitle = ` ${color("text", userTheme)("Open Claude")} ${color("inactive", userTheme)(`v${version}`)} `;
+  const compactBorderTitle = color("text", userTheme)(" Open Claude ");
   if (layoutMode === "compact") {
     let welcomeMessage = formatWelcomeMessage(username);
     if (stringWidth(welcomeMessage) > columns - 4) {
@@ -328,7 +328,7 @@ export function LogoV2() {
       t18 = $[42];
       t19 = $[43];
     }
-    return <><OffscreenFreeze><Box flexDirection="column" borderStyle="round" borderColor="claude" borderText={t11} paddingX={1} paddingY={1} alignItems="center" width={columns}><Text bold={true}>{welcomeMessage}</Text>{t12}{t13}<Text dimColor={true}>{billingType}</Text><Text dimColor={true}>{agentName ? `@${agentName} · ${truncatedCwd}` : truncatedCwd}</Text></Box></OffscreenFreeze>{t14}{t15}{t16}{t17}{t18}{t19}</>;
+    return <><OffscreenFreeze><Box flexDirection="column" borderStyle="round" borderColor="inactive" borderText={t11} paddingX={1} paddingY={1} alignItems="center" width={columns}><Text bold={true}>{welcomeMessage}</Text>{t12}{t13}<Text dimColor={true}>{billingType}</Text><Text dimColor={true}>{agentName ? `@${agentName} · ${truncatedCwd}` : truncatedCwd}</Text></Box></OffscreenFreeze>{t14}{t15}{t16}{t17}{t18}{t19}</>;
   }
   const welcomeMessage_0 = formatWelcomeMessage(username);
   const modelLine = showAccountIdentity && !process.env.IS_DEMO && config.oauthAccount?.organizationName ? `${modelDisplayName} · ${billingType} · ${config.oauthAccount.organizationName}` : `${modelDisplayName} · ${billingType}`;
@@ -344,7 +344,7 @@ export function LogoV2() {
   const T1 = Box;
   const t11 = "column";
   const t12 = "round";
-  const t13 = "claude";
+  const t13 = "inactive";
   let t14;
   if ($[44] !== borderTitle) {
     t14 = {
@@ -359,12 +359,12 @@ export function LogoV2() {
     t14 = $[45];
   }
   const T2 = Box;
-  const t15 = layoutMode === "horizontal" ? "row" : "column";
-  const t16 = 1;
+  const t15 = "column";
+  const t16 = 0;
   const t17 = 1;
   let t18;
   if ($[46] !== welcomeMessage_0) {
-    t18 = <Box marginTop={1}><Text bold={true}>{welcomeMessage_0}</Text></Box>;
+    t18 = <Box marginTop={1} flexDirection="column" alignItems="center"><Text bold={true}>OPEN CLAUDE</Text><Text dimColor={true}>open terminal for any LLM</Text><Text color="inactive">•</Text><Text bold={true}>{welcomeMessage_0}</Text></Box>;
     $[46] = welcomeMessage_0;
     $[47] = t18;
   } else {
@@ -379,7 +379,7 @@ export function LogoV2() {
   }
   let t20;
   if ($[49] !== modelLine) {
-    t20 = <Text dimColor={true}>{modelLine}</Text>;
+    t20 = <Text><Text color="inactive">Model</Text><Text dimColor={true}>  {modelLine}</Text></Text>;
     $[49] = modelLine;
     $[50] = t20;
   } else {
@@ -387,7 +387,7 @@ export function LogoV2() {
   }
   let t21;
   if ($[51] !== cwdLine) {
-    t21 = <Text dimColor={true}>{cwdLine}</Text>;
+    t21 = <Text><Text color="inactive">Path</Text><Text dimColor={true}>   {cwdLine}</Text></Text>;
     $[51] = cwdLine;
     $[52] = t21;
   } else {
@@ -395,7 +395,7 @@ export function LogoV2() {
   }
   let t22;
   if ($[53] !== t20 || $[54] !== t21) {
-    t22 = <Box flexDirection="column" alignItems="center">{t20}{t21}</Box>;
+    t22 = <Box flexDirection="column" alignItems="center"><Text dimColor={true}>────────────</Text>{t20}{t21}</Box>;
     $[53] = t20;
     $[54] = t21;
     $[55] = t22;
@@ -403,9 +403,9 @@ export function LogoV2() {
     t22 = $[55];
   }
   let t23;
-  if ($[56] !== leftWidth || $[57] !== t18 || $[58] !== t22) {
-    t23 = <Box flexDirection="column" width={leftWidth} justifyContent="space-between" alignItems="center" minHeight={9}>{t18}{t19}{t22}</Box>;
-    $[56] = leftWidth;
+  if ($[56] !== columns || $[57] !== t18 || $[58] !== t22) {
+    t23 = <Box flexDirection="column" width="100%" justifyContent="center" alignItems="center" minHeight={11}><Box borderStyle="round" borderColor="inactive" paddingX={3} paddingY={1} width="100%" justifyContent="center" alignItems="center" minHeight={11}><Box flexDirection="column" alignItems="center" justifyContent="center">{t18}<Box marginY={1}>{t19}</Box>{t22}</Box></Box></Box>;
+    $[56] = columns;
     $[57] = t18;
     $[58] = t22;
     $[59] = t23;
@@ -414,13 +414,13 @@ export function LogoV2() {
   }
   let t24;
   if ($[60] !== layoutMode) {
-    t24 = layoutMode === "horizontal" && <Box height="100%" borderStyle="single" borderColor="claude" borderDimColor={true} borderTop={false} borderBottom={false} borderLeft={false} />;
+    t24 = false;
     $[60] = layoutMode;
     $[61] = t24;
   } else {
     t24 = $[61];
   }
-  const t25 = layoutMode === "horizontal" && <FeedColumn feeds={showOnboarding ? [createProjectOnboardingFeed(getSteps()), createRecentActivityFeed(activities)] : showGuestPassesUpsell ? [createRecentActivityFeed(activities), createGuestPassesFeed()] : showOverageCreditUpsell ? [createRecentActivityFeed(activities), createOverageCreditFeed()] : [createRecentActivityFeed(activities), createWhatsNewFeed(changelog)]} maxWidth={rightWidth} />;
+  const t25 = <FeedColumn feeds={showOnboarding ? [createProjectOnboardingFeed(getSteps()), createRecentActivityFeed(activities)] : showGuestPassesUpsell ? [createRecentActivityFeed(activities), createGuestPassesFeed()] : showOverageCreditUpsell ? [createRecentActivityFeed(activities), createOverageCreditFeed()] : [createRecentActivityFeed(activities), createWhatsNewFeed(changelog)]} maxWidth={columns - 4} />;
   let t26;
   if ($[62] !== T2 || $[63] !== t15 || $[64] !== t23 || $[65] !== t24 || $[66] !== t25) {
     t26 = <T2 flexDirection={t15} paddingX={t16} gap={t17}>{t23}{t24}{t25}</T2>;
