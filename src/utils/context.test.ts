@@ -35,3 +35,22 @@ test('deepseek-chat clamps oversized max output overrides to the provider limit'
 
   expect(getMaxOutputTokensForModel('deepseek-chat')).toBe(8_192)
 })
+
+test('gpt-4o uses provider-specific context and output caps', () => {
+  process.env.CLAUDE_CODE_USE_OPENAI = '1'
+  delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS
+
+  expect(getContextWindowForModel('gpt-4o')).toBe(128_000)
+  expect(getModelMaxOutputTokens('gpt-4o')).toEqual({
+    default: 16_384,
+    upperLimit: 16_384,
+  })
+  expect(getMaxOutputTokensForModel('gpt-4o')).toBe(16_384)
+})
+
+test('gpt-4o clamps oversized max output overrides to the provider limit', () => {
+  process.env.CLAUDE_CODE_USE_OPENAI = '1'
+  process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32000'
+
+  expect(getMaxOutputTokensForModel('gpt-4o')).toBe(16_384)
+})
