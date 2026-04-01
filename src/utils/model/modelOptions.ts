@@ -266,6 +266,22 @@ function getOpusPlanOption(): ModelOption {
   }
 }
 
+function getCodexPlanOption(): ModelOption {
+  return {
+    value: 'codexplan',
+    label: 'Codex Plan',
+    description: 'GPT-5.4 on the Codex backend with high reasoning',
+  }
+}
+
+function getCodexSparkOption(): ModelOption {
+  return {
+    value: 'codexspark',
+    label: 'Codex Spark',
+    description: 'GPT-5.3 Codex Spark on the Codex backend for fast tool loops',
+  }
+}
+
 // @[MODEL LAUNCH]: Update the model picker lists below to include/reorder options for the new model.
 // Each user tier (ant, Max/Team Premium, Pro/Team Standard/Enterprise, PAYG 1P, PAYG 3P) has its own list.
 function getModelOptionsBase(fastMode = false): ModelOption[] {
@@ -343,6 +359,10 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
 
   // PAYG 3P: Default (Sonnet 4.5) + Sonnet (3P custom) or Sonnet 4.6/1M + Opus (3P custom) or Opus 4.1/Opus 4.6/Opus1M + Haiku + Opus 4.1
   const payg3pOptions = [getDefaultOptionForUser(fastMode)]
+
+  if (getAPIProvider() === 'openai') {
+    payg3pOptions.push(getCodexPlanOption(), getCodexSparkOption())
+  }
 
   const customSonnet = getCustomSonnetOption()
   if (customSonnet !== undefined) {
@@ -497,6 +517,10 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     return filterModelOptionsByAllowlist(options)
   } else if (customModel === 'opusplan') {
     return filterModelOptionsByAllowlist([...options, getOpusPlanOption()])
+  } else if (customModel === 'codexplan') {
+    return filterModelOptionsByAllowlist([...options, getCodexPlanOption()])
+  } else if (customModel === 'codexspark') {
+    return filterModelOptionsByAllowlist([...options, getCodexSparkOption()])
   } else if (customModel === 'opus' && getAPIProvider() === 'firstParty') {
     return filterModelOptionsByAllowlist([
       ...options,

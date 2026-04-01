@@ -2,7 +2,7 @@
 
 Use Claude Code with **any LLM** — not just Claude.
 
-OpenClaude is a fork of the [Claude Code source leak](https://gitlawb.com/node/repos/z6MkgKkb/instructkr-claude-code) (exposed via npm source maps on March 31, 2026). We added an OpenAI-compatible provider shim so you can plug in GPT-4o, DeepSeek, Gemini, Llama, Mistral, or any model that speaks the OpenAI chat completions API.
+OpenClaude is a fork of the [Claude Code source leak](https://gitlawb.com/node/repos/z6MkgKkb/instructkr-claude-code) (exposed via npm source maps on March 31, 2026). We added an OpenAI-compatible provider shim so you can plug in GPT-4o, DeepSeek, Gemini, Llama, Mistral, or any model that speaks the OpenAI chat completions API. It now also supports the ChatGPT Codex backend for `codexplan` and `codexspark`.
 
 All of Claude Code's tools work — bash, file read/write/edit, grep, glob, agents, tasks, MCP — just powered by whatever model you choose.
 
@@ -80,6 +80,25 @@ The npm package name is `@gitlawb/openclaude`, but the installed CLI command is 
 export CLAUDE_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=sk-...
 export OPENAI_MODEL=gpt-4o
+```
+
+### Codex via ChatGPT auth
+
+`codexplan` maps to GPT-5.4 on the Codex backend with high reasoning.
+`codexspark` maps to GPT-5.3 Codex Spark for faster loops.
+
+If you already use the Codex CLI, OpenClaude will read `~/.codex/auth.json`
+automatically. You can also point it elsewhere with `CODEX_AUTH_JSON_PATH` or
+override the token directly with `CODEX_API_KEY`.
+
+```bash
+export CLAUDE_CODE_USE_OPENAI=1
+export OPENAI_MODEL=codexplan
+
+# optional if you do not already have ~/.codex/auth.json
+export CODEX_API_KEY=...
+
+openclaude
 ```
 
 ### DeepSeek
@@ -165,6 +184,9 @@ export OPENAI_MODEL=gpt-4o
 | `OPENAI_API_KEY` | Yes* | Your API key (*not needed for local models like Ollama) |
 | `OPENAI_MODEL` | Yes | Model name (e.g. `gpt-4o`, `deepseek-chat`, `llama3.3:70b`) |
 | `OPENAI_BASE_URL` | No | API endpoint (defaults to `https://api.openai.com/v1`) |
+| `CODEX_API_KEY` | Codex only | Codex/ChatGPT access token override |
+| `CODEX_AUTH_JSON_PATH` | Codex only | Path to a Codex CLI `auth.json` file |
+| `CODEX_HOME` | Codex only | Alternative Codex home directory (`auth.json` will be read from here) |
 
 You can also use `ANTHROPIC_MODEL` to override the model name. `OPENAI_MODEL` takes priority.
 
@@ -197,6 +219,7 @@ bun run hardening:strict
 Notes:
 - `doctor:runtime` fails fast if `CLAUDE_CODE_USE_OPENAI=1` with a placeholder key (`SUA_CHAVE`) or a missing key for non-local providers.
 - Local providers (for example `http://localhost:11434/v1`) can run without `OPENAI_API_KEY`.
+- Codex profiles validate `CODEX_API_KEY` or the Codex CLI auth file and probe `POST /responses` instead of `GET /models`.
 
 ### Provider Launch Profiles
 
@@ -206,14 +229,23 @@ Use profile launchers to avoid repeated environment setup:
 # one-time profile bootstrap (auto-detect ollama, otherwise openai)
 bun run profile:init
 
+# codex bootstrap (defaults to codexplan and ~/.codex/auth.json)
+bun run profile:codex
+
 # openai bootstrap with explicit key
 bun run profile:init -- --provider openai --api-key sk-...
 
 # ollama bootstrap with custom model
 bun run profile:init -- --provider ollama --model llama3.1:8b
 
+# codex bootstrap with a fast model alias
+bun run profile:init -- --provider codex --model codexspark
+
 # launch using persisted profile (.openclaude-profile.json)
 bun run dev:profile
+
+# codex profile (uses CODEX_API_KEY or ~/.codex/auth.json)
+bun run dev:codex
 
 # OpenAI profile (requires OPENAI_API_KEY in your shell)
 bun run dev:openai
@@ -222,7 +254,7 @@ bun run dev:openai
 bun run dev:ollama
 ```
 
-`dev:openai` and `dev:ollama` run `doctor:runtime` first and only launch the app if checks pass.
+`dev:openai`, `dev:ollama`, and `dev:codex` run `doctor:runtime` first and only launch the app if checks pass.
 For `dev:ollama`, make sure Ollama is running locally before launch.
 
 ---

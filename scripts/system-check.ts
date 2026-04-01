@@ -2,6 +2,11 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import {
+  resolveCodexApiCredentials,
+  resolveProviderRequest,
+  isLocalProviderUrl as isProviderLocalUrl,
+} from '../src/services/api/providerConfig.js'
 
 type CheckResult = {
   ok: boolean
@@ -84,12 +89,7 @@ function checkBuildArtifacts(): CheckResult {
 }
 
 function isLocalBaseUrl(baseUrl: string): boolean {
-  try {
-    const url = new URL(baseUrl)
-    return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1'
-  } catch {
-    return false
-  }
+  return isProviderLocalUrl(baseUrl)
 }
 
 function currentBaseUrl(): string {
@@ -105,23 +105,50 @@ function checkOpenAIEnv(): CheckResult[] {
     return results
   }
 
-  const baseUrl = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'
-  const model = process.env.OPENAI_MODEL
-  const key = process.env.OPENAI_API_KEY
+  const request = resolveProviderRequest({
+    model: process.env.OPENAI_MODEL,
+    baseUrl: process.env.OPENAI_BASE_URL,
+  })
 
-  results.push(pass('Provider mode', 'OpenAI-compatible provider enabled.'))
+  results.push(
+    pass(
+      'Provider mode',
+      request.transport === 'codex_responses'
+        ? 'Codex responses backend enabled.'
+        : 'OpenAI-compatible provider enabled.',
+    ),
+  )
 
-  if (!model) {
+  if (!process.env.OPENAI_MODEL) {
     results.push(pass('OPENAI_MODEL', 'Not set. Runtime fallback model will be used.'))
   } else {
-    results.push(pass('OPENAI_MODEL', model))
+    results.push(pass('OPENAI_MODEL', process.env.OPENAI_MODEL))
   }
 
-  results.push(pass('OPENAI_BASE_URL', baseUrl))
+  results.push(pass('OPENAI_BASE_URL', request.baseUrl))
 
+  if (request.transport === 'codex_responses') {
+    const credentials = resolveCodexApiCredentials(process.env)
+    if (!credentials.apiKey) {
+      const authHint = credentials.authPath
+        ? `Missing CODEX_API_KEY and no usable auth.json at ${credentials.authPath}.`
+        : 'Missing CODEX_API_KEY and auth.json fallback.'
+      results.push(fail('CODEX auth', authHint))
+    } else if (!credentials.accountId) {
+      results.push(fail('CHATGPT_ACCOUNT_ID', 'Missing chatgpt_account_id in Codex auth.'))
+    } else {
+      const detail = credentials.source === 'env'
+        ? 'Using CODEX_API_KEY.'
+        : `Using ${credentials.authPath}.`
+      results.push(pass('CODEX auth', detail))
+    }
+    return results
+  }
+
+  const key = process.env.OPENAI_API_KEY
   if (key === 'SUA_CHAVE') {
     results.push(fail('OPENAI_API_KEY', 'Placeholder value detected: SUA_CHAVE.'))
-  } else if (!key && !isLocalBaseUrl(baseUrl)) {
+  } else if (!key && !isLocalBaseUrl(request.baseUrl)) {
     results.push(fail('OPENAI_API_KEY', 'Missing key for non-local provider URL.'))
   } else if (!key) {
     results.push(pass('OPENAI_API_KEY', 'Not set (allowed for local providers like Ollama/LM Studio).'))
@@ -137,22 +164,53 @@ async function checkBaseUrlReachability(): Promise<CheckResult> {
     return pass('Provider reachability', 'Skipped (OpenAI-compatible mode disabled).')
   }
 
-  const baseUrl = currentBaseUrl()
-  const key = process.env.OPENAI_API_KEY
-  const endpoint = `${baseUrl.replace(/\/$/, '')}/models`
+  const request = resolveProviderRequest({
+    model: process.env.OPENAI_MODEL,
+    baseUrl: process.env.OPENAI_BASE_URL,
+  })
+  const endpoint = request.transport === 'codex_responses'
+    ? `${request.baseUrl}/responses`
+    : `${request.baseUrl}/models`
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 4000)
 
   try {
     const headers: Record<string, string> = {}
-    if (key) {
-      headers.Authorization = `Bearer ${key}`
+    let method = 'GET'
+    let body: string | undefined
+
+    if (request.transport === 'codex_responses') {
+      const credentials = resolveCodexApiCredentials(process.env)
+      if (credentials.apiKey) {
+        headers.Authorization = `Bearer ${credentials.apiKey}`
+      }
+      if (credentials.accountId) {
+        headers['chatgpt-account-id'] = credentials.accountId
+      }
+      headers['Content-Type'] = 'application/json'
+      method = 'POST'
+      body = JSON.stringify({
+        model: request.resolvedModel,
+        instructions: 'Runtime doctor probe.',
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'ping' }],
+          },
+        ],
+        store: false,
+        stream: true,
+      })
+    } else if (process.env.OPENAI_API_KEY) {
+      headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`
     }
 
     const response = await fetch(endpoint, {
-      method: 'GET',
+      method,
       headers,
+      body,
       signal: controller.signal,
     })
 
@@ -209,11 +267,16 @@ function checkOllamaProcessorMode(): CheckResult {
 }
 
 function serializeSafeEnvSummary(): Record<string, string | boolean> {
+  const request = resolveProviderRequest({
+    model: process.env.OPENAI_MODEL,
+    baseUrl: process.env.OPENAI_BASE_URL,
+  })
   return {
     CLAUDE_CODE_USE_OPENAI: isTruthy(process.env.CLAUDE_CODE_USE_OPENAI),
     OPENAI_MODEL: process.env.OPENAI_MODEL ?? '(unset)',
-    OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+    OPENAI_BASE_URL: request.baseUrl,
     OPENAI_API_KEY_SET: Boolean(process.env.OPENAI_API_KEY),
+    CODEX_API_KEY_SET: Boolean(resolveCodexApiCredentials(process.env).apiKey),
   }
 }
 

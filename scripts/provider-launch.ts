@@ -2,8 +2,12 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  DEFAULT_CODEX_BASE_URL,
+  resolveCodexApiCredentials,
+} from '../src/services/api/providerConfig.js'
 
-type ProviderProfile = 'openai' | 'ollama'
+type ProviderProfile = 'openai' | 'ollama' | 'codex'
 
 type ProfileFile = {
   profile: ProviderProfile
@@ -11,6 +15,7 @@ type ProfileFile = {
     OPENAI_BASE_URL?: string
     OPENAI_MODEL?: string
     OPENAI_API_KEY?: string
+    CODEX_API_KEY?: string
   }
 }
 
@@ -32,7 +37,7 @@ function parseLaunchOptions(argv: string[]): LaunchOptions {
       continue
     }
 
-    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama') && requestedProfile === 'auto') {
+    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex') && requestedProfile === 'auto') {
       requestedProfile = lower as ProviderProfile | 'auto'
       continue
     }
@@ -62,7 +67,7 @@ function loadPersistedProfile(): ProfileFile | null {
   if (!existsSync(path)) return null
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as ProfileFile
-    if (parsed.profile === 'openai' || parsed.profile === 'ollama') {
+    if (parsed.profile === 'openai' || parsed.profile === 'ollama' || parsed.profile === 'codex') {
       return parsed
     }
     return null
@@ -115,6 +120,20 @@ function buildEnv(profile: ProviderProfile, persisted: ProfileFile | null): Node
     return env
   }
 
+  if (profile === 'codex') {
+    env.OPENAI_BASE_URL =
+      process.env.OPENAI_BASE_URL ||
+      persistedEnv.OPENAI_BASE_URL ||
+      DEFAULT_CODEX_BASE_URL
+    env.OPENAI_MODEL =
+      process.env.OPENAI_MODEL ||
+      persistedEnv.OPENAI_MODEL ||
+      'codexplan'
+    env.CODEX_API_KEY =
+      process.env.CODEX_API_KEY || persistedEnv.CODEX_API_KEY
+    return env
+  }
+
   env.OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || persistedEnv.OPENAI_BASE_URL || 'https://api.openai.com/v1'
   env.OPENAI_MODEL = process.env.OPENAI_MODEL || persistedEnv.OPENAI_MODEL || 'gpt-4o'
   env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || persistedEnv.OPENAI_API_KEY
@@ -137,18 +156,22 @@ function quoteArg(arg: string): string {
 }
 
 function printSummary(profile: ProviderProfile, env: NodeJS.ProcessEnv): void {
-  const keySet = Boolean(env.OPENAI_API_KEY)
+  const keySet = profile === 'codex'
+    ? Boolean(resolveCodexApiCredentials(env).apiKey)
+    : Boolean(env.OPENAI_API_KEY)
   console.log(`Launching profile: ${profile}`)
   console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
   console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
-  console.log(`OPENAI_API_KEY_SET=${keySet}`)
+  console.log(
+    `${profile === 'codex' ? 'CODEX_API_KEY_SET' : 'OPENAI_API_KEY_SET'}=${keySet}`,
+  )
 }
 
 async function main(): Promise<void> {
   const options = parseLaunchOptions(process.argv.slice(2))
   const requestedProfile = options.requestedProfile
   if (!requestedProfile) {
-    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|auto] [--fast] [-- <cli args>]')
+    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|auto] [--fast] [-- <cli args>]')
     process.exit(1)
   }
 
@@ -173,6 +196,17 @@ async function main(): Promise<void> {
   if (profile === 'openai' && (!env.OPENAI_API_KEY || env.OPENAI_API_KEY === 'SUA_CHAVE')) {
     console.error('OPENAI_API_KEY is required for openai profile and cannot be SUA_CHAVE. Run: bun run profile:init -- --provider openai --api-key <key>')
     process.exit(1)
+  }
+
+  if (profile === 'codex') {
+    const credentials = resolveCodexApiCredentials(env)
+    if (!credentials.apiKey) {
+      const authHint = credentials.authPath
+        ? ` or make sure ${credentials.authPath} exists`
+        : ''
+      console.error(`CODEX_API_KEY is required for codex profile${authHint}. Run: bun run profile:init -- --provider codex --model codexplan`)
+      process.exit(1)
+    }
   }
 
   printSummary(profile, env)

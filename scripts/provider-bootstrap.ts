@@ -1,8 +1,12 @@
 // @ts-nocheck
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  DEFAULT_CODEX_BASE_URL,
+  resolveCodexApiCredentials,
+} from '../src/services/api/providerConfig.js'
 
-type ProviderProfile = 'openai' | 'ollama'
+type ProviderProfile = 'openai' | 'ollama' | 'codex'
 
 type ProfileFile = {
   profile: ProviderProfile
@@ -10,6 +14,7 @@ type ProfileFile = {
     OPENAI_BASE_URL?: string
     OPENAI_MODEL?: string
     OPENAI_API_KEY?: string
+    CODEX_API_KEY?: string
   }
   createdAt: string
 }
@@ -23,7 +28,7 @@ function parseArg(name: string): string | null {
 
 function parseProviderArg(): ProviderProfile | 'auto' {
   const p = parseArg('--provider')?.toLowerCase()
-  if (p === 'openai' || p === 'ollama') return p
+  if (p === 'openai' || p === 'ollama' || p === 'codex') return p
   return 'auto'
 }
 
@@ -69,6 +74,23 @@ async function main(): Promise<void> {
     env.OPENAI_MODEL = argModel || process.env.OPENAI_MODEL || 'llama3.1:8b'
     const key = sanitizeApiKey(argApiKey || process.env.OPENAI_API_KEY || null)
     if (key) env.OPENAI_API_KEY = key
+  } else if (selected === 'codex') {
+    env.OPENAI_BASE_URL =
+      argBaseUrl || process.env.OPENAI_BASE_URL || DEFAULT_CODEX_BASE_URL
+    env.OPENAI_MODEL = argModel || process.env.OPENAI_MODEL || 'codexplan'
+    const key = sanitizeApiKey(argApiKey || process.env.CODEX_API_KEY || null)
+    if (key) {
+      env.CODEX_API_KEY = key
+    } else {
+      const credentials = resolveCodexApiCredentials(process.env)
+      if (!credentials.apiKey) {
+        const authHint = credentials.authPath
+          ? ` or make sure ${credentials.authPath} exists`
+          : ''
+        console.error(`Codex profile requires CODEX_API_KEY${authHint}.`)
+        process.exit(1)
+      }
+    }
   } else {
     env.OPENAI_BASE_URL = argBaseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
     env.OPENAI_MODEL = argModel || process.env.OPENAI_MODEL || 'gpt-4o'

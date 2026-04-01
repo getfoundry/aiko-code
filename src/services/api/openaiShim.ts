@@ -13,27 +13,25 @@
  *   OPENAI_API_KEY=sk-...             — API key (optional for local models)
  *   OPENAI_BASE_URL=http://...        — base URL (default: https://api.openai.com/v1)
  *   OPENAI_MODEL=gpt-4o              — default model override
+ *   CODEX_API_KEY / ~/.codex/auth.json — Codex auth for codexplan/codexspark
  */
+
+import {
+  codexStreamToAnthropic,
+  collectCodexCompletedResponse,
+  convertCodexResponseToAnthropicMessage,
+  performCodexRequest,
+  type AnthropicStreamEvent,
+  type ShimCreateParams,
+} from './codexShim.js'
+import {
+  resolveCodexApiCredentials,
+  resolveProviderRequest,
+} from './providerConfig.js'
 
 // ---------------------------------------------------------------------------
 // Types — minimal subset of Anthropic SDK types we need to produce
 // ---------------------------------------------------------------------------
-
-interface AnthropicUsage {
-  input_tokens: number
-  output_tokens: number
-  cache_creation_input_tokens: number
-  cache_read_input_tokens: number
-}
-
-interface AnthropicStreamEvent {
-  type: string
-  message?: Record<string, unknown>
-  index?: number
-  content_block?: Record<string, unknown>
-  delta?: Record<string, unknown>
-  usage?: Partial<AnthropicUsage>
-}
 
 // ---------------------------------------------------------------------------
 // Message format conversion: Anthropic → OpenAI
@@ -447,20 +445,6 @@ async function* openaiStreamToAnthropic(
 // The shim client — duck-types as Anthropic SDK
 // ---------------------------------------------------------------------------
 
-interface ShimCreateParams {
-  model: string
-  messages: Array<Record<string, unknown>>
-  system?: unknown
-  tools?: Array<Record<string, unknown>>
-  max_tokens: number
-  stream?: boolean
-  temperature?: number
-  top_p?: number
-  tool_choice?: unknown
-  metadata?: unknown
-  [key: string]: unknown
-}
-
 class OpenAIShimStream {
   private generator: AsyncGenerator<AnthropicStreamEvent>
   // The controller property is checked by claude.ts to distinguish streams from error messages
@@ -476,17 +460,9 @@ class OpenAIShimStream {
 }
 
 class OpenAIShimMessages {
-  private baseUrl: string
-  private apiKey: string
   private defaultHeaders: Record<string, string>
 
-  constructor(
-    baseUrl: string,
-    apiKey: string,
-    defaultHeaders: Record<string, string>,
-  ) {
-    this.baseUrl = baseUrl
-    this.apiKey = apiKey
+  constructor(defaultHeaders: Record<string, string>) {
     this.defaultHeaders = defaultHeaders
   }
 
@@ -496,20 +472,30 @@ class OpenAIShimMessages {
   ) {
     const self = this
 
-    // Return a thenable that also has .withResponse()
     const promise = (async () => {
-      const response = await self._doRequest(params, options)
+      const request = resolveProviderRequest({ model: params.model })
+      const response = await self._doRequest(request, params, options)
+
       if (params.stream) {
         return new OpenAIShimStream(
-          openaiStreamToAnthropic(response, params.model),
+          request.transport === 'codex_responses'
+            ? codexStreamToAnthropic(response, request.resolvedModel)
+            : openaiStreamToAnthropic(response, request.resolvedModel),
         )
       }
-      // Non-streaming: parse the full response and convert
+
+      if (request.transport === 'codex_responses') {
+        const data = await collectCodexCompletedResponse(response)
+        return convertCodexResponseToAnthropicMessage(
+          data,
+          request.resolvedModel,
+        )
+      }
+
       const data = await response.json()
-      return self._convertNonStreamingResponse(data, params.model)
+      return self._convertNonStreamingResponse(data, request.resolvedModel)
     })()
 
-    // Add .withResponse() for streaming path (claude.ts uses this)
     ;(promise as unknown as Record<string, unknown>).withResponse =
       async () => {
         const data = await promise
@@ -524,6 +510,43 @@ class OpenAIShimMessages {
   }
 
   private async _doRequest(
+    request: ReturnType<typeof resolveProviderRequest>,
+    params: ShimCreateParams,
+    options?: { signal?: AbortSignal; headers?: Record<string, string> },
+  ): Promise<Response> {
+    if (request.transport === 'codex_responses') {
+      const credentials = resolveCodexApiCredentials()
+      if (!credentials.apiKey) {
+        const authHint = credentials.authPath
+          ? ` or place a Codex auth.json at ${credentials.authPath}`
+          : ''
+        throw new Error(
+          `Codex auth is required for ${request.requestedModel}. Set CODEX_API_KEY${authHint}.`,
+        )
+      }
+      if (!credentials.accountId) {
+        throw new Error(
+          'Codex auth is missing chatgpt_account_id. Re-login with the Codex CLI or set CHATGPT_ACCOUNT_ID/CODEX_ACCOUNT_ID.',
+        )
+      }
+
+      return performCodexRequest({
+        request,
+        credentials,
+        params,
+        defaultHeaders: {
+          ...this.defaultHeaders,
+          ...(options?.headers ?? {}),
+        },
+        signal: options?.signal,
+      })
+    }
+
+    return this._doOpenAIRequest(request, params, options)
+  }
+
+  private async _doOpenAIRequest(
+    request: ReturnType<typeof resolveProviderRequest>,
     params: ShimCreateParams,
     options?: { signal?: AbortSignal; headers?: Record<string, string> },
   ): Promise<Response> {
@@ -537,7 +560,7 @@ class OpenAIShimMessages {
     )
 
     const body: Record<string, unknown> = {
-      model: params.model,
+      model: request.resolvedModel,
       messages: openaiMessages,
       max_tokens: params.max_tokens,
       stream: params.stream ?? false,
@@ -550,7 +573,6 @@ class OpenAIShimMessages {
     if (params.temperature !== undefined) body.temperature = params.temperature
     if (params.top_p !== undefined) body.top_p = params.top_p
 
-    // Convert tools
     if (params.tools && params.tools.length > 0) {
       const converted = convertTools(
         params.tools as Array<{
@@ -561,7 +583,6 @@ class OpenAIShimMessages {
       )
       if (converted.length > 0) {
         body.tools = converted
-        // Convert tool_choice
         if (params.tool_choice) {
           const tc = params.tool_choice as { type?: string; name?: string }
           if (tc.type === 'auto') {
@@ -578,18 +599,18 @@ class OpenAIShimMessages {
       }
     }
 
-    const url = `${this.baseUrl}/chat/completions`
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...this.defaultHeaders,
       ...(options?.headers ?? {}),
     }
 
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`
+    const apiKey = process.env.OPENAI_API_KEY ?? ''
+    if (apiKey) {
+      headers.Authorization = `Bearer ${apiKey}`
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(`${request.baseUrl}/chat/completions`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -598,9 +619,7 @@ class OpenAIShimMessages {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'unknown error')
-      throw new Error(
-        `OpenAI API error ${response.status}: ${errorBody}`,
-      )
+      throw new Error(`OpenAI API error ${response.status}: ${errorBody}`)
     }
 
     return response
@@ -680,45 +699,22 @@ class OpenAIShimMessages {
 class OpenAIShimBeta {
   messages: OpenAIShimMessages
 
-  constructor(
-    baseUrl: string,
-    apiKey: string,
-    defaultHeaders: Record<string, string>,
-  ) {
-    this.messages = new OpenAIShimMessages(baseUrl, apiKey, defaultHeaders)
+  constructor(defaultHeaders: Record<string, string>) {
+    this.messages = new OpenAIShimMessages(defaultHeaders)
   }
 }
 
-/**
- * Creates an Anthropic SDK-compatible client that routes requests
- * to an OpenAI-compatible API endpoint.
- *
- * Usage:
- *   CLAUDE_CODE_USE_OPENAI=1 OPENAI_API_KEY=sk-... OPENAI_MODEL=gpt-4o
- */
 export function createOpenAIShimClient(options: {
   defaultHeaders?: Record<string, string>
   maxRetries?: number
   timeout?: number
 }): unknown {
-  const baseUrl = (
-    process.env.OPENAI_BASE_URL ??
-    process.env.OPENAI_API_BASE ??
-    'https://api.openai.com/v1'
-  ).replace(/\/+$/, '')
-
-  const apiKey = process.env.OPENAI_API_KEY ?? ''
-
-  const headers = {
+  const beta = new OpenAIShimBeta({
     ...(options.defaultHeaders ?? {}),
-  }
+  })
 
-  const beta = new OpenAIShimBeta(baseUrl, apiKey, headers)
-
-  // Duck-type as Anthropic client
   return {
     beta,
-    // Some code paths access .messages directly (non-beta)
     messages: beta.messages,
   }
 }

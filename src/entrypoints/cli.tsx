@@ -1,4 +1,8 @@
 import { feature } from 'bun:bundle';
+import {
+  resolveCodexApiCredentials,
+  resolveProviderRequest,
+} from '../services/api/providerConfig.js'
 
 // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
@@ -46,15 +50,33 @@ function validateProviderEnvOrExit(): void {
     return
   }
 
-  const apiKey = process.env.OPENAI_API_KEY
-  const baseUrl = process.env.OPENAI_BASE_URL
+  const request = resolveProviderRequest({
+    model: process.env.OPENAI_MODEL,
+    baseUrl: process.env.OPENAI_BASE_URL,
+  })
 
-  if (apiKey === 'SUA_CHAVE') {
+  if (process.env.OPENAI_API_KEY === 'SUA_CHAVE') {
     console.error('Invalid OPENAI_API_KEY: placeholder value SUA_CHAVE detected. Set a real key or unset for local providers.')
     process.exit(1)
   }
 
-  if (!apiKey && !isLocalProviderUrl(baseUrl)) {
+  if (request.transport === 'codex_responses') {
+    const credentials = resolveCodexApiCredentials()
+    if (!credentials.apiKey) {
+      const authHint = credentials.authPath
+        ? ` or put auth.json at ${credentials.authPath}`
+        : ''
+      console.error(`Codex auth is required for ${request.requestedModel}. Set CODEX_API_KEY${authHint}.`)
+      process.exit(1)
+    }
+    if (!credentials.accountId) {
+      console.error('Codex auth is missing chatgpt_account_id. Re-login with Codex or set CHATGPT_ACCOUNT_ID/CODEX_ACCOUNT_ID.')
+      process.exit(1)
+    }
+    return
+  }
+
+  if (!process.env.OPENAI_API_KEY && !isLocalProviderUrl(request.baseUrl)) {
     console.error('OPENAI_API_KEY is required when CLAUDE_CODE_USE_OPENAI=1 and OPENAI_BASE_URL is not local.')
     process.exit(1)
   }
