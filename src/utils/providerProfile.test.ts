@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 
 import {
+  buildAtomicChatProfileEnv,
   buildCodexProfileEnv,
   buildGeminiProfileEnv,
   buildLaunchEnv,
@@ -380,4 +381,73 @@ test('openai profiles ignore codex shell transport hints', () => {
 test('auto profile falls back to openai when no viable ollama model exists', () => {
   assert.equal(selectAutoProfile(null), 'openai')
   assert.equal(selectAutoProfile('qwen2.5-coder:7b'), 'ollama')
+})
+
+// ── Atomic Chat profile tests ────────────────────────────────────────────────
+
+test('atomic-chat profiles never persist openai api keys', () => {
+  const env = buildAtomicChatProfileEnv('some-local-model', {
+    getAtomicChatChatBaseUrl: () => 'http://127.0.0.1:1337/v1',
+  })
+
+  assert.deepEqual(env, {
+    OPENAI_BASE_URL: 'http://127.0.0.1:1337/v1',
+    OPENAI_MODEL: 'some-local-model',
+  })
+  assert.equal('OPENAI_API_KEY' in env, false)
+})
+
+test('atomic-chat profiles respect custom base url', () => {
+  const env = buildAtomicChatProfileEnv('my-model', {
+    baseUrl: 'http://192.168.1.100:1337',
+    getAtomicChatChatBaseUrl: (baseUrl?: string) =>
+      baseUrl ? `${baseUrl}/v1` : 'http://127.0.0.1:1337/v1',
+  })
+
+  assert.equal(env.OPENAI_BASE_URL, 'http://192.168.1.100:1337/v1')
+  assert.equal(env.OPENAI_MODEL, 'my-model')
+})
+
+test('matching persisted atomic-chat env is reused for atomic-chat launch', async () => {
+  const env = await buildLaunchEnv({
+    profile: 'atomic-chat',
+    persisted: profile('atomic-chat', {
+      OPENAI_BASE_URL: 'http://127.0.0.1:1337/v1',
+      OPENAI_MODEL: 'llama-3.1-8b',
+    }),
+    goal: 'balanced',
+    processEnv: {},
+    getAtomicChatChatBaseUrl: () => 'http://127.0.0.1:1337/v1',
+    resolveAtomicChatDefaultModel: async () => 'other-model',
+  })
+
+  assert.equal(env.OPENAI_BASE_URL, 'http://127.0.0.1:1337/v1')
+  assert.equal(env.OPENAI_MODEL, 'llama-3.1-8b')
+  assert.equal(env.OPENAI_API_KEY, undefined)
+  assert.equal(env.CODEX_API_KEY, undefined)
+})
+
+test('atomic-chat launch ignores mismatched persisted openai env', async () => {
+  const env = await buildLaunchEnv({
+    profile: 'atomic-chat',
+    persisted: profile('openai', {
+      OPENAI_BASE_URL: 'https://api.openai.com/v1',
+      OPENAI_MODEL: 'gpt-4o',
+      OPENAI_API_KEY: 'sk-persisted',
+    }),
+    goal: 'balanced',
+    processEnv: {
+      OPENAI_API_KEY: 'sk-live',
+      CODEX_API_KEY: 'codex-live',
+      CHATGPT_ACCOUNT_ID: 'acct_live',
+    },
+    getAtomicChatChatBaseUrl: () => 'http://127.0.0.1:1337/v1',
+    resolveAtomicChatDefaultModel: async () => 'local-model',
+  })
+
+  assert.equal(env.OPENAI_BASE_URL, 'http://127.0.0.1:1337/v1')
+  assert.equal(env.OPENAI_MODEL, 'local-model')
+  assert.equal(env.OPENAI_API_KEY, undefined)
+  assert.equal(env.CODEX_API_KEY, undefined)
+  assert.equal(env.CHATGPT_ACCOUNT_ID, undefined)
 })

@@ -1,6 +1,7 @@
 import type { OllamaModelDescriptor } from '../src/utils/providerRecommendation.ts'
 
 export const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
+export const DEFAULT_ATOMIC_CHAT_BASE_URL = 'http://127.0.0.1:1337'
 
 function withTimeoutSignal(timeoutMs: number): {
   signal: AbortSignal
@@ -92,6 +93,61 @@ export async function listOllamaModels(
     clear()
   }
 }
+
+// ── Atomic Chat discovery (Apple Silicon local LLMs at 127.0.0.1:1337) ──────
+
+export function getAtomicChatApiBaseUrl(baseUrl?: string): string {
+  const raw = baseUrl || process.env.ATOMIC_CHAT_BASE_URL || DEFAULT_ATOMIC_CHAT_BASE_URL
+  return trimTrailingSlash(raw)
+}
+
+export function getAtomicChatChatBaseUrl(baseUrl?: string): string {
+  return `${getAtomicChatApiBaseUrl(baseUrl)}/v1`
+}
+
+export async function hasLocalAtomicChat(baseUrl?: string): Promise<boolean> {
+  const { signal, clear } = withTimeoutSignal(1200)
+  try {
+    const response = await fetch(`${getAtomicChatChatBaseUrl(baseUrl)}/models`, {
+      method: 'GET',
+      signal,
+    })
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    clear()
+  }
+}
+
+export async function listAtomicChatModels(
+  baseUrl?: string,
+): Promise<string[]> {
+  const { signal, clear } = withTimeoutSignal(5000)
+  try {
+    const response = await fetch(`${getAtomicChatChatBaseUrl(baseUrl)}/models`, {
+      method: 'GET',
+      signal,
+    })
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json() as {
+      data?: Array<{ id?: string }>
+    }
+
+    return (data.data ?? [])
+      .filter(model => Boolean(model.id))
+      .map(model => model.id!)
+  } catch {
+    return []
+  } finally {
+    clear()
+  }
+}
+
+// ── Ollama benchmarking ─────────────────────────────────────────────────────
 
 export async function benchmarkOllamaModel(
   modelName: string,

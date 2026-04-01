@@ -13,7 +13,7 @@ import {
 const DEFAULT_GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai'
 const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash'
 
-export type ProviderProfile = 'openai' | 'ollama' | 'codex' | 'gemini'
+export type ProviderProfile = 'openai' | 'ollama' | 'codex' | 'gemini' | 'atomic-chat'
 
 export type ProfileEnv = {
   OPENAI_BASE_URL?: string
@@ -49,6 +49,19 @@ export function buildOllamaProfileEnv(
 ): ProfileEnv {
   return {
     OPENAI_BASE_URL: options.getOllamaChatBaseUrl(options.baseUrl ?? undefined),
+    OPENAI_MODEL: model,
+  }
+}
+
+export function buildAtomicChatProfileEnv(
+  model: string,
+  options: {
+    baseUrl?: string | null
+    getAtomicChatChatBaseUrl: (baseUrl?: string) => string
+  },
+): ProfileEnv {
+  return {
+    OPENAI_BASE_URL: options.getAtomicChatChatBaseUrl(options.baseUrl ?? undefined),
     OPENAI_MODEL: model,
   }
 }
@@ -171,6 +184,8 @@ export async function buildLaunchEnv(options: {
   processEnv?: NodeJS.ProcessEnv
   getOllamaChatBaseUrl?: (baseUrl?: string) => string
   resolveOllamaDefaultModel?: (goal: RecommendationGoal) => Promise<string>
+  getAtomicChatChatBaseUrl?: (baseUrl?: string) => string
+  resolveAtomicChatDefaultModel?: () => Promise<string | null>
 }): Promise<NodeJS.ProcessEnv> {
   const processEnv = options.processEnv ?? process.env
   const persistedEnv =
@@ -239,6 +254,26 @@ export async function buildLaunchEnv(options: {
     env.OPENAI_MODEL =
       persistedEnv.OPENAI_MODEL ||
       (await resolveOllamaModel(options.goal))
+
+    delete env.OPENAI_API_KEY
+    delete env.CODEX_API_KEY
+    delete env.CHATGPT_ACCOUNT_ID
+    delete env.CODEX_ACCOUNT_ID
+
+    return env
+  }
+
+  if (options.profile === 'atomic-chat') {
+    const getAtomicChatBaseUrl =
+      options.getAtomicChatChatBaseUrl ?? (() => 'http://127.0.0.1:1337/v1')
+    const resolveModel =
+      options.resolveAtomicChatDefaultModel ?? (async () => null as string | null)
+
+    env.OPENAI_BASE_URL = persistedEnv.OPENAI_BASE_URL || getAtomicChatBaseUrl()
+    env.OPENAI_MODEL =
+      persistedEnv.OPENAI_MODEL ||
+      (await resolveModel()) ||
+      ''
 
     delete env.OPENAI_API_KEY
     delete env.CODEX_API_KEY
