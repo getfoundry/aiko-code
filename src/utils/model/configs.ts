@@ -14,6 +14,17 @@ export const OPENAI_MODEL_DEFAULTS = {
   haiku: 'gpt-4o-mini',     // fast & cheap
 } as const
 
+// ---------------------------------------------------------------------------
+// Gemini model mappings
+// Maps Claude model tiers to Google Gemini equivalents.
+// Override with GEMINI_MODEL env var.
+// ---------------------------------------------------------------------------
+export const GEMINI_MODEL_DEFAULTS = {
+  opus: 'gemini-2.5-pro-preview-03-25',   // most capable
+  sonnet: 'gemini-2.0-flash',              // balanced
+  haiku: 'gemini-2.0-flash-lite',          // fast & cheap
+} as const
+
 // @[MODEL LAUNCH]: Add a new CLAUDE_*_CONFIG constant here. Double check the correct model strings
 // here since the pattern may change.
 
@@ -23,6 +34,7 @@ export const CLAUDE_3_7_SONNET_CONFIG = {
   vertex: 'claude-3-7-sonnet@20250219',
   foundry: 'claude-3-7-sonnet',
   openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash',
 } as const satisfies ModelConfig
 
 export const CLAUDE_3_5_V2_SONNET_CONFIG = {
@@ -31,6 +43,7 @@ export const CLAUDE_3_5_V2_SONNET_CONFIG = {
   vertex: 'claude-3-5-sonnet-v2@20241022',
   foundry: 'claude-3-5-sonnet',
   openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash',
 } as const satisfies ModelConfig
 
 export const CLAUDE_3_5_HAIKU_CONFIG = {
@@ -39,6 +52,7 @@ export const CLAUDE_3_5_HAIKU_CONFIG = {
   vertex: 'claude-3-5-haiku@20241022',
   foundry: 'claude-3-5-haiku',
   openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash-lite',
 } as const satisfies ModelConfig
 
 export const CLAUDE_HAIKU_4_5_CONFIG = {
@@ -47,6 +61,7 @@ export const CLAUDE_HAIKU_4_5_CONFIG = {
   vertex: 'claude-haiku-4-5@20251001',
   foundry: 'claude-haiku-4-5',
   openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash-lite',
 } as const satisfies ModelConfig
 
 export const CLAUDE_SONNET_4_CONFIG = {
@@ -55,6 +70,7 @@ export const CLAUDE_SONNET_4_CONFIG = {
   vertex: 'claude-sonnet-4@20250514',
   foundry: 'claude-sonnet-4',
   openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash',
 } as const satisfies ModelConfig
 
 export const CLAUDE_SONNET_4_5_CONFIG = {
@@ -63,6 +79,7 @@ export const CLAUDE_SONNET_4_5_CONFIG = {
   vertex: 'claude-sonnet-4-5@20250929',
   foundry: 'claude-sonnet-4-5',
   openai: 'gpt-4o',
+  gemini: 'gemini-2.0-flash',
 } as const satisfies ModelConfig
 
 export const CLAUDE_OPUS_4_CONFIG = {
@@ -71,6 +88,7 @@ export const CLAUDE_OPUS_4_CONFIG = {
   vertex: 'claude-opus-4@20250514',
   foundry: 'claude-opus-4',
   openai: 'gpt-4o',
+  gemini: 'gemini-2.5-pro-preview-03-25',
 } as const satisfies ModelConfig
 
 export const CLAUDE_OPUS_4_1_CONFIG = {
@@ -79,6 +97,7 @@ export const CLAUDE_OPUS_4_1_CONFIG = {
   vertex: 'claude-opus-4-1@20250805',
   foundry: 'claude-opus-4-1',
   openai: 'gpt-4o',
+  gemini: 'gemini-2.5-pro-preview-03-25',
 } as const satisfies ModelConfig
 
 export const CLAUDE_OPUS_4_5_CONFIG = {
@@ -87,6 +106,7 @@ export const CLAUDE_OPUS_4_5_CONFIG = {
   vertex: 'claude-opus-4-5@20251101',
   foundry: 'claude-opus-4-5',
   openai: 'gpt-4o',
+  gemini: 'gemini-2.5-pro-preview-03-25',
 } as const satisfies ModelConfig
 
 export const CLAUDE_OPUS_4_6_CONFIG = {
@@ -95,6 +115,7 @@ export const CLAUDE_OPUS_4_6_CONFIG = {
   vertex: 'claude-opus-4-6',
   foundry: 'claude-opus-4-6',
   openai: 'gpt-4o',
+  gemini: 'gemini-2.5-pro-preview-03-25',
 } as const satisfies ModelConfig
 
 export const CLAUDE_SONNET_4_6_CONFIG = {
@@ -103,6 +124,7 @@ export const CLAUDE_SONNET_4_6_CONFIG = {
   vertex: 'claude-sonnet-4-6',
   foundry: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
+  gemini: 'gemini-2.0-flash',
 } as const satisfies ModelConfig
 
 // @[MODEL LAUNCH]: Register the new config here.

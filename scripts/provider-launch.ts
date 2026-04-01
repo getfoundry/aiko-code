@@ -7,7 +7,7 @@ import {
   resolveCodexApiCredentials,
 } from '../src/services/api/providerConfig.js'
 
-type ProviderProfile = 'openai' | 'ollama' | 'codex'
+type ProviderProfile = 'openai' | 'ollama' | 'codex' | 'gemini'
 
 type ProfileFile = {
   profile: ProviderProfile
@@ -16,6 +16,9 @@ type ProfileFile = {
     OPENAI_MODEL?: string
     OPENAI_API_KEY?: string
     CODEX_API_KEY?: string
+    GEMINI_API_KEY?: string
+    GEMINI_MODEL?: string
+    GEMINI_BASE_URL?: string
   }
 }
 
@@ -37,7 +40,7 @@ function parseLaunchOptions(argv: string[]): LaunchOptions {
       continue
     }
 
-    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex') && requestedProfile === 'auto') {
+    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex' || lower === 'gemini') && requestedProfile === 'auto') {
       requestedProfile = lower as ProviderProfile | 'auto'
       continue
     }
@@ -67,7 +70,7 @@ function loadPersistedProfile(): ProfileFile | null {
   if (!existsSync(path)) return null
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as ProfileFile
-    if (parsed.profile === 'openai' || parsed.profile === 'ollama' || parsed.profile === 'codex') {
+    if (parsed.profile === 'openai' || parsed.profile === 'ollama' || parsed.profile === 'codex' || parsed.profile === 'gemini') {
       return parsed
     }
     return null
@@ -106,6 +109,21 @@ function runCommand(command: string, env: NodeJS.ProcessEnv): Promise<number> {
 
 function buildEnv(profile: ProviderProfile, persisted: ProfileFile | null): NodeJS.ProcessEnv {
   const persistedEnv = persisted?.env ?? {}
+
+  if (profile === 'gemini') {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_CODE_USE_GEMINI: '1',
+    }
+    delete env.CLAUDE_CODE_USE_OPENAI
+    env.GEMINI_MODEL = process.env.GEMINI_MODEL || persistedEnv.GEMINI_MODEL || 'gemini-2.0-flash'
+    env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || persistedEnv.GEMINI_API_KEY
+    if (persistedEnv.GEMINI_BASE_URL || process.env.GEMINI_BASE_URL) {
+      env.GEMINI_BASE_URL = process.env.GEMINI_BASE_URL || persistedEnv.GEMINI_BASE_URL
+    }
+    return env
+  }
+
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     CLAUDE_CODE_USE_OPENAI: '1',
@@ -156,22 +174,26 @@ function quoteArg(arg: string): string {
 }
 
 function printSummary(profile: ProviderProfile, env: NodeJS.ProcessEnv): void {
-  const keySet = profile === 'codex'
-    ? Boolean(resolveCodexApiCredentials(env).apiKey)
-    : Boolean(env.OPENAI_API_KEY)
   console.log(`Launching profile: ${profile}`)
-  console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
-  console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
-  console.log(
-    `${profile === 'codex' ? 'CODEX_API_KEY_SET' : 'OPENAI_API_KEY_SET'}=${keySet}`,
-  )
+  if (profile === 'gemini') {
+    console.log(`GEMINI_MODEL=${env.GEMINI_MODEL}`)
+    console.log(`GEMINI_API_KEY_SET=${Boolean(env.GEMINI_API_KEY)}`)
+  } else if (profile === 'codex') {
+    console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
+    console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
+    console.log(`CODEX_API_KEY_SET=${Boolean(resolveCodexApiCredentials(env).apiKey)}`)
+  } else {
+    console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
+    console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
+    console.log(`OPENAI_API_KEY_SET=${Boolean(env.OPENAI_API_KEY)}`)
+  }
 }
 
 async function main(): Promise<void> {
   const options = parseLaunchOptions(process.argv.slice(2))
   const requestedProfile = options.requestedProfile
   if (!requestedProfile) {
-    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|auto] [--fast] [-- <cli args>]')
+    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|gemini|auto] [--fast] [-- <cli args>]')
     process.exit(1)
   }
 
@@ -191,6 +213,11 @@ async function main(): Promise<void> {
   const env = buildEnv(profile, persisted)
   if (options.fast) {
     applyFastFlags(env)
+  }
+
+  if (profile === 'gemini' && !env.GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY is required for gemini profile. Run: bun run profile:init -- --provider gemini --api-key <key>')
+    process.exit(1)
   }
 
   if (profile === 'openai' && (!env.OPENAI_API_KEY || env.OPENAI_API_KEY === 'SUA_CHAVE')) {

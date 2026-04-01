@@ -92,13 +92,48 @@ function isLocalBaseUrl(baseUrl: string): boolean {
   return isProviderLocalUrl(baseUrl)
 }
 
+const GEMINI_DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai'
+
 function currentBaseUrl(): string {
+  if (isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
+    return process.env.GEMINI_BASE_URL ?? GEMINI_DEFAULT_BASE_URL
+  }
   return process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'
+}
+
+function checkGeminiEnv(): CheckResult[] {
+  const results: CheckResult[] = []
+  const model = process.env.GEMINI_MODEL
+  const key = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY
+  const baseUrl = process.env.GEMINI_BASE_URL ?? GEMINI_DEFAULT_BASE_URL
+
+  results.push(pass('Provider mode', 'Google Gemini provider enabled.'))
+
+  if (!model) {
+    results.push(pass('GEMINI_MODEL', 'Not set. Default gemini-2.0-flash will be used.'))
+  } else {
+    results.push(pass('GEMINI_MODEL', model))
+  }
+
+  results.push(pass('GEMINI_BASE_URL', baseUrl))
+
+  if (!key) {
+    results.push(fail('GEMINI_API_KEY', 'Missing. Set GEMINI_API_KEY or GOOGLE_API_KEY.'))
+  } else {
+    results.push(pass('GEMINI_API_KEY', 'Configured.'))
+  }
+
+  return results
 }
 
 function checkOpenAIEnv(): CheckResult[] {
   const results: CheckResult[] = []
+  const useGemini = isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)
   const useOpenAI = isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
+
+  if (useGemini) {
+    return checkGeminiEnv()
+  }
 
   if (!useOpenAI) {
     results.push(pass('Provider mode', 'Anthropic login flow enabled (CLAUDE_CODE_USE_OPENAI is off).'))
@@ -160,13 +195,20 @@ function checkOpenAIEnv(): CheckResult[] {
 }
 
 async function checkBaseUrlReachability(): Promise<CheckResult> {
-  if (!isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)) {
+  const useGemini = isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)
+  const useOpenAI = isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
+
+  if (!useGemini && !useOpenAI) {
     return pass('Provider reachability', 'Skipped (OpenAI-compatible mode disabled).')
   }
 
+  const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai'
+  const resolvedBaseUrl = useGemini
+    ? (process.env.GEMINI_BASE_URL ?? geminiBaseUrl)
+    : undefined
   const request = resolveProviderRequest({
     model: process.env.OPENAI_MODEL,
-    baseUrl: process.env.OPENAI_BASE_URL,
+    baseUrl: resolvedBaseUrl ?? process.env.OPENAI_BASE_URL,
   })
   const endpoint = request.transport === 'codex_responses'
     ? `${request.baseUrl}/responses`
@@ -203,6 +245,8 @@ async function checkBaseUrlReachability(): Promise<CheckResult> {
         store: false,
         stream: true,
       })
+    } else if (useGemini && (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY)) {
+      headers.Authorization = `Bearer ${process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY}`
     } else if (process.env.OPENAI_API_KEY) {
       headers.Authorization = `Bearer ${process.env.OPENAI_API_KEY}`
     }
@@ -228,7 +272,7 @@ async function checkBaseUrlReachability(): Promise<CheckResult> {
 }
 
 function checkOllamaProcessorMode(): CheckResult {
-  if (!isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)) {
+  if (!isTruthy(process.env.CLAUDE_CODE_USE_OPENAI) || isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
     return pass('Ollama processor mode', 'Skipped (OpenAI-compatible mode disabled).')
   }
 
@@ -267,6 +311,14 @@ function checkOllamaProcessorMode(): CheckResult {
 }
 
 function serializeSafeEnvSummary(): Record<string, string | boolean> {
+  if (isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
+    return {
+      CLAUDE_CODE_USE_GEMINI: true,
+      GEMINI_MODEL: process.env.GEMINI_MODEL ?? '(unset, default: gemini-2.0-flash)',
+      GEMINI_BASE_URL: process.env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai',
+      GEMINI_API_KEY_SET: Boolean(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY),
+    }
+  }
   const request = resolveProviderRequest({
     model: process.env.OPENAI_MODEL,
     baseUrl: process.env.OPENAI_BASE_URL,

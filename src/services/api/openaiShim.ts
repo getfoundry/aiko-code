@@ -741,6 +741,22 @@ export function createOpenAIShimClient(options: {
   maxRetries?: number
   timeout?: number
 }): unknown {
+  // When Gemini provider is active, map Gemini env vars to OpenAI-compatible ones
+  // so the existing providerConfig.ts infrastructure picks them up correctly.
+  if (
+    process.env.CLAUDE_CODE_USE_GEMINI === '1' ||
+    process.env.CLAUDE_CODE_USE_GEMINI === 'true'
+  ) {
+    process.env.OPENAI_BASE_URL ??=
+      process.env.GEMINI_BASE_URL ??
+      'https://generativelanguage.googleapis.com/v1beta/openai'
+    process.env.OPENAI_API_KEY ??=
+      process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? ''
+    if (process.env.GEMINI_MODEL && !process.env.OPENAI_MODEL) {
+      process.env.OPENAI_MODEL = process.env.GEMINI_MODEL
+    }
+  }
+
   const beta = new OpenAIShimBeta({
     ...(options.defaultHeaders ?? {}),
   })

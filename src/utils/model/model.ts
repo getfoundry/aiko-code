@@ -35,6 +35,10 @@ export type ModelSetting = ModelName | ModelAlias | null
 
 export function getSmallFastModel(): ModelName {
   if (process.env.ANTHROPIC_SMALL_FAST_MODEL) return process.env.ANTHROPIC_SMALL_FAST_MODEL
+  // For Gemini provider, use a fast model
+  if (getAPIProvider() === 'gemini') {
+    return process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite'
+  }
   // For OpenAI provider, use OPENAI_MODEL or a sensible default
   if (getAPIProvider() === 'openai') {
     return process.env.OPENAI_MODEL || 'gpt-4o-mini'
@@ -71,7 +75,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
     specifiedModel = modelOverride
   } else {
     const settings = getSettings_DEPRECATED() || {}
-    specifiedModel = process.env.ANTHROPIC_MODEL || process.env.OPENAI_MODEL || settings.model || undefined
+    specifiedModel = process.env.ANTHROPIC_MODEL || process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || settings.model || undefined
   }
 
   // Ignore the user-specified model if it's not in the availableModels allowlist.
@@ -111,6 +115,10 @@ export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   }
+  // Gemini provider
+  if (getAPIProvider() === 'gemini') {
+    return process.env.GEMINI_MODEL || 'gemini-2.5-pro-preview-03-25'
+  }
   // OpenAI provider: use user-specified model or default
   if (getAPIProvider() === 'openai') {
     return process.env.OPENAI_MODEL || 'gpt-4o'
@@ -129,6 +137,10 @@ export function getDefaultSonnetModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
+  // Gemini provider
+  if (getAPIProvider() === 'gemini') {
+    return process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+  }
   // OpenAI provider
   if (getAPIProvider() === 'openai') {
     return process.env.OPENAI_MODEL || 'gpt-4o'
@@ -144,6 +156,10 @@ export function getDefaultSonnetModel(): ModelName {
 export function getDefaultHaikuModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
+  }
+  // Gemini provider
+  if (getAPIProvider() === 'gemini') {
+    return process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite'
   }
   // OpenAI provider
   if (getAPIProvider() === 'openai') {
@@ -193,6 +209,10 @@ export function getRuntimeMainLoopModel(params: {
  * @returns The default model setting to use
  */
 export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
+  // Gemini provider: always use the configured Gemini model
+  if (getAPIProvider() === 'gemini') {
+    return process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+  }
   // OpenAI provider: always use the configured OpenAI model
   if (getAPIProvider() === 'openai') {
     return process.env.OPENAI_MODEL || 'gpt-4o'
@@ -381,8 +401,8 @@ export function renderModelSetting(setting: ModelName | ModelAlias): string {
  * if the model is not recognized as a public model.
  */
 export function getPublicModelDisplayName(model: ModelName): string | null {
-  // For OpenAI provider, show the actual model name (e.g. 'gpt-4o') not a Claude alias
-  if (getAPIProvider() === 'openai') {
+  // For OpenAI/Gemini providers, show the actual model name not a Claude alias
+  if (getAPIProvider() === 'openai' || getAPIProvider() === 'gemini') {
     return null
   }
   switch (model) {

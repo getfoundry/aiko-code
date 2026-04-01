@@ -6,7 +6,7 @@ import {
   resolveCodexApiCredentials,
 } from '../src/services/api/providerConfig.js'
 
-type ProviderProfile = 'openai' | 'ollama' | 'codex'
+type ProviderProfile = 'openai' | 'ollama' | 'codex' | 'gemini'
 
 type ProfileFile = {
   profile: ProviderProfile
@@ -15,6 +15,9 @@ type ProfileFile = {
     OPENAI_MODEL?: string
     OPENAI_API_KEY?: string
     CODEX_API_KEY?: string
+    GEMINI_API_KEY?: string
+    GEMINI_MODEL?: string
+    GEMINI_BASE_URL?: string
   }
   createdAt: string
 }
@@ -28,7 +31,7 @@ function parseArg(name: string): string | null {
 
 function parseProviderArg(): ProviderProfile | 'auto' {
   const p = parseArg('--provider')?.toLowerCase()
-  if (p === 'openai' || p === 'ollama' || p === 'codex') return p
+  if (p === 'openai' || p === 'ollama' || p === 'codex' || p === 'gemini') return p
   return 'auto'
 }
 
@@ -69,7 +72,18 @@ async function main(): Promise<void> {
   }
 
   const env: ProfileFile['env'] = {}
-  if (selected === 'ollama') {
+
+  if (selected === 'gemini') {
+    env.GEMINI_MODEL = argModel || process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+    const key = sanitizeApiKey(argApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null)
+    if (!key) {
+      console.error('Gemini profile requires an API key. Use --api-key or set GEMINI_API_KEY.')
+      console.error('Get a free key at: https://aistudio.google.com/apikey')
+      process.exit(1)
+    }
+    env.GEMINI_API_KEY = key
+    if (argBaseUrl) env.GEMINI_BASE_URL = argBaseUrl
+  } else if (selected === 'ollama') {
     env.OPENAI_BASE_URL = argBaseUrl || 'http://localhost:11434/v1'
     env.OPENAI_MODEL = argModel || process.env.OPENAI_MODEL || 'llama3.1:8b'
     const key = sanitizeApiKey(argApiKey || process.env.OPENAI_API_KEY || null)
