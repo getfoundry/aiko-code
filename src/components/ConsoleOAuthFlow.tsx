@@ -403,7 +403,7 @@ function OAuthStatusMessage(t0) {
         let t6;
         if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
           t6 = [t4, t5, {
-            label: <Text>3rd-party platform ·{" "}<Text dimColor={true}>Amazon Bedrock, Microsoft Foundry, or Vertex AI</Text>{"\n"}</Text>,
+            label: <Text>3rd-party platform ·{" "}<Text dimColor={true}>OpenAI, Gemini, Bedrock, Ollama, and more</Text>{"\n"}</Text>,
             value: "platform"
           }];
           $[5] = t6;
@@ -460,7 +460,7 @@ function OAuthStatusMessage(t0) {
         let t2;
         let t3;
         if ($[13] === Symbol.for("react.memo_cache_sentinel")) {
-          t2 = <Text>Claude Code supports Amazon Bedrock, Microsoft Foundry, and Vertex AI. Set the required environment variables, then restart Claude Code.</Text>;
+          t2 = <Text>OpenClaude supports OpenAI-compatible providers (GPT-4o, DeepSeek, Ollama, Groq), Google Gemini, Amazon Bedrock, Microsoft Foundry, and Vertex AI. Set the required environment variables, then restart OpenClaude.</Text>;
           t3 = <Text>If you are part of an enterprise organization, contact your administrator for setup instructions.</Text>;
           $[13] = t2;
           $[14] = t3;
@@ -491,7 +491,10 @@ function OAuthStatusMessage(t0) {
         }
         let t7;
         if ($[18] === Symbol.for("react.memo_cache_sentinel")) {
-          t7 = <Box flexDirection="column" marginTop={1}>{t4}{t5}{t6}<Text>· Vertex AI:{" "}<Link url="https://code.claude.com/docs/en/google-vertex-ai">https://code.claude.com/docs/en/google-vertex-ai</Link></Text></Box>;
+          t7 = <Box flexDirection="column" marginTop={1}>{t4}
+            <Text>· OpenAI / any OpenAI-compatible provider (GPT-4o, DeepSeek, Ollama, Groq):{"\n"}{"  "}CLAUDE_CODE_USE_OPENAI=1  OPENAI_API_KEY=sk-...  OPENAI_MODEL=gpt-4o</Text>
+            <Text>· Google Gemini (free key at https://aistudio.google.com/apikey):{"\n"}{"  "}CLAUDE_CODE_USE_GEMINI=1  GEMINI_API_KEY=your-key</Text>
+            {t5}{t6}<Text>· Vertex AI:{" "}<Link url="https://code.claude.com/docs/en/google-vertex-ai">https://code.claude.com/docs/en/google-vertex-ai</Link></Text></Box>;
           $[18] = t7;
         } else {
           t7 = $[18];
