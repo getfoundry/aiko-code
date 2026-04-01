@@ -65,6 +65,39 @@ const result = await Bun.build({
     {
       name: 'bun-bundle-shim',
       setup(build) {
+        const internalFeatureStubModules = new Map([
+          [
+            '../daemon/workerRegistry.js',
+            'export async function runDaemonWorker() { throw new Error("Daemon worker is unavailable in the open build."); }',
+          ],
+          [
+            '../daemon/main.js',
+            'export async function daemonMain() { throw new Error("Daemon mode is unavailable in the open build."); }',
+          ],
+          [
+            '../cli/bg.js',
+            `
+export async function psHandler() { throw new Error("Background sessions are unavailable in the open build."); }
+export async function logsHandler() { throw new Error("Background sessions are unavailable in the open build."); }
+export async function attachHandler() { throw new Error("Background sessions are unavailable in the open build."); }
+export async function killHandler() { throw new Error("Background sessions are unavailable in the open build."); }
+export async function handleBgFlag() { throw new Error("Background sessions are unavailable in the open build."); }
+`,
+          ],
+          [
+            '../cli/handlers/templateJobs.js',
+            'export async function templatesMain() { throw new Error("Template jobs are unavailable in the open build."); }',
+          ],
+          [
+            '../environment-runner/main.js',
+            'export async function environmentRunnerMain() { throw new Error("Environment runner is unavailable in the open build."); }',
+          ],
+          [
+            '../self-hosted-runner/main.js',
+            'export async function selfHostedRunnerMain() { throw new Error("Self-hosted runner is unavailable in the open build."); }',
+          ],
+        ] as const)
+
         // Resolve `import { feature } from 'bun:bundle'` to a shim
         build.onResolve({ filter: /^bun:bundle$/ }, () => ({
           path: 'bun:bundle',
@@ -74,6 +107,26 @@ const result = await Bun.build({
           { filter: /.*/, namespace: 'bun-bundle-shim' },
           () => ({
             contents: `export function feature(name) { return false; }`,
+            loader: 'js',
+          }),
+        )
+
+        build.onResolve(
+          { filter: /^\.\.\/(daemon\/workerRegistry|daemon\/main|cli\/bg|cli\/handlers\/templateJobs|environment-runner\/main|self-hosted-runner\/main)\.js$/ },
+          args => {
+            if (!internalFeatureStubModules.has(args.path)) return null
+            return {
+              path: args.path,
+              namespace: 'internal-feature-stub',
+            }
+          },
+        )
+        build.onLoad(
+          { filter: /.*/, namespace: 'internal-feature-stub' },
+          args => ({
+            contents:
+              internalFeatureStubModules.get(args.path) ??
+              'export {}',
             loader: 'js',
           }),
         )
