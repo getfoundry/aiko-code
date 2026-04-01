@@ -4,6 +4,7 @@ import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
 import { getModelCapability } from './model/modelCapabilities.js'
+import { getOpenAIContextWindow, getOpenAIMaxOutputTokens } from './model/openaiContextWindows.js'
 
 // Model context window size (200k tokens for all models right now)
 export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
@@ -69,6 +70,19 @@ export function getContextWindowForModel(
   // [1m] suffix — explicit client-side opt-in, respected over all detection
   if (has1mContext(model)) {
     return 1_000_000
+  }
+
+  // OpenAI-compatible provider — use known context windows for the model
+  if (
+    process.env.CLAUDE_CODE_USE_OPENAI === '1' ||
+    process.env.CLAUDE_CODE_USE_OPENAI === 'true' ||
+    process.env.CLAUDE_CODE_USE_GEMINI === '1' ||
+    process.env.CLAUDE_CODE_USE_GEMINI === 'true'
+  ) {
+    const openaiWindow = getOpenAIContextWindow(model)
+    if (openaiWindow !== undefined) {
+      return openaiWindow
+    }
   }
 
   const cap = getModelCapability(model)
@@ -159,6 +173,19 @@ export function getModelMaxOutputTokens(model: string): {
       defaultTokens = antModel.defaultMaxTokens ?? MAX_OUTPUT_TOKENS_DEFAULT
       upperLimit = antModel.upperMaxTokensLimit ?? MAX_OUTPUT_TOKENS_UPPER_LIMIT
       return { default: defaultTokens, upperLimit }
+    }
+  }
+
+  // OpenAI-compatible provider — use known output limits to avoid 400 errors
+  if (
+    process.env.CLAUDE_CODE_USE_OPENAI === '1' ||
+    process.env.CLAUDE_CODE_USE_OPENAI === 'true' ||
+    process.env.CLAUDE_CODE_USE_GEMINI === '1' ||
+    process.env.CLAUDE_CODE_USE_GEMINI === 'true'
+  ) {
+    const openaiMax = getOpenAIMaxOutputTokens(model)
+    if (openaiMax !== undefined) {
+      return { default: openaiMax, upperLimit: openaiMax }
     }
   }
 

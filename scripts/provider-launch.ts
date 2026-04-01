@@ -48,7 +48,7 @@ function parseLaunchOptions(argv: string[]): LaunchOptions {
       continue
     }
 
-    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex') && requestedProfile === 'auto') {
+    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex' || lower === 'gemini') && requestedProfile === 'auto') {
       requestedProfile = lower as ProviderProfile | 'auto'
       continue
     }
@@ -79,7 +79,7 @@ function loadPersistedProfile(): ProfileFile | null {
   if (!existsSync(path)) return null
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as ProfileFile
-    if (parsed.profile === 'openai' || parsed.profile === 'ollama' || parsed.profile === 'codex') {
+    if (parsed.profile === 'openai' || parsed.profile === 'ollama' || parsed.profile === 'codex' || parsed.profile === 'gemini') {
       return parsed
     }
     return null
@@ -126,22 +126,26 @@ function quoteArg(arg: string): string {
 }
 
 function printSummary(profile: ProviderProfile, env: NodeJS.ProcessEnv): void {
-  const keySet = profile === 'codex'
-    ? Boolean(resolveCodexApiCredentials(env).apiKey)
-    : Boolean(env.OPENAI_API_KEY)
   console.log(`Launching profile: ${profile}`)
-  console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
-  console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
-  console.log(
-    `${profile === 'codex' ? 'CODEX_API_KEY_SET' : 'OPENAI_API_KEY_SET'}=${keySet}`,
-  )
+  if (profile === 'gemini') {
+    console.log(`GEMINI_MODEL=${env.GEMINI_MODEL}`)
+    console.log(`GEMINI_API_KEY_SET=${Boolean(env.GEMINI_API_KEY)}`)
+  } else if (profile === 'codex') {
+    console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
+    console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
+    console.log(`CODEX_API_KEY_SET=${Boolean(resolveCodexApiCredentials(env).apiKey)}`)
+  } else {
+    console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
+    console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
+    console.log(`OPENAI_API_KEY_SET=${Boolean(env.OPENAI_API_KEY)}`)
+  }
 }
 
 async function main(): Promise<void> {
   const options = parseLaunchOptions(process.argv.slice(2))
   const requestedProfile = options.requestedProfile
   if (!requestedProfile) {
-    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|auto] [--fast] [--goal <latency|balanced|coding>] [-- <cli args>]')
+    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|gemini|auto] [--fast] [--goal <latency|balanced|coding>] [-- <cli args>]')
     process.exit(1)
   }
 
@@ -182,6 +186,11 @@ async function main(): Promise<void> {
   })
   if (options.fast) {
     applyFastFlags(env)
+  }
+
+  if (profile === 'gemini' && !env.GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY is required for gemini profile. Run: bun run profile:init -- --provider gemini --api-key <key>')
+    process.exit(1)
   }
 
   if (profile === 'openai' && (!env.OPENAI_API_KEY || env.OPENAI_API_KEY === 'SUA_CHAVE')) {

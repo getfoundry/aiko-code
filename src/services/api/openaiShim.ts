@@ -292,6 +292,7 @@ async function* openaiStreamToAnthropic(
   let hasEmittedContentStart = false
   let lastStopReason: 'tool_use' | 'max_tokens' | 'end_turn' | null = null
   let hasEmittedFinalUsage = false
+  let hasProcessedFinishReason = false
 
   // Emit message_start
   yield {
@@ -422,8 +423,11 @@ async function* openaiStreamToAnthropic(
           }
         }
 
-        // Finish
-        if (choice.finish_reason) {
+        // Finish — guard ensures we only process finish_reason once even if
+        // multiple chunks arrive with finish_reason set (some providers do this)
+        if (choice.finish_reason && !hasProcessedFinishReason) {
+          hasProcessedFinishReason = true
+
           // Close any open content blocks
           if (hasEmittedContentStart) {
             yield {
@@ -741,6 +745,22 @@ export function createOpenAIShimClient(options: {
   maxRetries?: number
   timeout?: number
 }): unknown {
+  // When Gemini provider is active, map Gemini env vars to OpenAI-compatible ones
+  // so the existing providerConfig.ts infrastructure picks them up correctly.
+  if (
+    process.env.CLAUDE_CODE_USE_GEMINI === '1' ||
+    process.env.CLAUDE_CODE_USE_GEMINI === 'true'
+  ) {
+    process.env.OPENAI_BASE_URL ??=
+      process.env.GEMINI_BASE_URL ??
+      'https://generativelanguage.googleapis.com/v1beta/openai'
+    process.env.OPENAI_API_KEY ??=
+      process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? ''
+    if (process.env.GEMINI_MODEL && !process.env.OPENAI_MODEL) {
+      process.env.OPENAI_MODEL = process.env.GEMINI_MODEL
+    }
+  }
+
   const beta = new OpenAIShimBeta({
     ...(options.defaultHeaders ?? {}),
   })

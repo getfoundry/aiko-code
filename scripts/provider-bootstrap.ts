@@ -11,6 +11,7 @@ import {
 } from '../src/utils/providerRecommendation.ts'
 import {
   buildCodexProfileEnv,
+  buildGeminiProfileEnv,
   buildOllamaProfileEnv,
   buildOpenAIProfileEnv,
   createProfileFile,
@@ -33,7 +34,7 @@ function parseArg(name: string): string | null {
 
 function parseProviderArg(): ProviderProfile | 'auto' {
   const p = parseArg('--provider')?.toLowerCase()
-  if (p === 'openai' || p === 'ollama' || p === 'codex') return p
+  if (p === 'openai' || p === 'ollama' || p === 'codex' || p === 'gemini') return p
   return 'auto'
 }
 
@@ -72,7 +73,22 @@ async function main(): Promise<void> {
   }
 
   let env: ProfileFile['env']
-  if (selected === 'ollama') {
+  if (selected === 'gemini') {
+    const builtEnv = buildGeminiProfileEnv({
+      model: argModel || null,
+      baseUrl: argBaseUrl || null,
+      apiKey: argApiKey || null,
+      processEnv: process.env,
+    })
+
+    if (!builtEnv) {
+      console.error('Gemini profile requires an API key. Use --api-key or set GEMINI_API_KEY.')
+      console.error('Get a free key at: https://aistudio.google.com/apikey')
+      process.exit(1)
+    }
+
+    env = builtEnv
+  } else if (selected === 'ollama') {
     resolvedOllamaModel ??= await resolveOllamaModel(argModel, argBaseUrl, goal)
     if (!resolvedOllamaModel) {
       console.error('No viable Ollama chat model was discovered. Pull a chat model first or pass --model explicitly.')
@@ -136,7 +152,7 @@ async function main(): Promise<void> {
 
   console.log(`Saved profile: ${selected}`)
   console.log(`Goal: ${goal}`)
-  console.log(`Model: ${profile.env.OPENAI_MODEL}`)
+  console.log(`Model: ${profile.env.GEMINI_MODEL || profile.env.OPENAI_MODEL || getGoalDefaultOpenAIModel(goal)}`)
   console.log(`Path: ${outputPath}`)
   console.log('Next: bun run dev:profile')
 }

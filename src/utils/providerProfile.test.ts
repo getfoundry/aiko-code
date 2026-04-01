@@ -6,6 +6,7 @@ import test from 'node:test'
 
 import {
   buildCodexProfileEnv,
+  buildGeminiProfileEnv,
   buildLaunchEnv,
   buildOllamaProfileEnv,
   buildOpenAIProfileEnv,
@@ -125,6 +126,60 @@ test('openai launch ignores codex persisted transport hints', async () => {
   assert.equal(env.OPENAI_BASE_URL, 'https://api.openai.com/v1')
   assert.equal(env.OPENAI_MODEL, 'gpt-4o')
   assert.equal(env.OPENAI_API_KEY, 'sk-live')
+})
+
+test('matching persisted gemini env is reused for gemini launch', async () => {
+  const env = await buildLaunchEnv({
+    profile: 'gemini',
+    persisted: profile('gemini', {
+      GEMINI_MODEL: 'gemini-2.5-flash',
+      GEMINI_API_KEY: 'gem-persisted',
+      GEMINI_BASE_URL: 'https://example.test/v1beta/openai',
+    }),
+    goal: 'balanced',
+    processEnv: {},
+  })
+
+  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
+  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
+  assert.equal(env.GEMINI_MODEL, 'gemini-2.5-flash')
+  assert.equal(env.GEMINI_API_KEY, 'gem-persisted')
+  assert.equal(env.GEMINI_BASE_URL, 'https://example.test/v1beta/openai')
+})
+
+test('gemini launch ignores mismatched persisted openai env and strips other provider secrets', async () => {
+  const env = await buildLaunchEnv({
+    profile: 'gemini',
+    persisted: profile('openai', {
+      OPENAI_BASE_URL: 'https://api.openai.com/v1',
+      OPENAI_MODEL: 'gpt-4o',
+      OPENAI_API_KEY: 'sk-persisted',
+    }),
+    goal: 'balanced',
+    processEnv: {
+      GEMINI_API_KEY: 'gem-live',
+      GOOGLE_API_KEY: 'google-live',
+      OPENAI_API_KEY: 'sk-live',
+      OPENAI_BASE_URL: 'https://api.openai.com/v1',
+      OPENAI_MODEL: 'gpt-4o-mini',
+      CODEX_API_KEY: 'codex-live',
+      CHATGPT_ACCOUNT_ID: 'acct_live',
+      CLAUDE_CODE_USE_OPENAI: '1',
+    },
+  })
+
+  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
+  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
+  assert.equal(env.GEMINI_MODEL, 'gemini-2.0-flash')
+  assert.equal(env.GEMINI_API_KEY, 'gem-live')
+  assert.equal(
+    env.GEMINI_BASE_URL,
+    'https://generativelanguage.googleapis.com/v1beta/openai',
+  )
+  assert.equal(env.GOOGLE_API_KEY, undefined)
+  assert.equal(env.OPENAI_API_KEY, undefined)
+  assert.equal(env.CODEX_API_KEY, undefined)
+  assert.equal(env.CHATGPT_ACCOUNT_ID, undefined)
 })
 
 test('matching persisted codex env is reused for codex launch', async () => {
@@ -278,6 +333,27 @@ test('codex profiles require a chatgpt account id', () => {
     processEnv: {
       CODEX_AUTH_JSON_PATH: missingCodexAuthPath,
     },
+  })
+
+  assert.equal(env, null)
+})
+
+test('gemini profiles accept google api key fallback', () => {
+  const env = buildGeminiProfileEnv({
+    processEnv: {
+      GOOGLE_API_KEY: 'gem-live',
+    },
+  })
+
+  assert.deepEqual(env, {
+    GEMINI_MODEL: 'gemini-2.0-flash',
+    GEMINI_API_KEY: 'gem-live',
+  })
+})
+
+test('gemini profiles require a key', () => {
+  const env = buildGeminiProfileEnv({
+    processEnv: {},
   })
 
   assert.equal(env, null)
