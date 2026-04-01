@@ -21,7 +21,7 @@ test('deepseek-chat uses provider-specific context and output caps', () => {
   process.env.CLAUDE_CODE_USE_OPENAI = '1'
   delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS
 
-  expect(getContextWindowForModel('deepseek-chat')).toBe(64_000)
+  expect(getContextWindowForModel('deepseek-chat')).toBe(128_000)
   expect(getModelMaxOutputTokens('deepseek-chat')).toEqual({
     default: 8_192,
     upperLimit: 8_192,
