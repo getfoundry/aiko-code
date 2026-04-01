@@ -13,6 +13,9 @@
 
 const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   // OpenAI
+  'gpt-5.4':               1_050_000,
+  'gpt-5.4-mini':            400_000,
+  'gpt-5.4-nano':            400_000,
   'gpt-4o':                   128_000,
   'gpt-4o-mini':              128_000,
   'gpt-4.1':                  1_047_576,
@@ -62,6 +65,9 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
  */
 const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   // OpenAI
+  'gpt-5.4':                 128_000,
+  'gpt-5.4-mini':            128_000,
+  'gpt-5.4-nano':            128_000,
   'gpt-4o':                   16_384,
   'gpt-4o-mini':              16_384,
   'gpt-4.1':                  32_768,
