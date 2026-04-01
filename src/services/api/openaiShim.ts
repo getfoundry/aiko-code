@@ -44,6 +44,7 @@ interface OpenAIMessage {
     id: string
     type: 'function'
     function: { name: string; arguments: string }
+    extra_content?: Record<string, unknown>
   }>
   tool_call_id?: string
   name?: string
@@ -190,7 +191,12 @@ function convertMessages(
 
         if (toolUses.length > 0) {
           assistantMsg.tool_calls = toolUses.map(
-            (tu: { id?: string; name?: string; input?: unknown }) => ({
+            (tu: {
+              id?: string
+              name?: string
+              input?: unknown
+              extra_content?: Record<string, unknown>
+            }) => ({
               id: tu.id ?? `call_${Math.random().toString(36).slice(2)}`,
               type: 'function' as const,
               function: {
@@ -200,6 +206,7 @@ function convertMessages(
                     ? tu.input
                     : JSON.stringify(tu.input ?? {}),
               },
+              ...(tu.extra_content ? { extra_content: tu.extra_content } : {}),
             }),
           )
         }
@@ -265,6 +272,7 @@ interface OpenAIStreamChunk {
         id?: string
         type?: string
         function?: { name?: string; arguments?: string }
+        extra_content?: Record<string, unknown>
       }>
     }
     finish_reason: string | null
@@ -406,6 +414,7 @@ async function* openaiStreamToAnthropic(
                   id: tc.id,
                   name: tc.function.name,
                   input: {},
+                  ...(tc.extra_content ? { extra_content: tc.extra_content } : {}),
                 },
               }
               contentBlockIndex++
@@ -689,6 +698,7 @@ class OpenAIShimMessages {
           tool_calls?: Array<{
             id: string
             function: { name: string; arguments: string }
+            extra_content?: Record<string, unknown>
           }>
         }
         finish_reason?: string
@@ -720,6 +730,7 @@ class OpenAIShimMessages {
           id: tc.id,
           name: tc.function.name,
           input,
+          ...(tc.extra_content ? { extra_content: tc.extra_content } : {}),
         })
       }
     }
