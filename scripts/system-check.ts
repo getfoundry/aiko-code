@@ -186,7 +186,7 @@ function checkOpenAIEnv(): CheckResult[] {
   } else if (!key && !isLocalBaseUrl(request.baseUrl)) {
     results.push(fail('OPENAI_API_KEY', 'Missing key for non-local provider URL.'))
   } else if (!key) {
-    results.push(pass('OPENAI_API_KEY', 'Not set (allowed for local providers like Ollama/LM Studio).'))
+    results.push(pass('OPENAI_API_KEY', 'Not set (allowed for local providers like Atomic Chat/Ollama/LM Studio).'))
   } else {
     results.push(pass('OPENAI_API_KEY', 'Configured.'))
   }
@@ -271,6 +271,15 @@ async function checkBaseUrlReachability(): Promise<CheckResult> {
   }
 }
 
+function isAtomicChatUrl(baseUrl: string): boolean {
+  try {
+    const parsed = new URL(baseUrl)
+    return parsed.port === '1337' && isLocalBaseUrl(baseUrl)
+  } catch {
+    return false
+  }
+}
+
 function checkOllamaProcessorMode(): CheckResult {
   if (!isTruthy(process.env.CLAUDE_CODE_USE_OPENAI) || isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
     return pass('Ollama processor mode', 'Skipped (OpenAI-compatible mode disabled).')
@@ -279,6 +288,10 @@ function checkOllamaProcessorMode(): CheckResult {
   const baseUrl = currentBaseUrl()
   if (!isLocalBaseUrl(baseUrl)) {
     return pass('Ollama processor mode', 'Skipped (provider URL is not local).')
+  }
+
+  if (isAtomicChatUrl(baseUrl)) {
+    return pass('Ollama processor mode', 'Skipped (Atomic Chat local provider detected, not Ollama).')
   }
 
   const result = spawnSync('ollama', ['ps'], {
