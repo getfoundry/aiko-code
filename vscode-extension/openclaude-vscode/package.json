@@ -12,6 +12,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onCommand:openclaude.start",
     "onCommand:openclaude.openDocs",
     "onCommand:openclaude.openControlCenter",
