@@ -18,6 +18,8 @@ npm install -g @gitlawb/openclaude
 
 ### Option B: From source (requires Bun)
 
+Use Bun `1.3.11` or newer for source builds on Windows. Older Bun versions such as `1.3.4` can fail with a large batch of unresolved module errors during `bun run build`.
+
 ```bash
 # Clone from gitlawb
 git clone https://node.gitlawb.com/z6MkqDnb7Siv3Cwj7pGJq4T5EsUisECqR8KpnDLwcaZq5TPr/openclaude.git
