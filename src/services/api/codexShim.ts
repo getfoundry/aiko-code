@@ -264,7 +264,8 @@ export function convertAnthropicMessagesToResponsesInput(
 
     if (role === 'assistant') {
       const textBlocks = Array.isArray(content)
-        ? content.filter((block: { type?: string }) => block.type !== 'tool_use')
+        ? content.filter((block: { type?: string }) =>
+            block.type !== 'tool_use' && block.type !== 'thinking')
         : content
       const parts = convertContentBlocksToResponsesParts(textBlocks, 'assistant')
       if (parts.length > 0) {
