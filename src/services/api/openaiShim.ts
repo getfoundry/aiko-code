@@ -40,6 +40,7 @@ import {
 } from './providerConfig.js'
 import { stripIncompatibleSchemaKeywords } from '../../utils/schemaSanitizer.js'
 import { redactSecretValueForDisplay } from '../../utils/providerProfile.js'
+import { sanitizeSchemaForOpenAICompat } from './openaiSchemaSanitizer.js'
 
 const GITHUB_MODELS_DEFAULT_BASE = 'https://models.github.ai/inference'
 const GITHUB_API_VERSION = '2022-11-28'
@@ -271,12 +272,7 @@ function normalizeSchemaForOpenAI(
   schema: Record<string, unknown>,
   strict = true,
 ): Record<string, unknown> {
-  const sanitizedSchema = stripIncompatibleSchemaKeywords(schema)
-  if (!sanitizedSchema || typeof sanitizedSchema !== 'object' || Array.isArray(sanitizedSchema)) {
-    return (sanitizedSchema ?? {}) as Record<string, unknown>
-  }
-
-  const record = { ...sanitizedSchema }
+  const record = sanitizeSchemaForOpenAICompat(schema)
 
   if (record.type === 'object' && record.properties) {
     const properties = record.properties as Record<string, Record<string, unknown>>
@@ -387,6 +383,9 @@ interface OpenAIStreamChunk {
     prompt_tokens?: number
     completion_tokens?: number
     total_tokens?: number
+    prompt_tokens_details?: {
+      cached_tokens?: number
+    }
   }
 }
 
@@ -403,7 +402,7 @@ function convertChunkUsage(
     input_tokens: usage.prompt_tokens ?? 0,
     output_tokens: usage.completion_tokens ?? 0,
     cache_creation_input_tokens: 0,
-    cache_read_input_tokens: 0,
+    cache_read_input_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
   }
 }
 
@@ -949,6 +948,9 @@ class OpenAIShimMessages {
       usage?: {
         prompt_tokens?: number
         completion_tokens?: number
+        prompt_tokens_details?: {
+          cached_tokens?: number
+        }
       }
     },
     model: string,
@@ -1014,7 +1016,7 @@ class OpenAIShimMessages {
         input_tokens: data.usage?.prompt_tokens ?? 0,
         output_tokens: data.usage?.completion_tokens ?? 0,
         cache_creation_input_tokens: 0,
-        cache_read_input_tokens: 0,
+        cache_read_input_tokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
       },
     }
   }

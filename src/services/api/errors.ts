@@ -812,7 +812,8 @@ export function getAssistantMessageFromError(
 
   if (
     error instanceof Error &&
-    error.message.toLowerCase().includes('x-api-key')
+    error.message.toLowerCase().includes('x-api-key') &&
+    getAPIProvider() === 'firstParty'
   ) {
     // In CCR mode, auth is via JWTs - this is likely a transient network issue
     if (isCCRMode()) {
