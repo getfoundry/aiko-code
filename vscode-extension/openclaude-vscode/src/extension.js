@@ -1,16 +1,62 @@
 const vscode = require('vscode');
 const crypto = require('crypto');
+const { exec } = require('child_process');
+const { promisify } = require('util');
 
-function launchOpenClaude() {
+const execAsync = promisify(exec);
+const OPENCLAUDE_REPO_URL = 'https://github.com/Gitlawb/openclaude';
+
+async function isCommandAvailable(command) {
+  try {
+    if (!command) {
+      return false;
+    }
+
+    if (process.platform === 'win32') {
+      await execAsync(`where ${command}`);
+    } else {
+      await execAsync(`command -v ${command}`);
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getExecutableFromCommand(command) {
+  return command.trim().split(/\s+/)[0];
+}
+
+async function launchOpenClaude() {
   const configured = vscode.workspace.getConfiguration('openclaude');
   const launchCommand = configured.get('launchCommand', 'openclaude');
   const terminalName = configured.get('terminalName', 'OpenClaude');
+  const shimEnabled = configured.get('useOpenAIShim', false);
+  const executable = getExecutableFromCommand(launchCommand);
+  const installed = await isCommandAvailable(executable);
+
+  if (!installed) {
+    const action = await vscode.window.showErrorMessage(
+      `OpenClaude command not found: ${executable}. Install it with: npm install -g @gitlawb/openclaude`,
+      'Open Repository'
+    );
+
+    if (action === 'Open Repository') {
+      await vscode.env.openExternal(vscode.Uri.parse(OPENCLAUDE_REPO_URL));
+    }
+
+    return;
+  }
+
+  const env = {};
+  if (shimEnabled) {
+    env.CLAUDE_CODE_USE_OPENAI = '1';
+  }
 
   const terminal = vscode.window.createTerminal({
     name: terminalName,
-    env: {
-      CLAUDE_CODE_USE_OPENAI: configured.get('useOpenAIShim', true) ? '1' : undefined,
-    },
+    env,
   });
 
   terminal.show(true);
@@ -18,18 +64,30 @@ function launchOpenClaude() {
 }
 
 class OpenClaudeControlCenterProvider {
-  resolveWebviewView(webviewView) {
+  async resolveWebviewView(webviewView) {
     webviewView.webview.options = { enableScripts: true };
-    webviewView.webview.html = this.getHtml(webviewView.webview);
+    const configured = vscode.workspace.getConfiguration('openclaude');
+    const launchCommand = configured.get('launchCommand', 'openclaude');
+    const executable = getExecutableFromCommand(launchCommand);
+    const installed = await isCommandAvailable(executable);
+    const shimEnabled = configured.get('useOpenAIShim', false);
+    const shortcut = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
+
+    webviewView.webview.html = this.getHtml(webviewView.webview, {
+      installed,
+      shimEnabled,
+      shortcut,
+      executable,
+    });
 
     webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message?.type === 'launch') {
-        launchOpenClaude();
+        await launchOpenClaude();
         return;
       }
 
       if (message?.type === 'docs') {
-        await vscode.env.openExternal(vscode.Uri.parse('https://github.com/devNull-bootloader/openclaude'));
+        await vscode.env.openExternal(vscode.Uri.parse(OPENCLAUDE_REPO_URL));
         return;
       }
 
@@ -39,8 +97,10 @@ class OpenClaudeControlCenterProvider {
     });
   }
 
-  getHtml(webview) {
+  getHtml(webview, status) {
     const nonce = crypto.randomBytes(16).toString('base64');
+    const runtimeLabel = status.installed ? 'available' : 'missing';
+    const shimLabel = status.shimEnabled ? 'enabled (CLAUDE_CODE_USE_OPENAI=1)' : 'disabled';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -216,8 +276,9 @@ class OpenClaudeControlCenterProvider {
 
       <div class="terminal-box">
         <div class="terminal-row"><span class="prompt">$</span> openclaude --status</div>
-        <div class="terminal-row">runtime: active</div>
-        <div class="terminal-row">shim: CLAUDE_CODE_USE_OPENAI=1</div>
+        <div class="terminal-row">runtime: ${runtimeLabel}</div>
+        <div class="terminal-row">shim: ${shimLabel}</div>
+        <div class="terminal-row">command: ${status.executable}</div>
         <div class="terminal-row"><span class="prompt">$</span> <span class="cursor">awaiting command</span></div>
       </div>
 
@@ -228,7 +289,7 @@ class OpenClaudeControlCenterProvider {
       </div>
 
       <div class="hint">
-        Quick trigger: use <code>Ctrl+Shift+P</code> and run OpenClaude commands from anywhere.
+        Quick trigger: use <code>${status.shortcut}</code> and run OpenClaude commands from anywhere.
       </div>
     </div>
   </div>
@@ -249,11 +310,11 @@ class OpenClaudeControlCenterProvider {
  */
 function activate(context) {
   const startCommand = vscode.commands.registerCommand('openclaude.start', async () => {
-    launchOpenClaude();
+    await launchOpenClaude();
   });
 
   const openDocsCommand = vscode.commands.registerCommand('openclaude.openDocs', async () => {
-    await vscode.env.openExternal(vscode.Uri.parse('https://github.com/devNull-bootloader/openclaude'));
+    await vscode.env.openExternal(vscode.Uri.parse(OPENCLAUDE_REPO_URL));
   });
 
   const openUiCommand = vscode.commands.registerCommand('openclaude.openControlCenter', async () => {
