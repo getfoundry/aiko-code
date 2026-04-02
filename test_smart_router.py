@@ -7,6 +7,7 @@ Run: pytest test_smart_router.py -v
 
 import pytest
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from smart_router import SmartRouter, Provider
 
@@ -27,7 +28,9 @@ def make_provider(name, healthy=True, configured=True,
     p.avg_latency_ms = latency
     p.error_count = errors
     p.request_count = requests
-    if not configured:
+    if configured:
+        os.environ.setdefault("FAKE_KEY", "test-key")
+    else:
         p.api_key_env = ""  # makes is_configured False for non-ollama
     return p
 
@@ -122,6 +125,13 @@ def test_get_model_large_request():
     assert model == "openai-big"
 
 
+def test_get_model_large_message_overrides_claude_label():
+    p = make_provider("openai")
+    r = make_router()
+    model = r.get_model_for_provider(p, "claude-haiku", is_large_request=True)
+    assert model == "openai-big"
+
+
 def test_get_model_small_request():
     p = make_provider("openai")
     r = make_router()
@@ -138,6 +148,16 @@ async def test_route_returns_best_provider():
     r = make_router(providers=[p1, p2], strategy="cost")
     result = await r.route([{"role": "user", "content": "Hi"}], "claude-haiku")
     assert result["provider"] == "cheap"
+
+
+@pytest.mark.asyncio
+async def test_route_uses_big_model_for_large_message_bodies():
+    p = make_provider("openai")
+    r = make_router(providers=[p])
+    result = await r.route([
+        {"role": "user", "content": "x" * 3001},
+    ], "claude-haiku")
+    assert result["model"] == "openai-big"
 
 
 @pytest.mark.asyncio
