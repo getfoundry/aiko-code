@@ -3,6 +3,7 @@ import {
   setMainLoopModelOverride,
 } from '../bootstrap/state.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
+import { getAPIProvider } from '../utils/model/providers.js'
 import {
   getSettingsForSource,
   updateSettingsForSource,
@@ -23,6 +24,10 @@ import {
  * tracked by a completion flag in global config.
  */
 export function migrateSonnet1mToSonnet45(): void {
+  if (getAPIProvider() !== 'firstParty') {
+    return
+  }
+
   const config = getGlobalConfig()
   if (config.sonnet1m45MigrationComplete) {
     return

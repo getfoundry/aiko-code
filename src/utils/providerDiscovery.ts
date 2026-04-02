@@ -1,6 +1,7 @@
 import type { OllamaModelDescriptor } from './providerRecommendation.ts'
 
 export const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
+export const DEFAULT_ATOMIC_CHAT_BASE_URL = 'http://127.0.0.1:1337'
 
 function withTimeoutSignal(timeoutMs: number): {
   signal: AbortSignal
@@ -33,6 +34,23 @@ export function getOllamaApiBaseUrl(baseUrl?: string): string {
 
 export function getOllamaChatBaseUrl(baseUrl?: string): string {
   return `${getOllamaApiBaseUrl(baseUrl)}/v1`
+}
+
+export function getAtomicChatApiBaseUrl(baseUrl?: string): string {
+  const parsed = new URL(
+    baseUrl || process.env.ATOMIC_CHAT_BASE_URL || DEFAULT_ATOMIC_CHAT_BASE_URL,
+  )
+  const pathname = trimTrailingSlash(parsed.pathname)
+  parsed.pathname = pathname.endsWith('/v1')
+    ? pathname.slice(0, -3) || '/'
+    : pathname || '/'
+  parsed.search = ''
+  parsed.hash = ''
+  return trimTrailingSlash(parsed.toString())
+}
+
+export function getAtomicChatChatBaseUrl(baseUrl?: string): string {
+  return `${getAtomicChatApiBaseUrl(baseUrl)}/v1`
 }
 
 export async function hasLocalOllama(baseUrl?: string): Promise<boolean> {
@@ -86,6 +104,48 @@ export async function listOllamaModels(
         parameterSize: model.details?.parameter_size ?? null,
         quantizationLevel: model.details?.quantization_level ?? null,
       }))
+  } catch {
+    return []
+  } finally {
+    clear()
+  }
+}
+
+export async function hasLocalAtomicChat(baseUrl?: string): Promise<boolean> {
+  const { signal, clear } = withTimeoutSignal(1200)
+  try {
+    const response = await fetch(`${getAtomicChatChatBaseUrl(baseUrl)}/models`, {
+      method: 'GET',
+      signal,
+    })
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    clear()
+  }
+}
+
+export async function listAtomicChatModels(
+  baseUrl?: string,
+): Promise<string[]> {
+  const { signal, clear } = withTimeoutSignal(5000)
+  try {
+    const response = await fetch(`${getAtomicChatChatBaseUrl(baseUrl)}/models`, {
+      method: 'GET',
+      signal,
+    })
+    if (!response.ok) {
+      return []
+    }
+
+    const data = (await response.json()) as {
+      data?: Array<{ id?: string }>
+    }
+
+    return (data.data ?? [])
+      .filter(model => Boolean(model.id))
+      .map(model => model.id!)
   } catch {
     return []
   } finally {

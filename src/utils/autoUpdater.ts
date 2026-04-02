@@ -9,6 +9,7 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { type ReleaseChannel, saveGlobalConfig } from './config.js'
+import { getAPIProvider } from './model/providers.js'
 import { logForDebugging } from './debug.js'
 import { env } from './env.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
@@ -69,6 +70,12 @@ export type MaxVersionConfig = {
  */
 export async function assertMinVersion(): Promise<void> {
   if (process.env.NODE_ENV === 'test') {
+    return
+  }
+
+  // Skip version check for third-party providers — the min version
+  // kill-switch is Anthropic-specific and should not block 3P users
+  if (getAPIProvider() !== 'firstParty') {
     return
   }
 

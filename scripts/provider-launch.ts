@@ -15,8 +15,11 @@ import {
   type ProviderProfile,
 } from '../src/utils/providerProfile.ts'
 import {
+  getAtomicChatChatBaseUrl,
   getOllamaChatBaseUrl,
+  hasLocalAtomicChat,
   hasLocalOllama,
+  listAtomicChatModels,
   listOllamaModels,
 } from './provider-discovery.ts'
 
@@ -47,7 +50,7 @@ function parseLaunchOptions(argv: string[]): LaunchOptions {
       continue
     }
 
-    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex' || lower === 'gemini') && requestedProfile === 'auto') {
+    if ((lower === 'auto' || lower === 'openai' || lower === 'ollama' || lower === 'codex' || lower === 'gemini' || lower === 'atomic-chat') && requestedProfile === 'auto') {
       requestedProfile = lower as ProviderProfile | 'auto'
       continue
     }
@@ -83,6 +86,11 @@ async function resolveOllamaDefaultModel(
   const models = await listOllamaModels()
   const recommended = recommendOllamaModel(models, goal)
   return recommended?.name ?? null
+}
+
+async function resolveAtomicChatDefaultModel(): Promise<string | null> {
+  const models = await listAtomicChatModels()
+  return models[0] ?? null
 }
 
 function runCommand(command: string, env: NodeJS.ProcessEnv): Promise<number> {
@@ -121,6 +129,10 @@ function printSummary(profile: ProviderProfile, env: NodeJS.ProcessEnv): void {
     console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
     console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
     console.log(`CODEX_API_KEY_SET=${Boolean(resolveCodexApiCredentials(env).apiKey)}`)
+  } else if (profile === 'atomic-chat') {
+    console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
+    console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
+    console.log('OPENAI_API_KEY_SET=false (local provider, no key required)')
   } else {
     console.log(`OPENAI_BASE_URL=${env.OPENAI_BASE_URL}`)
     console.log(`OPENAI_MODEL=${env.OPENAI_MODEL}`)
@@ -132,7 +144,7 @@ async function main(): Promise<void> {
   const options = parseLaunchOptions(process.argv.slice(2))
   const requestedProfile = options.requestedProfile
   if (!requestedProfile) {
-    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|gemini|auto] [--fast] [--goal <latency|balanced|coding>] [-- <cli args>]')
+    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|gemini|atomic-chat|auto] [--fast] [--goal <latency|balanced|coding>] [-- <cli args>]')
     process.exit(1)
   }
 
@@ -164,12 +176,30 @@ async function main(): Promise<void> {
     }
   }
 
+  let resolvedAtomicChatModel: string | null = null
+  if (
+    profile === 'atomic-chat' &&
+    (persisted?.profile !== 'atomic-chat' || !persisted?.env?.OPENAI_MODEL)
+  ) {
+    if (!(await hasLocalAtomicChat())) {
+      console.error('Atomic Chat is not running (could not connect to 127.0.0.1:1337).\n  Download from https://atomic.chat/ and launch the application.')
+      process.exit(1)
+    }
+    resolvedAtomicChatModel = await resolveAtomicChatDefaultModel()
+    if (!resolvedAtomicChatModel) {
+      console.error('Atomic Chat is running but no model is loaded. Open Atomic Chat and download or start a model first.')
+      process.exit(1)
+    }
+  }
+
   const env = await buildLaunchEnv({
     profile,
     persisted,
     goal: options.goal,
     getOllamaChatBaseUrl,
     resolveOllamaDefaultModel: async () => resolvedOllamaModel || 'llama3.1:8b',
+    getAtomicChatChatBaseUrl,
+    resolveAtomicChatDefaultModel: async () => resolvedAtomicChatModel,
   })
   if (options.fast) {
     applyFastFlags(env)

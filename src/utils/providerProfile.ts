@@ -44,7 +44,7 @@ const SECRET_ENV_KEYS = [
   'GOOGLE_API_KEY',
 ] as const
 
-export type ProviderProfile = 'openai' | 'ollama' | 'codex' | 'gemini'
+export type ProviderProfile = 'openai' | 'ollama' | 'codex' | 'gemini' | 'atomic-chat'
 
 export type ProfileEnv = {
   OPENAI_BASE_URL?: string
@@ -89,7 +89,8 @@ export function isProviderProfile(value: unknown): value is ProviderProfile {
     value === 'openai' ||
     value === 'ollama' ||
     value === 'codex' ||
-    value === 'gemini'
+    value === 'gemini' ||
+    value === 'atomic-chat'
   )
 }
 
@@ -198,6 +199,19 @@ export function buildOllamaProfileEnv(
 ): ProfileEnv {
   return {
     OPENAI_BASE_URL: options.getOllamaChatBaseUrl(options.baseUrl ?? undefined),
+    OPENAI_MODEL: model,
+  }
+}
+
+export function buildAtomicChatProfileEnv(
+  model: string,
+  options: {
+    baseUrl?: string | null
+    getAtomicChatChatBaseUrl: (baseUrl?: string) => string
+  },
+): ProfileEnv {
+  return {
+    OPENAI_BASE_URL: options.getAtomicChatChatBaseUrl(options.baseUrl ?? undefined),
     OPENAI_MODEL: model,
   }
 }
@@ -385,6 +399,7 @@ export function hasExplicitProviderSelection(
 ): boolean {
   return (
     processEnv.CLAUDE_CODE_USE_OPENAI !== undefined ||
+    processEnv.CLAUDE_CODE_USE_GITHUB !== undefined ||
     processEnv.CLAUDE_CODE_USE_GEMINI !== undefined ||
     processEnv.CLAUDE_CODE_USE_BEDROCK !== undefined ||
     processEnv.CLAUDE_CODE_USE_VERTEX !== undefined ||
@@ -405,6 +420,8 @@ export async function buildLaunchEnv(options: {
   processEnv?: NodeJS.ProcessEnv
   getOllamaChatBaseUrl?: (baseUrl?: string) => string
   resolveOllamaDefaultModel?: (goal: RecommendationGoal) => Promise<string>
+  getAtomicChatChatBaseUrl?: (baseUrl?: string) => string
+  resolveAtomicChatDefaultModel?: () => Promise<string | null>
 }): Promise<NodeJS.ProcessEnv> {
   const processEnv = options.processEnv ?? process.env
   const persistedEnv =
@@ -456,6 +473,7 @@ export async function buildLaunchEnv(options: {
     }
 
     delete env.CLAUDE_CODE_USE_OPENAI
+    delete env.CLAUDE_CODE_USE_GITHUB
 
     env.GEMINI_MODEL =
       shellGeminiModel ||
@@ -490,6 +508,7 @@ export async function buildLaunchEnv(options: {
   }
 
   delete env.CLAUDE_CODE_USE_GEMINI
+  delete env.CLAUDE_CODE_USE_GITHUB
   delete env.GEMINI_API_KEY
   delete env.GEMINI_MODEL
   delete env.GEMINI_BASE_URL
@@ -505,6 +524,26 @@ export async function buildLaunchEnv(options: {
     env.OPENAI_MODEL =
       persistedOpenAIModel ||
       (await resolveOllamaModel(options.goal))
+
+    delete env.OPENAI_API_KEY
+    delete env.CODEX_API_KEY
+    delete env.CHATGPT_ACCOUNT_ID
+    delete env.CODEX_ACCOUNT_ID
+
+    return env
+  }
+
+  if (options.profile === 'atomic-chat') {
+    const getAtomicChatBaseUrl =
+      options.getAtomicChatChatBaseUrl ?? (() => 'http://127.0.0.1:1337/v1')
+    const resolveModel =
+      options.resolveAtomicChatDefaultModel ?? (async () => null as string | null)
+
+    env.OPENAI_BASE_URL = persistedEnv.OPENAI_BASE_URL || getAtomicChatBaseUrl()
+    env.OPENAI_MODEL =
+      persistedEnv.OPENAI_MODEL ||
+      (await resolveModel()) ||
+      ''
 
     delete env.OPENAI_API_KEY
     delete env.CODEX_API_KEY

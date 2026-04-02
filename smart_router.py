@@ -57,8 +57,8 @@ class Provider:
     @property
     def is_configured(self) -> bool:
         """True if the provider has an API key set."""
-        if self.name == "ollama":
-            return True  # Ollama needs no API key
+        if self.name in ("ollama", "atomic-chat"):
+            return True  # Local providers need no API key
         return bool(self.api_key)
 
     @property
@@ -93,6 +93,7 @@ def build_default_providers() -> list[Provider]:
     big = os.getenv("BIG_MODEL", "gpt-4.1")
     small = os.getenv("SMALL_MODEL", "gpt-4.1-mini")
     ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    atomic_chat_url = os.getenv("ATOMIC_CHAT_BASE_URL", "http://127.0.0.1:1337")
 
     return [
         Provider(
@@ -116,6 +117,14 @@ def build_default_providers() -> list[Provider]:
             ping_url=f"{ollama_url}/api/tags",
             api_key_env="",
             cost_per_1k_tokens=0.0,   # free — local
+            big_model=big if "gemini" not in big and "gpt" not in big else "llama3:8b",
+            small_model=small if "gemini" not in small and "gpt" not in small else "llama3:8b",
+        ),
+        Provider(
+            name="atomic-chat",
+            ping_url=f"{atomic_chat_url}/v1/models",
+            api_key_env="",
+            cost_per_1k_tokens=0.0,   # free — local (Apple Silicon)
             big_model=big if "gemini" not in big and "gpt" not in big else "llama3:8b",
             small_model=small if "gemini" not in small and "gpt" not in small else "llama3:8b",
         ),

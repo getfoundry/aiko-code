@@ -2,7 +2,7 @@
 
 Use Claude Code with **any LLM** — not just Claude.
 
-OpenClaude is a fork of the [Claude Code source leak](https://gitlawb.com/node/repos/z6MkgKkb/instructkr-claude-code) (exposed via npm source maps on March 31, 2026). We added an OpenAI-compatible provider shim so you can plug in GPT-4o, DeepSeek, Gemini, Llama, Mistral, or any model that speaks the OpenAI chat completions API. It now also supports the ChatGPT Codex backend for `codexplan` and `codexspark`.
+OpenClaude is a fork of the [Claude Code source leak](https://gitlawb.com/node/repos/z6MkgKkb/instructkr-claude-code) (exposed via npm source maps on March 31, 2026). We added an OpenAI-compatible provider shim so you can plug in GPT-4o, DeepSeek, Gemini, Llama, Mistral, or any model that speaks the OpenAI chat completions API. It now also supports the ChatGPT Codex backend for `codexplan` and `codexspark`, and local inference via [Atomic Chat](https://atomic.chat/) on Apple Silicon.
 
 All of Claude Code's tools work — bash, file read/write/edit, grep, glob, agents, tasks, MCP — just powered by whatever model you choose.
 
@@ -122,8 +122,12 @@ export OPENAI_MODEL=deepseek-chat
 export CLAUDE_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=sk-or-...
 export OPENAI_BASE_URL=https://openrouter.ai/api/v1
-export OPENAI_MODEL=google/gemini-2.0-flash
+export OPENAI_MODEL=google/gemini-2.0-flash-001
 ```
+
+OpenRouter model availability changes over time. If a model stops working,
+pick another currently available OpenRouter model before assuming the
+OpenAI-compatible setup is broken.
 
 ### Ollama (local, free)
 
@@ -135,6 +139,23 @@ export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_MODEL=llama3.3:70b
 # no API key needed for local models
 ```
+
+### Atomic Chat (local, Apple Silicon)
+
+```bash
+export CLAUDE_CODE_USE_OPENAI=1
+export OPENAI_BASE_URL=http://127.0.0.1:1337/v1
+export OPENAI_MODEL=your-model-name
+# no API key needed for local models
+```
+
+Or use the profile launcher:
+
+```bash
+bun run dev:atomic-chat
+```
+
+Download Atomic Chat from [atomic.chat](https://atomic.chat/). The app must be running with a model loaded before launching.
 
 ### LM Studio (local)
 
@@ -187,7 +208,7 @@ export OPENAI_MODEL=gpt-4o
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `CLAUDE_CODE_USE_OPENAI` | Yes | Set to `1` to enable the OpenAI provider |
-| `OPENAI_API_KEY` | Yes* | Your API key (*not needed for local models like Ollama) |
+| `OPENAI_API_KEY` | Yes* | Your API key (*not needed for local models like Ollama/Atomic Chat) |
 | `OPENAI_MODEL` | Yes | Model name (e.g. `gpt-4o`, `deepseek-chat`, `llama3.3:70b`) |
 | `OPENAI_BASE_URL` | No | API endpoint (defaults to `https://api.openai.com/v1`) |
 | `CODEX_API_KEY` | Codex only | Codex/ChatGPT access token override |
@@ -250,6 +271,9 @@ bun run profile:codex
 # openai bootstrap with explicit key
 bun run profile:init -- --provider openai --api-key sk-...
 
+# atomic-chat bootstrap (auto-detects running model)
+bun run profile:init -- --provider atomic-chat
+
 # ollama bootstrap with custom model
 bun run profile:init -- --provider ollama --model llama3.1:8b
 
@@ -270,6 +294,9 @@ bun run dev:openai
 
 # Ollama profile (defaults: localhost:11434, llama3.1:8b)
 bun run dev:ollama
+
+# Atomic Chat profile (Apple Silicon local LLMs at 127.0.0.1:1337)
+bun run dev:atomic-chat
 ```
 
 `profile:recommend` ranks installed Ollama models for `latency`, `balanced`, or `coding`, and `profile:auto` can persist the recommendation directly.
@@ -280,8 +307,9 @@ Goal-based Ollama selection only recommends among models that are already instal
 
 Use `profile:codex` or `--provider codex` when you want the ChatGPT Codex backend.
 
-`dev:openai`, `dev:ollama`, and `dev:codex` run `doctor:runtime` first and only launch the app if checks pass.
+`dev:openai`, `dev:ollama`, `dev:atomic-chat`, and `dev:codex` run `doctor:runtime` first and only launch the app if checks pass.
 For `dev:ollama`, make sure Ollama is running locally before launch.
+For `dev:atomic-chat`, make sure Atomic Chat is running with a model loaded.
 
 ---
 

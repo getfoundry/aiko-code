@@ -53,6 +53,9 @@ function isLocalProviderUrl(baseUrl: string | undefined): boolean {
 function getProviderValidationError(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
+  const useOpenAI = isEnvTruthy(env.CLAUDE_CODE_USE_OPENAI)
+  const useGithub = isEnvTruthy(env.CLAUDE_CODE_USE_GITHUB)
+
   if (isEnvTruthy(env.CLAUDE_CODE_USE_GEMINI)) {
     if (!(env.GEMINI_API_KEY ?? env.GOOGLE_API_KEY)) {
       return 'GEMINI_API_KEY is required when CLAUDE_CODE_USE_GEMINI=1.'
@@ -60,7 +63,15 @@ function getProviderValidationError(
     return null
   }
 
-  if (!isEnvTruthy(env.CLAUDE_CODE_USE_OPENAI)) {
+  if (useGithub && !useOpenAI) {
+    const token = (env.GITHUB_TOKEN?.trim() || env.GH_TOKEN?.trim()) ?? ''
+    if (!token) {
+      return 'GITHUB_TOKEN or GH_TOKEN is required when CLAUDE_CODE_USE_GITHUB=1.'
+    }
+    return null
+  }
+
+  if (!useOpenAI) {
     return null
   }
 
@@ -91,6 +102,10 @@ function getProviderValidationError(
   }
 
   if (!env.OPENAI_API_KEY && !isLocalProviderUrl(request.baseUrl)) {
+    const hasGithubToken = !!(env.GITHUB_TOKEN?.trim() || env.GH_TOKEN?.trim())
+    if (useGithub && hasGithubToken) {
+      return null
+    }
     return 'OPENAI_API_KEY is required when CLAUDE_CODE_USE_OPENAI=1 and OPENAI_BASE_URL is not local.'
   }
 
@@ -119,6 +134,15 @@ async function main(): Promise<void> {
     // biome-ignore lint/suspicious/noConsole:: intentional console output
     console.log(`${MACRO.DISPLAY_VERSION ?? MACRO.VERSION} (Open Claude)`);
     return;
+  }
+
+  {
+    const { enableConfigs } = await import('../utils/config.js')
+    enableConfigs()
+    const { applySafeConfigEnvironmentVariables } = await import('../utils/managedEnv.js')
+    applySafeConfigEnvironmentVariables()
+    const { hydrateGithubModelsTokenFromSecureStorage } = await import('../utils/githubModelsCredentials.js')
+    hydrateGithubModelsTokenFromSecureStorage()
   }
 
   const startupEnv = await buildStartupEnvFromProfile({
