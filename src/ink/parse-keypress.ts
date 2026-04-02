@@ -468,13 +468,24 @@ function decodeModifier(modifier: number): {
   ctrl: boolean
   super: boolean
 } {
-  const m = modifier - 1
+  // Some Windows VT stacks use 0 instead of 1 for an unmodified CSI-u key.
+  // Clamp to the protocol default so plain printable keys don't look like
+  // ctrl+meta+shift+super all at once.
+  const m = Math.max(modifier, 1) - 1
   return {
     shift: !!(m & 1),
     meta: !!(m & 2),
     ctrl: !!(m & 4),
     super: !!(m & 8),
   }
+}
+
+function isPrivateUseCodepoint(codepoint: number): boolean {
+  return (
+    (codepoint >= 0xe000 && codepoint <= 0xf8ff) ||
+    (codepoint >= 0xf0000 && codepoint <= 0xffffd) ||
+    (codepoint >= 0x100000 && codepoint <= 0x10fffd)
+  )
 }
 
 /**
@@ -536,6 +547,21 @@ function keycodeToName(keycode: number): string | undefined {
       if (keycode >= 32 && keycode <= 126) {
         return String.fromCharCode(keycode).toLowerCase()
       }
+
+      // CSI-u can carry printable Unicode codepoints directly on some
+      // Windows terminals and keyboard layouts. Keep kitty's private-use
+      // functional key range excluded so special keys still stay non-text.
+      if (
+        keycode > 0x1f &&
+        keycode !== 0x7f &&
+        (keycode < 0x80 || keycode > 0x9f) &&
+        keycode <= 0x10ffff &&
+        (keycode < 0xd800 || keycode > 0xdfff) &&
+        !isPrivateUseCodepoint(keycode)
+      ) {
+        return String.fromCodePoint(keycode)
+      }
+
       return undefined
   }
 }
