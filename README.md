@@ -118,8 +118,12 @@ export OPENAI_MODEL=deepseek-chat
 export CLAUDE_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=sk-or-...
 export OPENAI_BASE_URL=https://openrouter.ai/api/v1
-export OPENAI_MODEL=google/gemini-2.0-flash
+export OPENAI_MODEL=google/gemini-2.0-flash-001
 ```
+
+OpenRouter model availability changes over time. If a model stops working,
+pick another currently available OpenRouter model before assuming the
+OpenAI-compatible setup is broken.
 
 ### Ollama (local, free)
 
