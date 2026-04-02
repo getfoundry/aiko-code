@@ -5,6 +5,8 @@
  * Addresses: https://github.com/Gitlawb/openclaude/issues/55
  */
 
+declare const MACRO: { VERSION: string; DISPLAY_VERSION?: string }
+
 const ESC = '\x1b['
 const RESET = `${ESC}0m`
 const DIM = `${ESC}2m`
@@ -172,7 +174,7 @@ export function printStartupScreen(): void {
   out.push(boxRow(sRow, W, sLen))
 
   out.push(`${rgb(...BORDER)}\u255a${'\u2550'.repeat(W - 2)}\u255d${RESET}`)
-  out.push(`  ${DIM}${rgb(...DIMCOL)}openclaude v${(globalThis as Record<string, unknown>)['MACRO_DISPLAY_VERSION'] ?? '0.1.4'}${RESET}`)
+  out.push(`  ${DIM}${rgb(...DIMCOL)}openclaude v${MACRO.DISPLAY_VERSION ?? MACRO.VERSION}${RESET}`)
   out.push('')
 
   process.stdout.write(out.join('\n') + '\n')
