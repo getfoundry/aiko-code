@@ -19,13 +19,11 @@ function getProviderLabel(): string {
       return 'Google Vertex'
     case 'foundry':
       return 'Azure Foundry'
+    case 'openai':
+      return 'OpenAI-compatible API'
+    case 'gemini':
+      return 'Gemini API'
     default:
-      if (process.env.CLAUDE_CODE_USE_OPENAI === '1' || process.env.CLAUDE_CODE_USE_OPENAI === 'true') {
-        return 'OpenAI-compatible API'
-      }
-      if (process.env.CLAUDE_CODE_USE_GEMINI === '1' || process.env.CLAUDE_CODE_USE_GEMINI === 'true') {
-        return 'Gemini API'
-      }
       return 'API'
   }
 }
