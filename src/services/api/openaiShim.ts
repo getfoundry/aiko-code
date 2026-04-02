@@ -342,7 +342,7 @@ async function* openaiStreamToAnthropic(
 ): AsyncGenerator<AnthropicStreamEvent> {
   const messageId = makeMessageId()
   let contentBlockIndex = 0
-  const activeToolCalls = new Map<number, { id: string; name: string; index: number }>()
+  const activeToolCalls = new Map<number, { id: string; name: string; index: number; jsonBuffer: string }>()
   let hasEmittedContentStart = false
   let lastStopReason: 'tool_use' | 'max_tokens' | 'end_turn' | null = null
   let hasEmittedFinalUsage = false
@@ -436,6 +436,7 @@ async function* openaiStreamToAnthropic(
                 id: tc.id,
                 name: tc.function.name,
                 index: toolBlockIndex,
+                jsonBuffer: tc.function.arguments ?? '',
               })
 
               yield {
@@ -466,6 +467,9 @@ async function* openaiStreamToAnthropic(
               // Continuation of existing tool call
               const active = activeToolCalls.get(tc.index)
               if (active) {
+                if (tc.function.arguments) {
+                  active.jsonBuffer += tc.function.arguments
+                }
                 yield {
                   type: 'content_block_delta',
                   index: active.index,
@@ -493,6 +497,36 @@ async function* openaiStreamToAnthropic(
           }
           // Close active tool calls
           for (const [, tc] of activeToolCalls) {
+            let suffixToAdd = ''
+            if (tc.jsonBuffer) {
+              try {
+                JSON.parse(tc.jsonBuffer)
+              } catch {
+                const str = tc.jsonBuffer.trimEnd()
+                const combinations = [
+                  '}', '"}', ']}', '"]}', '}}', '"}}', ']}}', '"]}}', '"]}]}', '}]}'
+                ]
+                for (const combo of combinations) {
+                  try {
+                    JSON.parse(str + combo)
+                    suffixToAdd = combo
+                    break
+                  } catch {}
+                }
+              }
+            }
+
+            if (suffixToAdd) {
+              yield {
+                type: 'content_block_delta',
+                index: tc.index,
+                delta: {
+                  type: 'input_json_delta',
+                  partial_json: suffixToAdd,
+                },
+              }
+            }
+
             yield { type: 'content_block_stop', index: tc.index }
           }
 
