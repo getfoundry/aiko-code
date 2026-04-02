@@ -104,6 +104,11 @@ Best if you want local inference on Apple Silicon with Atomic Chat. See [Advance
 
 ---
 
+
+## VS Code Extension
+
+Want a native VS Code experience? Use the in-repo extension at `vscode-extension/openclaude-vscode` for one-command terminal launch and the `OpenClaude Terminal Black` theme.
+
 ## What Works
 
 - **All tools**: Bash, FileRead, FileWrite, FileEdit, Glob, Grep, WebFetch, WebSearch, Agent, MCP, LSP, NotebookEdit, Tasks
