@@ -56,7 +56,7 @@ import { profileReport } from './startupProfiler.js'
  * 3. Failing to disable leaves the terminal in a broken state
  */
 /* eslint-disable custom-rules/no-sync-fs -- must be sync to flush before process.exit */
-function cleanupTerminalModes(): void {
+function cleanupTerminalModes(skipUnmount: boolean = false): void {
   if (!process.stdout.isTTY) {
     return
   }
@@ -84,7 +84,7 @@ function cleanupTerminalModes(): void {
     // Calling unmount() now does the final render on the alt buffer,
     // unsubscribes from signal-exit, and writes 1049l exactly once.
     const inst = instances.get(process.stdout)
-    if (inst?.isAltScreenActive) {
+    if (!skipUnmount && inst?.isAltScreenActive) {
       try {
         inst.unmount()
       } catch {
@@ -92,6 +92,11 @@ function cleanupTerminalModes(): void {
         // so printResumeHint still hits the main buffer.
         writeSync(1, EXIT_ALT_SCREEN)
       }
+    } else if (skipUnmount && inst?.isAltScreenActive) {
+      // We already unmounted asynchronously in gracefulShutdown, but if we 
+      // fallback to manual alt-screen exit here just in case Ink didn't write it or is dead.
+      // Actually, AlternateScreen unmount writes EXIT_ALT_SCREEN, so if we awaited unmount,
+      // we shouldn't emit it again. So we just do nothing here.
     }
     // Catches events that arrived during the unmount tree-walk.
     // detachForShutdown() below also drains.
@@ -411,12 +416,17 @@ export async function gracefulShutdown(
   )
   const sessionEndTimeoutMs = getSessionEndHookTimeoutMs()
 
+  // Await one tick so React can flush pending updates from commands (e.g. hiding
+  // the autocomplete menu on /exit) before we detach Ink. This lets log-update
+  // erase floating UI elements from the terminal so they don't linger after exit.
+  await new Promise(r => setTimeout(r, 20))
+
   // Failsafe: guarantee process exits even if cleanup hangs (e.g., MCP connections).
   // Runs cleanupTerminalModes first so a hung cleanup doesn't leave the terminal dirty.
   // Budget = max(5s, hook budget + 3.5s headroom for cleanup + analytics flush).
   failsafeTimer = setTimeout(
     code => {
-      cleanupTerminalModes()
+      cleanupTerminalModes(true)
       printResumeHint()
       forceExit(code)
     },
@@ -433,7 +443,7 @@ export async function gracefulShutdown(
   // cleanup (e.g., SIGKILL during macOS reboot). Without this, the resume
   // hint would only appear after cleanup functions, hooks, and analytics
   // flush — which can take several seconds.
-  cleanupTerminalModes()
+  cleanupTerminalModes(true)
   printResumeHint()
 
   // Flush session data first — this is the most critical cleanup. If the

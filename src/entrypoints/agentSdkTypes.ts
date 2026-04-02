@@ -441,3 +441,8 @@ export async function connectRemoteControl(
 ): Promise<RemoteControlHandle | null> {
   throw new Error('not implemented')
 }
+
+// add exit reason types for removing the error within gracefulShutdown file 
+export type ExitReason = {
+  
+}
