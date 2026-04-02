@@ -13,7 +13,7 @@
         "@anthropic-ai/vertex-sdk": "0.14.4",
         "@commander-js/extra-typings": "12.1.0",
         "@growthbook/growthbook": "1.6.5",
-        "@mendable/firecrawl-js": "^4.18.1",
+        "@mendable/firecrawl-js": "4.18.1",
         "@modelcontextprotocol/sdk": "1.29.0",
         "@opentelemetry/api": "1.9.1",
         "@opentelemetry/api-logs": "0.214.0",
