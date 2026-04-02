@@ -704,11 +704,40 @@ class OpenAIShimMessages {
     }
 
     const apiKey = process.env.OPENAI_API_KEY ?? ''
+    const isAzure = /cognitiveservices\.azure\.com|openai\.azure\.com/.test(request.baseUrl)
+
     if (apiKey) {
-      headers.Authorization = `Bearer ${apiKey}`
+      if (isAzure) {
+        // Azure uses api-key header instead of Bearer token
+        headers['api-key'] = apiKey
+      } else {
+        headers.Authorization = `Bearer ${apiKey}`
+      }
     }
 
-    const response = await fetch(`${request.baseUrl}/chat/completions`, {
+    // Build the chat completions URL
+    // Azure Cognitive Services / Azure OpenAI require a deployment-specific path
+    // and an api-version query parameter.
+    // Standard format: {base}/openai/deployments/{model}/chat/completions?api-version={version}
+    // Non-Azure: {base}/chat/completions
+    let chatCompletionsUrl: string
+    if (isAzure) {
+      const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? '2024-12-01-preview'
+      const deployment = request.resolvedModel ?? process.env.OPENAI_MODEL ?? 'gpt-4o'
+      // If base URL already contains /deployments/, use it as-is with api-version
+      if (/\/deployments\//i.test(request.baseUrl)) {
+        const base = request.baseUrl.replace(/\/+$/, '')
+        chatCompletionsUrl = `${base}/chat/completions?api-version=${apiVersion}`
+      } else {
+        // Strip trailing /v1 or /openai/v1 if present, then build Azure path
+        const base = request.baseUrl.replace(/\/(openai\/)?v1\/?$/, '').replace(/\/+$/, '')
+        chatCompletionsUrl = `${base}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
+      }
+    } else {
+      chatCompletionsUrl = `${request.baseUrl}/chat/completions`
+    }
+
+    const response = await fetch(chatCompletionsUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
