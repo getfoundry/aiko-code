@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { isIP } from 'node:net'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -86,6 +87,29 @@ type ModelDescriptor = {
 }
 
 const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
+
+function isPrivateIpv4Address(hostname: string): boolean {
+  const octets = hostname.split('.').map(part => Number.parseInt(part, 10))
+  if (octets.length !== 4 || octets.some(octet => Number.isNaN(octet))) {
+    return false
+  }
+
+  return (
+    octets[0] === 10 ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168)
+  )
+}
+
+function isPrivateIpv6Address(hostname: string): boolean {
+  const firstHextet = hostname.split(':', 1)[0]
+  if (!firstHextet) return false
+
+  const prefix = Number.parseInt(firstHextet, 16)
+  if (Number.isNaN(prefix)) return false
+
+  return (prefix & 0xfe00) === 0xfc00 || (prefix & 0xffc0) === 0xfe80
+}
 
 function asTrimmedString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
@@ -186,7 +210,37 @@ function isCodexAlias(model: string): boolean {
 export function isLocalProviderUrl(baseUrl: string | undefined): boolean {
   if (!baseUrl) return false
   try {
-    return LOCALHOST_HOSTNAMES.has(new URL(baseUrl).hostname)
+    let hostname = new URL(baseUrl).hostname.toLowerCase()
+
+    // Strip IPv6 brackets added by the URL parser (e.g. "[::1]" -> "::1")
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      hostname = hostname.slice(1, -1)
+    }
+
+    // Strip RFC6874 IPv6 zone identifiers (e.g. "fe80::1%25en0" -> "fe80::1")
+    const zoneIdIndex = hostname.indexOf('%25')
+    if (zoneIdIndex !== -1) {
+      hostname = hostname.slice(0, zoneIdIndex)
+    }
+
+    if (LOCALHOST_HOSTNAMES.has(hostname) || hostname === '0.0.0.0') {
+      return true
+    }
+    if (hostname.endsWith('.local')) {
+      return true
+    }
+
+    const ipVersion = isIP(hostname)
+    if (ipVersion === 4) {
+      // Treat the full 127.0.0.0/8 loopback range as local
+      const firstOctet = Number.parseInt(hostname.split('.', 1)[0] ?? '', 10)
+      return firstOctet === 127 || isPrivateIpv4Address(hostname)
+    }
+    if (ipVersion === 6) {
+      return isPrivateIpv6Address(hostname)
+    }
+
+    return false
   } catch {
     return false
   }
