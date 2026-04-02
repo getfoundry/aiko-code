@@ -44,6 +44,11 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   'google/gemini-2.0-flash':1_048_576,
   'google/gemini-2.5-pro':  1_048_576,
 
+  // Google (native via CLAUDE_CODE_USE_GEMINI)
+  'gemini-2.0-flash':       1_048_576,
+  'gemini-2.5-pro':         1_048_576,
+  'gemini-2.5-flash':       1_048_576,
+
   // Ollama local models
   'llama3.3:70b':               8_192,
   'llama3.1:8b':                8_192,
@@ -94,7 +99,12 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
 
   // Google (via OpenRouter)
   'google/gemini-2.0-flash':   8_192,
-  'google/gemini-2.5-pro':    32_768,
+  'google/gemini-2.5-pro':    65_536,
+
+  // Google (native via CLAUDE_CODE_USE_GEMINI)
+  'gemini-2.0-flash':          8_192,
+  'gemini-2.5-pro':           65_536,
+  'gemini-2.5-flash':         65_536,
 
   // Ollama local models (conservative safe defaults)
   'llama3.3:70b':               4_096,

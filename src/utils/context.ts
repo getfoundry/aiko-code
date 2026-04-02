@@ -74,12 +74,9 @@ export function getContextWindowForModel(
 
   // OpenAI-compatible provider — use known context windows for the model
   if (
-    process.env.CLAUDE_CODE_USE_OPENAI === '1' ||
-    process.env.CLAUDE_CODE_USE_OPENAI === 'true' ||
-    process.env.CLAUDE_CODE_USE_GEMINI === '1' ||
-    process.env.CLAUDE_CODE_USE_GEMINI === 'true' ||
-    process.env.CLAUDE_CODE_USE_GITHUB === '1' ||
-    process.env.CLAUDE_CODE_USE_GITHUB === 'true'
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
   ) {
     const openaiWindow = getOpenAIContextWindow(model)
     if (openaiWindow !== undefined) {
@@ -180,12 +177,9 @@ export function getModelMaxOutputTokens(model: string): {
 
   // OpenAI-compatible provider — use known output limits to avoid 400 errors
   if (
-    process.env.CLAUDE_CODE_USE_OPENAI === '1' ||
-    process.env.CLAUDE_CODE_USE_OPENAI === 'true' ||
-    process.env.CLAUDE_CODE_USE_GEMINI === '1' ||
-    process.env.CLAUDE_CODE_USE_GEMINI === 'true' ||
-    process.env.CLAUDE_CODE_USE_GITHUB === '1' ||
-    process.env.CLAUDE_CODE_USE_GITHUB === 'true'
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
   ) {
     const openaiMax = getOpenAIMaxOutputTokens(model)
     if (openaiMax !== undefined) {
