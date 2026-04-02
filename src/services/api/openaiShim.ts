@@ -636,8 +636,12 @@ class OpenAIShimMessages {
     const body: Record<string, unknown> = {
       model: request.resolvedModel,
       messages: openaiMessages,
-      max_tokens: params.max_tokens,
       stream: params.stream ?? false,
+    }
+    if (params.max_tokens !== undefined) {
+      body.max_completion_tokens = params.max_tokens
+    } else if ((params as Record<string, unknown>).max_completion_tokens !== undefined) {
+      body.max_completion_tokens = (params as Record<string, unknown>).max_completion_tokens
     }
 
     if (params.stream) {
