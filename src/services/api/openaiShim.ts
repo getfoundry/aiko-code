@@ -235,20 +235,58 @@ function normalizeSchemaForOpenAI(
   schema: Record<string, unknown>,
   strict = true,
 ): Record<string, unknown> {
-  if (schema.type !== 'object' || !schema.properties) return schema
-  const properties = schema.properties as Record<string, unknown>
-  const existingRequired = Array.isArray(schema.required) ? schema.required as string[] : []
-  // OpenAI strict mode requires every property to be listed in required[].
-  // Gemini rejects schemas where required[] contains keys absent from properties,
-  // so only promote keys that actually exist in properties.
-  if (strict) {
-    const allKeys = Object.keys(properties)
-    const required = Array.from(new Set([...existingRequired, ...allKeys]))
-    return { ...schema, required }
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    return (schema ?? {}) as Record<string, unknown>
   }
-  // For Gemini: keep only existing required keys that are present in properties
-  const required = existingRequired.filter(k => k in properties)
-  return { ...schema, required }
+
+  const record = { ...schema }
+
+  if (record.type === 'object' && record.properties) {
+    const properties = record.properties as Record<string, Record<string, unknown>>
+    const existingRequired = Array.isArray(record.required) ? record.required as string[] : []
+
+    // Recurse into each property
+    const normalizedProps: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(properties)) {
+      normalizedProps[key] = normalizeSchemaForOpenAI(
+        value as Record<string, unknown>,
+        strict,
+      )
+    }
+    record.properties = normalizedProps
+
+    if (strict) {
+      // OpenAI strict mode requires every property to be listed in required[]
+      const allKeys = Object.keys(normalizedProps)
+      record.required = Array.from(new Set([...existingRequired, ...allKeys]))
+      record.additionalProperties = false
+    } else {
+      // For Gemini: keep only existing required keys that are present in properties
+      record.required = existingRequired.filter(k => k in normalizedProps)
+    }
+  }
+
+  // Recurse into array items
+  if ('items' in record) {
+    if (Array.isArray(record.items)) {
+      record.items = (record.items as unknown[]).map(
+        item => normalizeSchemaForOpenAI(item as Record<string, unknown>, strict),
+      )
+    } else {
+      record.items = normalizeSchemaForOpenAI(record.items as Record<string, unknown>, strict)
+    }
+  }
+
+  // Recurse into combinators
+  for (const key of ['anyOf', 'oneOf', 'allOf'] as const) {
+    if (key in record && Array.isArray(record[key])) {
+      record[key] = (record[key] as unknown[]).map(
+        item => normalizeSchemaForOpenAI(item as Record<string, unknown>, strict),
+      )
+    }
+  }
+
+  return record
 }
 
 function convertTools(
