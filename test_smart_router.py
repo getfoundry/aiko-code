@@ -7,12 +7,16 @@ Run: pytest test_smart_router.py -v
 
 import pytest
 import asyncio
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from smart_router import SmartRouter, Provider
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def fake_api_key(monkeypatch):
+    monkeypatch.setenv("FAKE_KEY", "test-key")
 
 def make_provider(name, healthy=True, configured=True,
                   latency=100.0, cost=0.002, errors=0, requests=0):
@@ -28,9 +32,7 @@ def make_provider(name, healthy=True, configured=True,
     p.avg_latency_ms = latency
     p.error_count = errors
     p.request_count = requests
-    if configured:
-        os.environ.setdefault("FAKE_KEY", "test-key")
-    else:
+    if not configured:
         p.api_key_env = ""  # makes is_configured False for non-ollama
     return p
 
