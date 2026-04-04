@@ -1,8 +1,9 @@
 // This file represents useful wrappers over node:child_process
-// These wrappers ease error handling and cross-platform compatbility
-// By using execa, Windows automatically gets shell escaping + BAT / CMD handling
+// These wrappers ease error handling and cross-platform compatibility.
+// By using cross-spawn, Windows gets .cmd/.bat compatibility without falling
+// back to a generic shell command string.
 
-import { type ExecaError, execa } from 'execa'
+import { spawn } from 'cross-spawn'
 import path from 'node:path'
 import { getCwd } from '../utils/cwd.js'
 import { logError } from './log.js'
@@ -11,6 +12,7 @@ export { execSyncWithDefaults_DEPRECATED } from './execFileNoThrowPortable.js'
 
 const MS_IN_SECOND = 1000
 const SECONDS_IN_MINUTE = 60
+const DEFAULT_MAX_BUFFER = 1_000_000
 
 type ExecFileOptions = {
   abortSignal?: AbortSignal
@@ -24,26 +26,6 @@ type ExecFileOptions = {
   input?: string
 }
 
-export function execFileNoThrow(
-  file: string,
-  args: string[],
-  options: ExecFileOptions = {
-    timeout: 10 * SECONDS_IN_MINUTE * MS_IN_SECOND,
-    preserveOutputOnError: true,
-    useCwd: true,
-  },
-): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
-  return execFileNoThrowWithCwd(file, args, {
-    abortSignal: options.abortSignal,
-    timeout: options.timeout,
-    preserveOutputOnError: options.preserveOutputOnError,
-    cwd: options.useCwd ? getCwd() : undefined,
-    env: options.env,
-    stdin: options.stdin,
-    input: options.input,
-  })
-}
-
 type ExecFileWithCwdOptions = {
   abortSignal?: AbortSignal
   timeout?: number
@@ -55,8 +37,7 @@ type ExecFileWithCwdOptions = {
   input?: string
 }
 
-type ExecaResultWithError = {
-  shortMessage?: string
+type ProcessResultWithError = {
   signal?: string
 }
 
@@ -64,7 +45,11 @@ const CONTROL_CHAR_PATTERN = /[\0\r\n]/
 const SAFE_BARE_EXECUTABLE_PATTERN = /^[A-Za-z0-9_.-]+$/
 
 function hasPathSyntax(value: string): boolean {
-  return value.includes(path.sep) || value.includes('/') || path.isAbsolute(value)
+  return (
+    value.includes(path.sep) ||
+    value.includes('/') ||
+    path.isAbsolute(value)
+  )
 }
 
 function validateExecutable(file: string): string | null {
@@ -75,7 +60,10 @@ function validateExecutable(file: string): string | null {
   if (CONTROL_CHAR_PATTERN.test(normalized)) {
     return 'Unsafe executable: control characters are not allowed'
   }
-  if (!hasPathSyntax(normalized) && !SAFE_BARE_EXECUTABLE_PATTERN.test(normalized)) {
+  if (
+    !hasPathSyntax(normalized) &&
+    !SAFE_BARE_EXECUTABLE_PATTERN.test(normalized)
+  ) {
     return 'Unsafe executable: bare command names may only contain letters, numbers, ".", "_" and "-"'
   }
   return null
@@ -100,27 +88,65 @@ function validateWorkingDirectory(cwd: string | undefined): string | null {
   return null
 }
 
+function sanitizeEnvironment(
+  env: NodeJS.ProcessEnv | undefined,
+): { value?: NodeJS.ProcessEnv; error?: string } {
+  if (!env) {
+    return {}
+  }
+
+  for (const [key, value] of Object.entries(env)) {
+    if (CONTROL_CHAR_PATTERN.test(key)) {
+      return {
+        error: 'Unsafe environment: control characters are not allowed in keys',
+      }
+    }
+    if (typeof value === 'string' && CONTROL_CHAR_PATTERN.test(value)) {
+      return {
+        error:
+          'Unsafe environment: control characters are not allowed in values',
+      }
+    }
+  }
+
+  return { value: env }
+}
+
 /**
- * Extracts a human-readable error message from an execa result.
+ * Extracts a human-readable error message from a process result.
  *
  * Priority order:
- * 1. shortMessage - execa's human-readable error (e.g., "Command failed with exit code 1: ...")
- *    This is preferred because it already includes signal info when a process is killed,
- *    making it more informative than just the signal name.
- * 2. signal - the signal that killed the process (e.g., "SIGTERM")
- * 3. errorCode - fallback to just the numeric exit code
+ * 1. signal - the signal that killed the process (e.g., "SIGTERM")
+ * 2. errorCode - fallback to just the numeric exit code
  */
 function getErrorMessage(
-  result: ExecaResultWithError,
+  result: ProcessResultWithError,
   errorCode: number,
 ): string {
-  if (result.shortMessage) {
-    return result.shortMessage
-  }
   if (typeof result.signal === 'string') {
     return result.signal
   }
   return String(errorCode)
+}
+
+export function execFileNoThrow(
+  file: string,
+  args: string[],
+  options: ExecFileOptions = {
+    timeout: 10 * SECONDS_IN_MINUTE * MS_IN_SECOND,
+    preserveOutputOnError: true,
+    useCwd: true,
+  },
+): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
+  return execFileNoThrowWithCwd(file, args, {
+    abortSignal: options.abortSignal,
+    timeout: options.timeout,
+    preserveOutputOnError: options.preserveOutputOnError,
+    cwd: options.useCwd ? getCwd() : undefined,
+    env: options.env,
+    stdin: options.stdin,
+    input: options.input,
+  })
 }
 
 /**
@@ -135,70 +161,172 @@ export function execFileNoThrowWithCwd(
     preserveOutputOnError: finalPreserveOutput = true,
     cwd: finalCwd,
     env: finalEnv,
-    maxBuffer,
+    maxBuffer = DEFAULT_MAX_BUFFER,
     stdin: finalStdin,
     input: finalInput,
   }: ExecFileWithCwdOptions = {
     timeout: 10 * SECONDS_IN_MINUTE * MS_IN_SECOND,
     preserveOutputOnError: true,
-    maxBuffer: 1_000_000,
+    maxBuffer: DEFAULT_MAX_BUFFER,
   },
 ): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
   const executableError = validateExecutable(file)
   if (executableError) {
-    return Promise.resolve({ stdout: '', stderr: '', code: 1, error: executableError })
+    return Promise.resolve({
+      stdout: '',
+      stderr: '',
+      code: 1,
+      error: executableError,
+    })
   }
 
   const argsError = validateArgs(args)
   if (argsError) {
-    return Promise.resolve({ stdout: '', stderr: '', code: 1, error: argsError })
+    return Promise.resolve({
+      stdout: '',
+      stderr: '',
+      code: 1,
+      error: argsError,
+    })
   }
 
   const cwdError = validateWorkingDirectory(finalCwd)
   if (cwdError) {
-    return Promise.resolve({ stdout: '', stderr: '', code: 1, error: cwdError })
+    return Promise.resolve({
+      stdout: '',
+      stderr: '',
+      code: 1,
+      error: cwdError,
+    })
+  }
+
+  const sanitizedEnv = sanitizeEnvironment(finalEnv)
+  if (sanitizedEnv.error) {
+    return Promise.resolve({
+      stdout: '',
+      stderr: '',
+      code: 1,
+      error: sanitizedEnv.error,
+    })
   }
 
   return new Promise(resolve => {
-    // Use execa for cross-platform .bat/.cmd compatibility on Windows
-    execa(file, args, {
-      maxBuffer,
-      cancelSignal: abortSignal,
-      timeout: finalTimeout,
+    const stdinMode = finalInput !== undefined ? 'pipe' : finalStdin ?? 'pipe'
+    const child = spawn(file, args, {
       cwd: finalCwd,
-      env: finalEnv,
+      env: sanitizedEnv.value,
       shell: false,
-      stdin: finalStdin,
-      input: finalInput,
-      reject: false, // Don't throw on non-zero exit codes
+      signal: abortSignal,
+      stdio: [stdinMode, 'pipe', 'pipe'],
     })
-      .then(result => {
-        if (result.failed) {
-          if (finalPreserveOutput) {
-            const errorCode = result.exitCode ?? 1
-            void resolve({
-              stdout: result.stdout || '',
-              stderr: result.stderr || '',
-              code: errorCode,
-              error: getErrorMessage(
-                result as unknown as ExecaResultWithError,
-                errorCode,
-              ),
-            })
-          } else {
-            void resolve({ stdout: '', stderr: '', code: result.exitCode ?? 1 })
-          }
+
+    let settled = false
+    let stdout = ''
+    let stderr = ''
+    let combinedBufferSize = 0
+    let signal: string | undefined
+    let timedOut = false
+
+    const finish = (result: {
+      stdout: string
+      stderr: string
+      code: number
+      error?: string
+    }) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      void resolve(result)
+    }
+
+    const appendOutput = (
+      chunk: string | Buffer,
+      target: 'stdout' | 'stderr',
+    ) => {
+      const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+      combinedBufferSize += Buffer.byteLength(text, 'utf8')
+      if (combinedBufferSize > maxBuffer) {
+        child.kill()
+        finish({
+          stdout: finalPreserveOutput ? stdout : '',
+          stderr: finalPreserveOutput ? stderr : '',
+          code: 1,
+          error: 'maxBuffer exceeded',
+        })
+        return
+      }
+
+      if (target === 'stdout') {
+        stdout += text
+      } else {
+        stderr += text
+      }
+    }
+
+    child.stdout?.on('data', chunk => appendOutput(chunk, 'stdout'))
+    child.stderr?.on('data', chunk => appendOutput(chunk, 'stderr'))
+
+    child.once('spawn', () => {
+      if (stdinMode === 'pipe' && child.stdin) {
+        if (finalInput !== undefined) {
+          child.stdin.end(finalInput)
         } else {
-          void resolve({
-            stdout: result.stdout,
-            stderr: result.stderr,
-            code: 0,
-          })
+          child.stdin.end()
         }
+      }
+    })
+
+    child.once('error', error => {
+      logError(error)
+      finish({ stdout: '', stderr: '', code: 1, error: error.message })
+    })
+
+    const timeoutId =
+      finalTimeout > 0
+        ? setTimeout(() => {
+            timedOut = true
+            child.kill()
+          }, finalTimeout)
+        : undefined
+
+    child.once('close', (code, closeSignal) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
+      signal = closeSignal ?? undefined
+      const errorCode = code ?? 1
+
+      if (timedOut) {
+        finish({
+          stdout: finalPreserveOutput ? stdout : '',
+          stderr: finalPreserveOutput ? stderr : '',
+          code: errorCode,
+          error: `Command timed out after ${finalTimeout}ms`,
+        })
+        return
+      }
+
+      if (errorCode !== 0) {
+        if (finalPreserveOutput) {
+          finish({
+            stdout,
+            stderr,
+            code: errorCode,
+            error: getErrorMessage({ signal }, errorCode),
+          })
+        } else {
+          finish({ stdout: '', stderr: '', code: errorCode })
+        }
+        return
+      }
+
+      finish({
+        stdout,
+        stderr,
+        code: 0,
       })
-      .catch((error: ExecaError) => {
-        logError(error)
-        void resolve({ stdout: '', stderr: '', code: 1 })
-      })
+    })
   })
 }
