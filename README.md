@@ -185,9 +185,15 @@ When no routing match is found, the global provider (env vars) is used as fallba
 
 ## Web Search and Fetch
 
-`WebFetch` works out of the box.
+By default, `WebSearch` now works on non-Anthropic models using DuckDuckGo. This gives GPT-4o, DeepSeek, Gemini, Ollama, and other OpenAI-compatible providers a free web search path out of the box.
 
-`WebSearch` and richer JS-aware fetching work best with a Firecrawl API key:
+>**Note:** DuckDuckGo fallback works by scraping search results and may be rate-limited, blocked, or subject to DuckDuckGo's Terms of Service. If you want a more reliable supported option, configure Firecrawl.
+
+For Anthropic-native backends (Anthropic/Vertex/Foundry) and Codex responses, OpenClaude keeps the native provider web search behavior.
+
+`WebFetch` works but uses basic HTTP plus HTML-to-markdown conversion. That fails on JavaScript-rendered pages (React, Next.js, Vue SPAs) and sites that block plain HTTP requests.
+
+Set a [Firecrawl](https://firecrawl.dev) API key if you want Firecrawl-powered search/fetch behavior:
 
 ```bash
 export FIRECRAWL_API_KEY=your-key-here
@@ -195,10 +201,10 @@ export FIRECRAWL_API_KEY=your-key-here
 
 With Firecrawl enabled:
 
-- `WebSearch` is available across more provider setups
-- `WebFetch` can handle JavaScript-rendered pages more reliably
+- `WebSearch` can use Firecrawl's search API (while DuckDuckGo remains the default free path for non-Claude models)
+- `WebFetch` uses Firecrawl's scrape endpoint instead of raw HTTP, handling JS-rendered pages correctly
 
-Firecrawl is optional. Without it, OpenClaude falls back to the built-in behavior.
+Free tier at [firecrawl.dev](https://firecrawl.dev) includes 500 credits. The key is optional.
 
 ---
 
