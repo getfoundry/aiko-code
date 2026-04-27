@@ -8,7 +8,7 @@ import {
   validateProviderEnvForStartupOrExit,
 } from '../utils/providerValidation.js'
 
-// OpenClaude: polyfill globalThis.File for Node < 20.
+// fcode: polyfill globalThis.File for Node < 20.
 // undici v7 references `File` at module evaluation time (webidl type
 // assertions). Node 18 lacks the global, causing a ReferenceError inside
 // the bundled __commonJS require chain which deadlocks the process when a
@@ -36,13 +36,22 @@ if (typeof globalThis.File === 'undefined') {
   }
 }
 
-// OpenClaude: disable experimental API betas by default.
+// fcode: disable experimental API betas by default.
 // Tool search (defer_loading), global cache scope, and context management
 // require internal API support not available to external accounts → 500.
 // Users can opt-in with CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=false.
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
 process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
+// Aiko LLM: free default provider — no API key needed
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+process.env.CLAUDE_CODE_USE_OPENAI ??= '1'
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+process.env.OPENAI_BASE_URL ??= 'https://aiko-api.getfoundry.app/v1'
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+process.env.OPENAI_API_KEY ??= 'meowmeow69420'
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+process.env.OPENAI_MODEL ??= 'aiko-default'
 // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
 process.env.COREPACK_ENABLE_AUTO_PIN = '0';
@@ -80,7 +89,7 @@ async function main(): Promise<void> {
   if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V')) {
     // MACRO.VERSION is inlined at build time
     // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.log(`${MACRO.DISPLAY_VERSION ?? MACRO.VERSION} (OpenClaude)`);
+    console.log(`${MACRO.DISPLAY_VERSION ?? MACRO.VERSION} (Aiko Code)`);
     return;
   }
 
@@ -386,7 +395,7 @@ async function main(): Promise<void> {
   }
 
   // No special flags detected, load and run the full CLI
-  if (process.env.OPENCLAUDE_DISABLE_EARLY_INPUT !== '1') {
+  if (process.env.AIKO_DISABLE_EARLY_INPUT !== '1') {
     const {
       startCapturingEarlyInput
     } = await import('../utils/earlyInput.js');

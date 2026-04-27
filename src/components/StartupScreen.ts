@@ -1,8 +1,8 @@
 /**
- * fcode startup screen — filled-block text logo with cyberpunk gradient.
+ * Aiko Code startup screen — filled-block text logo with neon blue→pink gradient.
  * Called once at CLI startup before the Ink UI renders.
  *
- * Addresses: https://github.com/getfoundry/fcode/issues/55
+ * Addresses: https://github.com/getfoundry/aiko-code/issues/55
  */
 
 import { isLocalProviderUrl, resolveProviderRequest } from '../services/api/providerConfig.js'
@@ -48,29 +48,38 @@ function paintLine(text: string, stops: RGB[], lineT: number): string {
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
-const SUNSET_GRAD: RGB[] = [
-  [255, 120, 50],
-  [255, 80, 40],
-  [230, 60, 80],
-  [180, 40, 120],
-  [120, 30, 160],
-  [80, 20, 180],
+const NEON_GRAD: RGB[] = [
+  [74, 144, 217],
+  [100, 120, 255],
+  [140, 100, 255],
+  [200, 80, 230],
+  [255, 110, 199],
+  [255, 150, 220],
 ]
 
-const ACCENT: RGB = [255, 100, 60]
-const CREAM: RGB = [230, 210, 240]
-const DIMCOL: RGB = [140, 110, 160]
-const BORDER: RGB = [100, 60, 130]
+const ACCENT: RGB = [140, 100, 255]
+const CREAM: RGB = [220, 210, 240]
+const DIMCOL: RGB = [120, 110, 140]
+const BORDER: RGB = [80, 70, 120]
 
 // ─── Filled Block Text Logo ───────────────────────────────────────────────────
 
-const LOGO_FCODE = [
-  '  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557',
-  '  \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d',
-  '  \u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557  ',
-  '  \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d  ',
-  '  \u2588\u2588\u2551     \u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557',
-  '  \u255a\u2550\u255d      \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d',
+const LOGO_AIKO = [
+  `   █████╗ ██╗██╗  ██╗ ██████╗ `,
+  `  ██╔══██��██║██║ ██╔╝██╔═══██╗`,
+  `  ███████║██║█████╔╝ ██║   ██║`,
+  `  ██╔══██║██║██╔═██╗ ██║   ██║`,
+  `  ██║  ██║██║██║  ██╗╚██████╔��`,
+  `  ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝ `,
+]
+
+const LOGO_CODE = [
+  `   ██████╗ ██████╗ ██████╗ ███████╗`,
+  `  ██��════╝██��═══██╗██╔══██╗██╔════╝`,
+  `  ██║     ██║   ██║██║  ██║█████╗  `,
+  `  ██║     ██║   ██║██║  ██║██╔══╝  `,
+  `  ╚██████╗╚██████╔╝██████╔╝███████╗`,
+  `   ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝`,
 ]
 
 // ─── Provider detection ───────────────────────────────────────────────────────
@@ -157,13 +166,10 @@ export function detectProvider(modelOverride?: string): { name: string; model: s
     return { name, model: displayModel, baseUrl, isLocal }
   }
 
-  // Default: Anthropic - check settings.model first, then env vars
-  const settings = getSettings_DEPRECATED() || {}
-  const modelSetting = modelOverride || settings.model || process.env.ANTHROPIC_MODEL || process.env.CLAUDE_MODEL || 'claude-sonnet-4-6'
-  const resolvedModel = parseUserSpecifiedModel(modelSetting)
-  const baseUrl = process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com'
-  const isLocal = isLocalProviderUrl(baseUrl)
-  return { name: 'Anthropic', model: resolvedModel, baseUrl, isLocal }
+  // Default: Aiko LLM (free, no API key needed)
+  const model = modelOverride || process.env.OPENAI_MODEL || 'aiko-default'
+  const baseUrl = process.env.OPENAI_BASE_URL || 'https://aiko-api.getfoundry.app/v1'
+  return { name: 'Aiko LLM', model, baseUrl, isLocal: false }
 }
 
 // ─── Box drawing ──────────────────────────────────────────────────────────────
@@ -186,17 +192,21 @@ export function printStartupScreen(modelOverride?: string): void {
   out.push('')
 
   // Gradient logo
-  const allLogo = LOGO_FCODE
+  const allLogo = [...LOGO_AIKO, '', ...LOGO_CODE]
   const total = allLogo.length
   for (let i = 0; i < total; i++) {
     const t = total > 1 ? i / (total - 1) : 0
-    out.push(paintLine(allLogo[i], SUNSET_GRAD, t))
+    if (allLogo[i] === '') {
+      out.push('')
+    } else {
+      out.push(paintLine(allLogo[i], NEON_GRAD, t))
+    }
   }
 
   out.push('')
 
   // Tagline
-  out.push(`  ${rgb(...ACCENT)}\u2726${RESET} ${rgb(...CREAM)}fractal coding harness${RESET} ${rgb(...ACCENT)}\u2726${RESET}`)
+  out.push(`  ${rgb(...ACCENT)}\u2726${RESET} ${rgb(...CREAM)}let's build something amazing together \u2726${RESET}`)
   out.push('')
 
   // Provider info box
@@ -208,7 +218,7 @@ export function printStartupScreen(modelOverride?: string): void {
   }
 
   const provC: RGB = p.isLocal ? [130, 175, 130] : ACCENT
-  let [r, l] = lbl('Engine', 'fcode', provC)
+  let [r, l] = lbl('Engine', 'Aiko Code', provC)
   out.push(boxRow(r, W, l))
   ;[r, l] = lbl('Provider', p.name)
   out.push(boxRow(r, W, l))
@@ -227,7 +237,7 @@ export function printStartupScreen(modelOverride?: string): void {
   out.push(boxRow(sRow, W, sLen))
 
   out.push(`${rgb(...BORDER)}\u255a${'\u2550'.repeat(W - 2)}\u255d${RESET}`)
-  out.push(`  ${DIM}${rgb(...DIMCOL)}fcode ${RESET}${rgb(...ACCENT)}v${MACRO.DISPLAY_VERSION ?? MACRO.VERSION}${RESET}`)
+  out.push(`  ${DIM}${rgb(...DIMCOL)}aiko code ${RESET}${rgb(...ACCENT)}v${MACRO.DISPLAY_VERSION ?? MACRO.VERSION}${RESET}`)
   out.push('')
 
   process.stdout.write(out.join('\n') + '\n')

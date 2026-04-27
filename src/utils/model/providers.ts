@@ -17,43 +17,13 @@ export type APIProvider =
   | 'xai'
 
 export function getAPIProvider(): APIProvider {
-  if (isEnvTruthy(process.env.NVIDIA_NIM)) {
-    return 'nvidia-nim'
-  }
-  // MiniMax is signalled by a real API key, not a '1'/'true' flag. Using
-  // isEnvTruthy() here silently treated every MiniMax user as 'firstParty'
-  // (or 'openai' once they set CLAUDE_CODE_USE_OPENAI via the profile),
-  // making every provider-kind-specific branch for 'minimax' elsewhere in
-  // the codebase unreachable. Presence check is the correct signal.
-  if (typeof process.env.MINIMAX_API_KEY === 'string' && process.env.MINIMAX_API_KEY.trim() !== '') {
-    return 'minimax'
-  }
-  // xAI is signalled by a real API key (same pattern as MiniMax)
-  if (typeof process.env.XAI_API_KEY === 'string' && process.env.XAI_API_KEY.trim() !== '') {
-    return 'xai'
-  }
-  return isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI)
-    ? 'gemini'
-    :
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
-    ? 'mistral'
-    : isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
-      ? 'github'
-      : isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
-        ? isCodexModel()
-          ? 'codex'
-          : 'openai'
-        : isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)
-          ? 'bedrock'
-          : isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)
-            ? 'vertex'
-            : isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)
-              ? 'foundry'
-              : 'firstParty'
+  // Aiko Code always uses the OpenAI-compatible Aiko LLM endpoint
+  return 'openai'
 }
 
 export function usesAnthropicAccountFlow(): boolean {
-  return getAPIProvider() === 'firstParty'
+  // Aiko Code never uses Anthropic account flow
+  return false
 }
 
 /**
@@ -90,18 +60,6 @@ export function getAPIProviderForStatsig(): AnalyticsMetadata_I_VERIFIED_THIS_IS
  * (or api-staging.anthropic.com for ant users).
  */
 export function isFirstPartyAnthropicBaseUrl(): boolean {
-  const baseUrl = process.env.ANTHROPIC_BASE_URL
-  if (!baseUrl) {
-    return true
-  }
-  try {
-    const host = new URL(baseUrl).host
-    const allowedHosts = ['api.anthropic.com']
-    if (process.env.USER_TYPE === 'ant') {
-      allowedHosts.push('api-staging.anthropic.com')
-    }
-    return allowedHosts.includes(host)
-  } catch {
-    return false
-  }
+  // Aiko Code doesn't use Anthropic — always false
+  return false
 }

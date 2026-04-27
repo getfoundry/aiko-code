@@ -165,100 +165,15 @@ function computeChecksum(
  * getSettings() to avoid circular dependencies during settings loading.
  */
 export function isPolicyLimitsEligible(): boolean {
-  // 3p provider users should not hit the policy limits endpoint
-  if (getAPIProvider() !== 'firstParty') {
-    return false
-  }
+  // Aiko Code: no policy limits — free for everyone
+  return false
 
-  // Custom base URL users should not hit the policy limits endpoint
-  if (!isFirstPartyAnthropicBaseUrl()) {
-    return false
-  }
-
-  // Console users (API key) are eligible if we can get the actual key
-  try {
-    const { key: apiKey } = getAnthropicApiKeyWithSource({
-      skipRetrievingKeyFromApiKeyHelper: true,
-    })
-    if (apiKey) {
-      return true
-    }
-  } catch {
-    // No API key available - continue to check OAuth
-  }
-
-  // For OAuth users, check if they have Claude.ai tokens
-  const tokens = getClaudeAIOAuthTokens()
-  if (!tokens?.accessToken) {
-    return false
-  }
-
-  // Must have Claude.ai inference scope
-  if (!tokens.scopes?.includes(CLAUDE_AI_INFERENCE_SCOPE)) {
-    return false
-  }
-
-  // Only Team and Enterprise OAuth users are eligible — these orgs have
-  // admin-configurable policy restrictions (e.g. allow_remote_sessions)
-  if (
-    tokens.subscriptionType !== 'enterprise' &&
-    tokens.subscriptionType !== 'team'
-  ) {
-    return false
-  }
-
-  return true
-}
-
-/**
- * Wait for the initial policy limits loading to complete
- * Returns immediately if user is not eligible or loading has already completed
- */
 export async function waitForPolicyLimitsToLoad(): Promise<void> {
-  if (loadingCompletePromise) {
-    await loadingCompletePromise
-  }
+  // Aiko Code: no-op — policy limits disabled
 }
 
-/**
- * Get auth headers for policy limits without calling getSettings()
- * Supports both API key and OAuth authentication
- */
-function getAuthHeaders(): {
-  headers: Record<string, string>
-  error?: string
-} {
-  // Try API key first (for Console users)
-  try {
-    const { key: apiKey } = getAnthropicApiKeyWithSource({
-      skipRetrievingKeyFromApiKeyHelper: true,
-    })
-    if (apiKey) {
-      return {
-        headers: {
-          'x-api-key': apiKey,
-        },
-      }
-    }
-  } catch {
-    // No API key available - continue to check OAuth
-  }
-
-  // Fall back to OAuth tokens (for Claude.ai users)
-  const oauthTokens = getClaudeAIOAuthTokens()
-  if (oauthTokens?.accessToken) {
-    return {
-      headers: {
-        Authorization: `Bearer ${oauthTokens.accessToken}`,
-        'anthropic-beta': OAUTH_BETA_HEADER,
-      },
-    }
-  }
-
-  return {
-    headers: {},
-    error: 'No authentication available',
-  }
+function getAuthHeaders(): { headers: Record<string, string>; error?: string } {
+  return { headers: {}, error: 'No authentication available' }
 }
 
 /**
@@ -508,21 +423,8 @@ const ESSENTIAL_TRAFFIC_DENY_ON_MISS = new Set(['allow_product_feedback'])
  * essential-traffic-only mode is active and the cache is unavailable.
  */
 export function isPolicyAllowed(policy: string): boolean {
-  const restrictions = getRestrictionsFromCache()
-  if (!restrictions) {
-    if (
-      isEssentialTrafficOnly() &&
-      ESSENTIAL_TRAFFIC_DENY_ON_MISS.has(policy)
-    ) {
-      return false
-    }
-    return true // fail open
-  }
-  const restriction = restrictions[policy]
-  if (!restriction) {
-    return true // unknown policy = allowed
-  }
-  return restriction.allowed
+  // Aiko Code: no policy restrictions
+  return true
 }
 
 /**
