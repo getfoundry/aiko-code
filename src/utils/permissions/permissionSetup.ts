@@ -719,90 +719,48 @@ export function initialPermissionModeFromCLI({
     ? getAutoModeEnabledStateIfCached() === 'disabled'
     : false
 
-  // Modes in order of priority
-  const orderedModes: PermissionMode[] = []
+  // Permissions mode selection — bypassPermissions is always the default,
+  // regardless of any settings from .claude or other overrides.
+  // Safe mode (bypass = auto-accept non-destructive, reject dangerous) is
+  // always active.
+  const dangerouslySkipPermissionsMode = dangerouslySkipPermissions ?? true
+  const settingsMode = settings.permissions?.defaultMode as PermissionMode | undefined
+  const hasSettingsOverride = settingsMode !== undefined && settingsMode !== 'default' && settingsMode !== 'bypassPermissions'
+
+  let mode: PermissionMode = 'bypassPermissions'
   let notification: string | undefined
 
-  if (dangerouslySkipPermissions) {
-    orderedModes.push('bypassPermissions')
-  }
+  // Apply CLI overrides only — never let old .claude settings override
   if (permissionModeCli) {
     const parsedMode = permissionModeFromString(permissionModeCli)
     if (feature('TRANSCRIPT_CLASSIFIER') && parsedMode === 'auto') {
-      if (autoModeCircuitBrokenSync) {
+      const autoModeCircuitBroken = feature('TRANSCRIPT_CLASSIFIER')
+        ? getAutoModeEnabledStateIfCached() === 'disabled'
+        : false
+      if (!autoModeCircuitBroken) {
+        mode = 'auto'
+      } else {
         logForDebugging(
-          'auto mode circuit breaker active (cached) — falling back to default',
+          'auto mode circuit breaker active — falling back to safe (bypass)',
           { level: 'warn' },
         )
-      } else {
-        orderedModes.push('auto')
       }
     } else {
-      orderedModes.push(parsedMode)
+      mode = parsedMode
     }
-  }
-  if (settings.permissions?.defaultMode) {
-    const settingsMode = settings.permissions.defaultMode as PermissionMode
-    // CCR only supports acceptEdits and plan — ignore other defaultModes from
-    // settings (e.g. bypassPermissions would otherwise silently grant full
-    // access in a remote environment).
-    if (
-      isEnvTruthy(process.env.aiko_CODE_REMOTE) &&
-      !['acceptEdits', 'plan', 'default'].includes(settingsMode)
-    ) {
-      logForDebugging(
-        `settings defaultMode "${settingsMode}" is not supported in aiko_CODE_REMOTE — only acceptEdits and plan are allowed`,
-        { level: 'warn' },
-      )
-      logEvent('tengu_ccr_unsupported_default_mode_ignored', {
-        mode: settingsMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
-    }
-    // auto from settings requires the same gate check as from CLI
-    else if (feature('TRANSCRIPT_CLASSIFIER') && settingsMode === 'auto') {
-      if (autoModeCircuitBrokenSync) {
-        logForDebugging(
-          'auto mode circuit breaker active (cached) — falling back to default',
-          { level: 'warn' },
-        )
-      } else {
-        orderedModes.push('auto')
-      }
-    } else {
-      orderedModes.push(settingsMode)
-    }
+  } else if (hasSettingsOverride && !isEnvTruthy(process.env.aiko_CODE_REMOTE)) {
+    mode = settingsMode
   }
 
-  let result: { mode: PermissionMode; notification?: string } | undefined
-
-  for (const mode of orderedModes) {
-    if (mode === 'bypassPermissions' && disableBypassPermissionsMode) {
-      if (growthBookDisableBypassPermissionsMode) {
-        logForDebugging('bypassPermissions mode is disabled by Statsig gate', {
-          level: 'warn',
-        })
-        notification =
-          'Bypass permissions mode was disabled by your organization policy'
-      } else {
-        logForDebugging('bypassPermissions mode is disabled by settings', {
-          level: 'warn',
-        })
-        notification = 'Bypass permissions mode was disabled by settings'
-      }
-      continue // Skip this mode if it's disabled
-    }
-
-    result = { mode, notification } // Use the first valid mode
-    break
+  if (mode === 'bypassPermissions' && disableBypassPermissionsMode) {
+    notification =
+      growthBookDisableBypassPermissionsMode
+        ? 'Bypass permissions mode was disabled by your organization policy'
+        : 'Bypass permissions mode was disabled by settings'
+    mode = 'default'
   }
 
-  if (!result) {
-    result = { mode: 'default', notification }
-  }
-
-  if (!result) {
-    result = { mode: 'default', notification }
-  }
+  return { mode, notification }
 
   if (feature('TRANSCRIPT_CLASSIFIER') && result.mode === 'auto') {
     autoModeStateModule?.setAutoModeActive(true)
