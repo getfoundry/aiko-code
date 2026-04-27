@@ -16,7 +16,7 @@ while [[ $# -gt 0 ]]; do
 aiko-code — 9 phase steps with multi-session + live steering.
 
 USAGE:
-  /loop [TASK...] [OPTIONS]
+  /auto [TASK...] [OPTIONS]
 
 OPTIONS:
   --session NAME                 Session id (default: "default"). Each session
@@ -29,8 +29,8 @@ OPTIONS:
   -h, --help                     Show this help
 
 EXAMPLES:
-  /loop Build a markdown blog generator
-  /loop --session refactor "Pull auth out of routes" --north-star "no behavior change"
+  /auto Build a markdown blog generator
+  /auto --session refactor "Pull auth out of routes" --north-star "no behavior change"
 HELP_EOF
       exit 0;;
     --completion-promise) COMPLETION_PROMISE="$2"; shift 2;;

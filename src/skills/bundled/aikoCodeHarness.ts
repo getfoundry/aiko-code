@@ -74,7 +74,7 @@ async function runScript(
 
 function tokenizeArgs(input: string): string[] {
   // Minimal POSIX-like split that respects single/double quotes. Good enough
-  // for /loop "build a thing" --session foo style invocations.
+  // for /auto "build a thing" --session foo style invocations.
   const out: string[] = []
   let buf = ''
   let quote: '"' | "'" | null = null
@@ -145,10 +145,11 @@ export function registerAikoHarness(): void {
     },
   })
 
+  // /loop is an alias for /auto — same harness, same behavior.
   registerBundledSkill({
     name: 'loop',
     description:
-      'Start the Aiko Code 9-phase fractal development loop on a task. Stop hook auto-fires each phase.',
+      'Start the Aiko Code 9-phase fractal development loop on a task. Stop hook auto-fires each phase. (Alias for /auto.)',
     argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
     async getPromptForCommand(args) {
@@ -157,7 +158,7 @@ export function registerAikoHarness(): void {
       return [
         {
           type: 'text',
-          text: `aiko-code loop activated.\n\n${text}\n\nThe Stop hook will now fire each phase. You can also use /auto for the same thing with a more descriptive entry point. Reply normally; phase 1 (Survey) prompt will arrive on next Stop.`,
+          text: `${text}\n\nThe Stop hook will now fire each phase. Reply normally; phase 1 (Survey) prompt will arrive on next Stop.`,
         },
       ]
     },

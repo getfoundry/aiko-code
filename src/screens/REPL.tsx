@@ -4117,7 +4117,7 @@ export function REPL({
   });
 
   // Scheduled tasks from .aiko/scheduled_tasks.json (CronCreate/Delete/List)
-  // and session-only /loop runs.
+  // and session-only interval scheduling runs.
   const assistantMode = store.getState().kairosEnabled;
   useScheduledTasks({
     isLoading,

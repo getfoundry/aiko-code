@@ -28,9 +28,9 @@ Or run `./install.sh` after extracting the tarball for the same instructions.
 ## Use
 
 ```text
-/loop "your task"
-/loop "fix the flaky login test" --completion-promise FIXED
-/loop "refactor auth" --session refactor --north-star "no behavior change"
+/auto "your task"
+/auto "fix the flaky login test" --completion-promise FIXED
+/auto "refactor auth" --session refactor --north-star "no behavior change"
 ```
 
 Other commands:

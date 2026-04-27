@@ -12,7 +12,7 @@ export const DEFAULT_MAX_AGE_DAYS =
  * Unified gate for the cron scheduling system.
  *
  * Open builds (USER_TYPE !== 'ant') enable cron unconditionally — the
- * cron tools and /loop skill are registered without the AGENT_TRIGGERS
+ * cron tools and /loop scheduling skill are registered without the AGENT_TRIGGERS
  * build flag, so this gate is the sole runtime switch. Set the env var
  * `aiko_CODE_DISABLE_CRON=1` to turn it off locally.
  *

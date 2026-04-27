@@ -36,7 +36,7 @@ export function initBundledSkills(): void {
     /* eslint-enable @typescript-eslint/no-require-imports */
     registerHunterSkill()
   }
-  // /loop's isEnabled delegates to isKairosCronEnabled() — registered
+  // /loop (interval scheduling) isEnabled delegates to isKairosCronEnabled() — registered
   // unconditionally so the static import is bundled; visibility is gated
   // at runtime by the isEnabled callback.
   registerLoopSkill()

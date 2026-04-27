@@ -1,5 +1,5 @@
 #!/bin/bash
-# aiko Code Stop hook — thin adapter over core/loop.sh.
+# aiko Code Stop hook — thin adapter over core/loop.sh (the 9-phase fractal harness).
 # Discovers active sessions in .aiko/aiko-code.*.local.md and runs the
 # core for each. If multiple sessions exist, only the most-recently-modified
 # one drives this turn (aiko Code's hook contract emits a single response).
