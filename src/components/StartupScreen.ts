@@ -1,8 +1,8 @@
 /**
- * OpenClaude startup screen — filled-block text logo with sunset gradient.
+ * fcode startup screen — filled-block text logo with cyberpunk gradient.
  * Called once at CLI startup before the Ink UI renders.
  *
- * Addresses: https://github.com/Gitlawb/openclaude/issues/55
+ * Addresses: https://github.com/getfoundry/fcode/issues/55
  */
 
 import { isLocalProviderUrl, resolveProviderRequest } from '../services/api/providerConfig.js'
@@ -49,37 +49,28 @@ function paintLine(text: string, stops: RGB[], lineT: number): string {
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
 const SUNSET_GRAD: RGB[] = [
-  [255, 180, 100],
-  [240, 140, 80],
-  [217, 119, 87],
-  [193, 95, 60],
-  [160, 75, 55],
-  [130, 60, 50],
+  [255, 120, 50],
+  [255, 80, 40],
+  [230, 60, 80],
+  [180, 40, 120],
+  [120, 30, 160],
+  [80, 20, 180],
 ]
 
-const ACCENT: RGB = [240, 148, 100]
-const CREAM: RGB = [220, 195, 170]
-const DIMCOL: RGB = [120, 100, 82]
-const BORDER: RGB = [100, 80, 65]
+const ACCENT: RGB = [255, 100, 60]
+const CREAM: RGB = [230, 210, 240]
+const DIMCOL: RGB = [140, 110, 160]
+const BORDER: RGB = [100, 60, 130]
 
 // ─── Filled Block Text Logo ───────────────────────────────────────────────────
 
-const LOGO_OPEN = [
-  `  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557  \u2588\u2588\u2557`,
-  `  \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2551 \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2551 \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u255d \u2588\u2588\u2588\u2557 \u2588\u2588\u2551`,
-  `  \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551 \u2588\u2588\u2588\u2588\u2588\u2588\u2557   \u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551`,
-  `  \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u255d \u2588\u2588\u2554\u2550\u2550\u2550\u255d   \u2588\u2588\u2554\u2588\u2588\u2588\u2588\u2551`,
-  `  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551 \u2588\u2588\u2551       \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2551 \u255a\u2588\u2588\u2588\u2551`,
-  `  \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u255d       \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u255d  \u255a\u2550\u2550\u255d`,
-]
-
-const LOGO_CLAUDE = [
-  `  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557      \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557   \u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557`,
-  `  \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u255d \u2588\u2588\u2551      \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2551 \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2551 \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u2550\u255d`,
-  `  \u2588\u2588\u2551       \u2588\u2588\u2551      \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551 \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2588\u2588\u2588\u2588\u2557  `,
-  `  \u2588\u2588\u2551       \u2588\u2588\u2551      \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2551 \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2551   \u2588\u2588\u2551 \u2588\u2588\u2554\u2550\u2550\u2550\u255d  `,
-  `  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551 \u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557`,
-  `  \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d   \u255a\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d`,
+const LOGO_FCODE = [
+  '  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557',
+  '  \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d',
+  '  \u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557  ',
+  '  \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d  ',
+  '  \u2588\u2588\u2551     \u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557',
+  '  \u255a\u2550\u255d      \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d',
 ]
 
 // ─── Provider detection ───────────────────────────────────────────────────────
@@ -195,21 +186,17 @@ export function printStartupScreen(modelOverride?: string): void {
   out.push('')
 
   // Gradient logo
-  const allLogo = [...LOGO_OPEN, '', ...LOGO_CLAUDE]
+  const allLogo = LOGO_FCODE
   const total = allLogo.length
   for (let i = 0; i < total; i++) {
     const t = total > 1 ? i / (total - 1) : 0
-    if (allLogo[i] === '') {
-      out.push('')
-    } else {
-      out.push(paintLine(allLogo[i], SUNSET_GRAD, t))
-    }
+    out.push(paintLine(allLogo[i], SUNSET_GRAD, t))
   }
 
   out.push('')
 
   // Tagline
-  out.push(`  ${rgb(...ACCENT)}\u2726${RESET} ${rgb(...CREAM)}Any model. Every tool. Zero limits.${RESET} ${rgb(...ACCENT)}\u2726${RESET}`)
+  out.push(`  ${rgb(...ACCENT)}\u2726${RESET} ${rgb(...CREAM)}fractal coding harness${RESET} ${rgb(...ACCENT)}\u2726${RESET}`)
   out.push('')
 
   // Provider info box
@@ -221,7 +208,9 @@ export function printStartupScreen(modelOverride?: string): void {
   }
 
   const provC: RGB = p.isLocal ? [130, 175, 130] : ACCENT
-  let [r, l] = lbl('Provider', p.name, provC)
+  let [r, l] = lbl('Engine', 'fcode', provC)
+  out.push(boxRow(r, W, l))
+  ;[r, l] = lbl('Provider', p.name)
   out.push(boxRow(r, W, l))
   ;[r, l] = lbl('Model', p.model)
   out.push(boxRow(r, W, l))
@@ -238,7 +227,7 @@ export function printStartupScreen(modelOverride?: string): void {
   out.push(boxRow(sRow, W, sLen))
 
   out.push(`${rgb(...BORDER)}\u255a${'\u2550'.repeat(W - 2)}\u255d${RESET}`)
-  out.push(`  ${DIM}${rgb(...DIMCOL)}openclaude ${RESET}${rgb(...ACCENT)}v${MACRO.DISPLAY_VERSION ?? MACRO.VERSION}${RESET}`)
+  out.push(`  ${DIM}${rgb(...DIMCOL)}fcode ${RESET}${rgb(...ACCENT)}v${MACRO.DISPLAY_VERSION ?? MACRO.VERSION}${RESET}`)
   out.push('')
 
   process.stdout.write(out.join('\n') + '\n')
