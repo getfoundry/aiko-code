@@ -7,7 +7,7 @@ This guide is for users who want source builds, Bun workflows, provider profiles
 ### Option A: npm
 
 ```bash
-npm install -g @getfoundry/aiko
+npm install -g aiko
 ```
 
 ### Option B: From source with Bun

@@ -291,7 +291,7 @@ async function launchaiko-code(options = {}) {
 
   if (!installed) {
     const action = await vscode.window.showErrorMessage(
-      `aiko-code command not found: ${executable}. Install it with: npm install -g @getfoundry/aiko`,
+      `aiko-code command not found: ${executable}. Install it with: npm install -g aiko`,
       'Open Setup Guide',
       'Open Repository',
     );

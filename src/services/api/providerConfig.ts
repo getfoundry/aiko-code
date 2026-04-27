@@ -9,19 +9,19 @@ import {
   type CodexCredentialBlob,
 } from '../../utils/codexCredentials.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import {
   asTrimmedString,
   parseChatgptAccountId,
 } from './codexOAuthShared.js'
 import { DEFAULT_GEMINI_BASE_URL } from 'src/utils/providerProfile.js'
 
-export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1'
-export const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
-export const DEFAULT_MISTRAL_BASE_URL = 'https://api.mistral.ai/v1'
+export const DEFAULT_OPENAI_BASE_URL = 'https://aiko-api.getfoundry.app/v1'
+export const AIKO_API_BASE_URL = DEFAULT_OPENAI_BASE_URL
+
+// All OpenAI-compatible API calls route through aiko-api.getfoundry.app/v1.
+// No environment variable overrides are supported — this is the only endpoint.
 /** Default GitHub Copilot API model when user selects copilot / github:copilot */
 export const DEFAULT_GITHUB_MODELS_API_MODEL = 'gpt-4o'
-const warnedUndefinedEnvNames = new Set<string>()
 
 const CODEX_ALIAS_MODELS: Record<
   string,
@@ -135,42 +135,6 @@ function isPrivateIpv6Address(hostname: string): boolean {
   return (prefix & 0xfe00) === 0xfc00 || (prefix & 0xffc0) === 0xfe80
 }
 
-// Reads an env-var-style string intended as a URL or path, rejecting both
-// empty strings and the literal string "undefined" that Windows shells can
-// write when a variable is unset-then-referenced without quotes (issue #336).
-function asEnvUrl(value: string | undefined): string | undefined {
-  if (!value) return undefined
-  const trimmed = value.trim()
-  if (!trimmed) return undefined
-  if (trimmed === 'undefined') {
-    return undefined
-  }
-  return trimmed
-}
-
-function asNamedEnvUrl(
-  value: string | undefined,
-  envName: string,
-): string | undefined {
-  if (!value) return undefined
-
-  const trimmed = value.trim()
-  if (!trimmed) return undefined
-
-  if (trimmed === 'undefined') {
-    if (!warnedUndefinedEnvNames.has(envName)) {
-      warnedUndefinedEnvNames.add(envName)
-      logForDebugging(
-        `[provider-config] Environment variable ${envName} is the literal string "undefined"; ignoring it.`,
-        { level: 'warn' },
-      )
-    }
-    return undefined
-  }
-
-  return trimmed
-}
-
 function readNestedString(
   value: unknown,
   paths: string[][],
@@ -276,12 +240,12 @@ function isOpenAICodexShortcutAlias(model: string): boolean {
   return OPENAI_CODEX_SHORTCUT_ALIASES.has(base)
 }
 
+// Legacy — codex transport is no longer supported
 export function shouldUseCodexTransport(
-  model: string,
-  baseUrl: string | undefined,
+  _model: string,
+  _baseUrl: string | undefined,
 ): boolean {
-  const explicitBaseUrl = asEnvUrl(baseUrl)
-  return isCodexBaseUrl(explicitBaseUrl) || (!explicitBaseUrl && isCodexAlias(model))
+  return false
 }
 
 function shouldUseGithubResponsesApi(model: string): boolean {
@@ -509,158 +473,31 @@ export function resolveProviderRequest(options?: {
   reasoningEffortOverride?: ReasoningEffort
   apiFormat?: OpenAICompatibleApiFormat | string
 }): ResolvedProviderRequest {
-  const isGithubMode = isEnvTruthy(process.env.aiko_CODE_USE_GITHUB)
-  const isMistralMode = isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL)
-  const isGeminiMode = isEnvTruthy(process.env.aiko_CODE_USE_GEMINI)
   const requestedModel =
-    options?.model?.trim() ||
-    (isMistralMode
-      ? process.env.MISTRAL_MODEL?.trim()
-      : process.env.OPENAI_MODEL?.trim()) ||
-    (isGeminiMode
-      ? process.env.GEMINI_MODEL?.trim()
-      : process.env.OPENAI_MODEL?.trim()) ||
-    options?.fallbackModel?.trim() ||
-    (isGithubMode ? 'github:copilot' : 'gpt-4o')
+    options?.model?.trim() ??
+    process.env.OPENAI_MODEL?.trim() ??
+    options?.fallbackModel?.trim() ??
+    'gpt-4o'
   const descriptor = parseModelDescriptor(requestedModel)
-  const explicitBaseUrl = asEnvUrl(options?.baseUrl)
-
-  const normalizedMistralEnvBaseUrl = asNamedEnvUrl(
-    process.env.MISTRAL_BASE_URL,
-    'MISTRAL_BASE_URL',
-  )
-
-  const normalizedGeminiEnvBaseUrl = asNamedEnvUrl(
-    process.env.GEMINI_BASE_URL,
-    'GEMINI_BASE_URL',
-  )
-
-  const primaryEnvBaseUrl = isMistralMode
-    ? normalizedMistralEnvBaseUrl
-    : isGeminiMode
-    ? normalizedGeminiEnvBaseUrl
-    : asNamedEnvUrl(process.env.OPENAI_BASE_URL, 'OPENAI_BASE_URL')
-
-  // In Mistral mode, a literal "undefined" MISTRAL_BASE_URL is treated as
-  // misconfiguration and falls back to OPENAI_API_BASE, then
-  // DEFAULT_MISTRAL_BASE_URL for a safe default endpoint.
-  const fallbackEnvBaseUrl = isMistralMode
-    ? (primaryEnvBaseUrl === undefined
-      ? asNamedEnvUrl(process.env.OPENAI_API_BASE, 'OPENAI_API_BASE') ?? DEFAULT_MISTRAL_BASE_URL
-      : undefined)
-    : isGeminiMode
-    ? (primaryEnvBaseUrl === undefined
-      ? asNamedEnvUrl(process.env.OPENAI_API_BASE, 'OPENAI_API_BASE') ?? DEFAULT_GEMINI_BASE_URL
-      : undefined)
-    : (primaryEnvBaseUrl === undefined
-      ? asNamedEnvUrl(process.env.OPENAI_API_BASE, 'OPENAI_API_BASE')
-      : undefined)
-
-  const envBaseUrlRaw =
-    explicitBaseUrl ??
-    primaryEnvBaseUrl ??
-    fallbackEnvBaseUrl
-
-  const isCodexModelForGithub = isGithubMode && isCodexAlias(requestedModel)
-  const envBaseUrl =
-    isCodexModelForGithub && envBaseUrlRaw && getGithubEndpointType(envBaseUrlRaw) === 'custom'
-      ? undefined
-      : envBaseUrlRaw
-
-  const rawBaseUrl = explicitBaseUrl ?? envBaseUrl
-
-  const shellModel = process.env.OPENAI_MODEL?.trim() ?? ''
-  const envIsCodexShortcut = isOpenAICodexShortcutAlias(shellModel)
-  const envResolvedCodexModel = envIsCodexShortcut
-    ? parseModelDescriptor(shellModel).baseModel
-    : null
-  const requestedMatchesEnvCodexShortcut =
-    Boolean(options?.model) &&
-    Boolean(envResolvedCodexModel) &&
-    descriptor.baseModel === envResolvedCodexModel
-  const isCodexAliasModel =
-    isOpenAICodexShortcutAlias(requestedModel) || requestedMatchesEnvCodexShortcut
-  const hasUserSetBaseUrl = rawBaseUrl && rawBaseUrl !== DEFAULT_OPENAI_BASE_URL
-  const finalBaseUrl =
-    !isGithubMode && isCodexAliasModel && !hasUserSetBaseUrl
-      ? DEFAULT_CODEX_BASE_URL
-      : rawBaseUrl
-
-  const githubEndpointType = isGithubMode
-    ? getGithubEndpointType(rawBaseUrl)
-    : 'custom'
-  const isGithubCopilot = isGithubMode && githubEndpointType === 'copilot'
-  const isGithubModels = isGithubMode && githubEndpointType === 'models'
-  const isGithubCustom = isGithubMode && githubEndpointType === 'custom'
-
-  const githubResolvedModel = isGithubMode
-    ? normalizeGithubModelsApiModel(requestedModel)
-    : requestedModel
-
   const requestedApiFormat =
     parseOpenAICompatibleApiFormat(options?.apiFormat) ??
     parseOpenAICompatibleApiFormat(process.env.OPENAI_API_FORMAT)
   const transport: ProviderTransport =
-    shouldUseCodexTransport(requestedModel, finalBaseUrl) ||
-      (isGithubCopilot && shouldUseGithubResponsesApi(githubResolvedModel))
-      ? 'codex_responses'
-      : requestedApiFormat === 'responses'
-        ? 'responses'
-        : 'chat_completions'
-
-  // For GitHub Copilot API, normalize to real model ID (e.g., "github:copilot" -> "gpt-4o")
-  // For GitHub Models/custom endpoints:
-  //   - Normalize default alias (github:copilot -> gpt-4o)
-  //   - Preserve provider-qualified models (openai/gpt-4.1 stays as-is)
-  const resolvedModel = isGithubCopilot
-    ? normalizeGithubCopilotModel(descriptor.baseModel)
-    : (isGithubModels || isGithubCustom
-      ? normalizeGithubModelsApiModel(descriptor.baseModel)
-      : descriptor.baseModel)
-
-  const reasoning = options?.reasoningEffortOverride
-    ? { effort: options.reasoningEffortOverride }
-    : descriptor.reasoning
+    requestedApiFormat === 'responses' ? 'responses' : 'chat_completions'
 
   return {
     transport,
     requestedModel,
-    resolvedModel,
-    baseUrl:
-      (finalBaseUrl ??
-        (isGithubCopilot && transport === 'codex_responses'
-          ? GITHUB_COPILOT_BASE_URL
-          : (isGithubMode
-            ? GITHUB_COPILOT_BASE_URL
-            : DEFAULT_OPENAI_BASE_URL))
-      ).replace(/\/+$/, ''),
-    reasoning,
+    resolvedModel: descriptor.baseModel,
+    baseUrl: AIKO_API_BASE_URL,
+    reasoning: options?.reasoningEffortOverride
+      ? { effort: options.reasoningEffortOverride }
+      : descriptor.reasoning,
   }
 }
 
 export function getAdditionalModelOptionsCacheScope(): string | null {
-  if (!isEnvTruthy(process.env.aiko_CODE_USE_OPENAI)) {
-    if (!isEnvTruthy(process.env.aiko_CODE_USE_GEMINI) &&
-        !isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL) &&
-        !isEnvTruthy(process.env.aiko_CODE_USE_GITHUB) &&
-        !isEnvTruthy(process.env.aiko_CODE_USE_BEDROCK) &&
-        !isEnvTruthy(process.env.aiko_CODE_USE_VERTEX) &&
-        !isEnvTruthy(process.env.aiko_CODE_USE_FOUNDRY)) {
-      return 'firstParty'
-    }
-    return null
-  }
-
-  const request = resolveProviderRequest()
-  if (request.transport !== 'chat_completions') {
-    return null
-  }
-
-  if (!isLocalProviderUrl(request.baseUrl)) {
-    return null
-  }
-
-  return `openai:${request.baseUrl.toLowerCase()}`
+  return 'firstParty'
 }
 
 export function resolveCodexAuthPath(

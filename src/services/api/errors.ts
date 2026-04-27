@@ -504,31 +504,9 @@ export function isValidAPIMessage(value: unknown): value is BetaMessage {
   )
 }
 
-/** Lower-level error that AWS can return. */
-type AmazonError = {
-  Output?: {
-    __type?: string
-  }
-  Version?: string
-}
-
 /**
  * Given a response that doesn't look quite right, see if it contains any known error types we can extract.
  */
-export function extractUnknownErrorFormat(value: unknown): string | undefined {
-  // Check if value is a valid object first
-  if (!value || typeof value !== 'object') {
-    return undefined
-  }
-
-  // Amazon Bedrock routing errors
-  if ((value as AmazonError).Output?.__type) {
-    return (value as AmazonError).Output!.__type
-  }
-
-  return undefined
-}
-
 export function getAssistantMessageFromError(
   error: unknown,
   model: string,
@@ -1007,22 +985,6 @@ export function getAssistantMessageFromError(
     })
   }
 
-  // Bedrock errors like "403 You don't have access to the model with the specified model ID."
-  // don't contain the actual model ID
-  if (
-    isEnvTruthy(process.env.aiko_CODE_USE_BEDROCK) &&
-    error instanceof Error &&
-    error.message.toLowerCase().includes('model id')
-  ) {
-    const switchCmd = getIsNonInteractiveSession() ? '--model' : '/model'
-    const fallbackSuggestion = get3PModelFallbackSuggestion(model)
-    return createAssistantAPIErrorMessage({
-      content: fallbackSuggestion
-        ? `${API_ERROR_MESSAGE_PREFIX} (${model}): ${error.message}. Try ${switchCmd} to switch to ${fallbackSuggestion}.`
-        : `${API_ERROR_MESSAGE_PREFIX} (${model}): ${error.message}. Run ${switchCmd} to pick a different model.`,
-      error: 'invalid_request',
-    })
-  }
 
   // 404 Not Found — usually means the selected model doesn't exist or isn't
   // available. Guide the user to /model so they can pick a valid one.
@@ -1279,15 +1241,6 @@ export function classifyAPIError(error: unknown): string {
     (error.status === 401 || error.status === 403)
   ) {
     return 'auth_error'
-  }
-
-  // Bedrock-specific errors
-  if (
-    isEnvTruthy(process.env.aiko_CODE_USE_BEDROCK) &&
-    error instanceof Error &&
-    error.message.toLowerCase().includes('model id')
-  ) {
-    return 'bedrock_model_access'
   }
 
   // Status code based fallbacks

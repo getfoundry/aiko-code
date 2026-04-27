@@ -7,7 +7,7 @@ import { stringWidth } from '../../ink/stringWidth.js';
 import { getLayoutMode, calculateLayoutDimensions, calculateOptimalLeftWidth, formatWelcomeMessage, truncatePath, getRecentActivitySync, getRecentReleaseNotesSync, getLogoDisplayData } from '../../utils/logoV2Utils.js';
 import { truncate } from '../../utils/format.js';
 import { getDisplayPath } from '../../utils/file.js';
-import { Clawd } from './Clawd.js';
+import { ComicMascot } from './ComicMascot.js';
 import { FeedColumn } from './FeedColumn.js';
 import { createRecentActivityFeed, createWhatsNewFeed, createProjectOnboardingFeed, createGuestPassesFeed } from './feedConfigs.js';
 import { getGlobalConfig, saveGlobalConfig } from 'src/utils/config.js';
@@ -281,7 +281,7 @@ export function LogoV2() {
     }
     let t12;
     if ($[34] === Symbol.for("react.memo_cache_sentinel")) {
-      t12 = <Box marginY={1}><Clawd /></Box>;
+      t12 = <Box marginY={1}><ComicMascot /></Box>;
       $[34] = t12;
     } else {
       t12 = $[34];
@@ -328,7 +328,7 @@ export function LogoV2() {
       t18 = $[42];
       t19 = $[43];
     }
-    return <><OffscreenFreeze><Box flexDirection="column" borderStyle="round" borderColor="inactive" borderText={t11} paddingX={1} paddingY={1} alignItems="center" width={columns}><Text bold={true}>{welcomeMessage}</Text>{t12}{t13}<Text dimColor={true}>{billingType}</Text><Text dimColor={true}>{agentName ? `@${agentName} · ${truncatedCwd}` : truncatedCwd}</Text></Box></OffscreenFreeze>{t14}{t15}{t16}{t17}{t18}{t19}</>;
+    return <><OffscreenFreeze><Box flexDirection="column" borderStyle="round" borderColor="aiko" borderText={t11} paddingX={1} paddingY={1} alignItems="center" width={columns}><Text bold={true}>{welcomeMessage}</Text>{t12}{t13}<Text dimColor={true}>{billingType}</Text><Text dimColor={true}>{agentName ? `@${agentName} · ${truncatedCwd}` : truncatedCwd}</Text></Box></OffscreenFreeze>{t14}{t15}{t16}{t17}{t18}{t19}</>;
   }
   const welcomeMessage_0 = formatWelcomeMessage(username);
   const modelLine = showAccountIdentity && !process.env.IS_DEMO && config.oauthAccount?.organizationName ? `Aiko · ${config.oauthAccount.organizationName}` : `Aiko`;
@@ -364,7 +364,7 @@ export function LogoV2() {
   const t17 = 1;
   let t18;
   if ($[46] !== welcomeMessage_0) {
-    t18 = <Box marginTop={1} flexDirection="column" alignItems="center"><Text bold={true}>AIKO CODE</Text><Text dimColor={true}>let's build something amazing together ✧</Text><Text color="inactive">•</Text><Text bold={true}>{welcomeMessage_0}</Text></Box>;
+    t18 = <Box marginTop={1} flexDirection="column" alignItems="center"><Text bold={true}>AIKO CODE</Text><Text color="aiko">let's build something awesome together ⚡</Text><Text color="inactive">•</Text><Text bold={true}>{welcomeMessage_0}</Text></Box>;
     $[46] = welcomeMessage_0;
     $[47] = t18;
   } else {
@@ -372,7 +372,7 @@ export function LogoV2() {
   }
   let t19;
   if ($[48] === Symbol.for("react.memo_cache_sentinel")) {
-    t19 = <Clawd />;
+    t19 = <ComicMascot />;
     $[48] = t19;
   } else {
     t19 = $[48];

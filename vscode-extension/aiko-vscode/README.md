@@ -1,5 +1,7 @@
 # Aiko Code VS Code Extension
 
+> **Fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).**
+
 A practical VS Code companion for Aiko Code with a project-aware **Control Center**, predictable terminal launch behavior, and quick access to useful aiko-code workflows.
 
 ## Features
@@ -28,7 +30,7 @@ A practical VS Code companion for Aiko Code with a project-aware **Control Cente
 ## Requirements
 
 - VS Code `1.95+`
-- `aiko-code` available in your terminal PATH (`npm install -g @getfoundry/aiko`)
+- `aiko-code` available in your terminal PATH (`npm install -g aiko`)
 
 ## Commands
 

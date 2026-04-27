@@ -1,5 +1,7 @@
 # LiteLLM Setup
 
+> **Fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).**
+
 Aiko Code can connect to LiteLLM through LiteLLM's OpenAI-compatible proxy.
 
 ## Overview

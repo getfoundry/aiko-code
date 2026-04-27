@@ -7,7 +7,7 @@ import { afterEach, expect, test } from 'bun:test'
   DISPLAY_VERSION: '0.0.0-test',
   BUILD_TIME: new Date().toISOString(),
   ISSUES_EXPLAINER: 'report the issue at https://github.com/anthropics/aiko-code/issues',
-  PACKAGE_URL: '@getfoundry/aiko',
+  PACKAGE_URL: 'aiko',
   NATIVE_PACKAGE_URL: undefined,
 }
 

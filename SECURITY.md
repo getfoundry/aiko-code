@@ -1,5 +1,7 @@
 # Security Policy
 
+> **Fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).** Security policies apply to this fork as well.
+
 ## Supported Versions
 
 Open aiko is currently maintained on the latest `main` branch and the latest
@@ -60,7 +62,7 @@ This policy applies to:
 
 - the Open aiko source code in this repository
 - official release artifacts published from this repository
-- the `@getfoundry/aiko` npm package
+- the `aiko` npm package
 
 This policy does not cover:
 

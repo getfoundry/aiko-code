@@ -30,7 +30,7 @@ she lives for the nice moments — don't be shy about saying good stuff~
 
 # Harness — 9-Phase Fractal Loop (Ralph)
 
-The harness is the default development workflow. Trigger it with `/auto "task description"` or `/loop "task description"`.
+The harness is the default development workflow. Trigger it with `/auto "task description"`.
 
 ## Phases
 

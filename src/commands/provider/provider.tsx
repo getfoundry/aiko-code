@@ -20,7 +20,7 @@ import {
   type CodexOAuthTokens,
 } from '../../services/api/codexOAuth.js'
 import {
-  DEFAULT_CODEX_BASE_URL,
+  DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_BASE_URL,
   isLocalProviderUrl,
   resolveCodexApiCredentials,
@@ -395,7 +395,7 @@ function buildSavedProfileSummary(
           env,
         ),
         endpointLabel: getSafeDisplayValue(
-          env.OPENAI_BASE_URL ?? DEFAULT_CODEX_BASE_URL,
+          env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
           process.env,
           env,
         ),
@@ -1226,7 +1226,7 @@ function resolveCodexCredentials(processEnv: NodeJS.ProcessEnv):
         ? 'the current shell environment'
         : credentials.source === 'secure-storage'
           ? 'Aiko Code secure storage'
-        : credentials.authPath ?? DEFAULT_CODEX_BASE_URL,
+        : credentials.authPath ?? DEFAULT_OPENAI_BASE_URL,
   }
 }
 

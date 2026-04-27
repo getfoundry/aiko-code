@@ -1,4 +1,6 @@
-import { realpath } from 'fs/promises'
+import { existsSync, lstatSync, realpath as realpathSync } from 'fs'
+import { realpath as realpathAsync } from 'fs/promises'
+import { homedir } from 'os'
 import ignore from 'ignore'
 import memoize from 'lodash-es/memoize.js'
 import {
@@ -117,7 +119,7 @@ export function estimateSkillFrontmatterTokens(skill: Command): number {
  */
 async function getFileIdentity(filePath: string): Promise<string | null> {
   try {
-    return await realpath(filePath)
+    return await realpathAsync(filePath)
   } catch {
     return null
   }
@@ -432,6 +434,9 @@ async function findSkillMarkdownFiles(basePath: string): Promise<string[]> {
 
     const childDirs: string[] = []
     for (const entry of entries) {
+      // Skip hidden directories (.git, .system, etc.) — they're not skills
+      if (entry.name.startsWith('.')) continue
+
       const entryPath = join(skillDirPath, entry.name)
 
       if (isSkillFile(entryPath)) {
@@ -472,6 +477,9 @@ async function findSkillMarkdownFiles(basePath: string): Promise<string[]> {
 
   const topLevelDirs: string[] = []
   for (const entry of entries) {
+    // Skip hidden directories (.git, .system, etc.) — they're not skills
+    if (entry.name.startsWith('.')) continue
+
     const entryPath = join(basePath, entry.name)
 
     if (entry.isDirectory()) {
@@ -726,8 +734,12 @@ export const getSkillDirCommands = memoize(
     const managedSkillsDir = join(getManagedFilePath(), '.aiko', 'skills')
     const projectSkillsDirs = getProjectDirsUpToHome('skills', cwd)
 
+    // Claude Code skills — load from ~/.claude/skills/ if present
+    const ccSkillsDir = join(homedir(), '.claude', 'skills')
+    const hasCCSkills = existsSync(ccSkillsDir) && lstatSync(ccSkillsDir).isDirectory()
+
     logForDebugging(
-      `Loading skills from: managed=${managedSkillsDir}, user=${userSkillsDir}, project=[${projectSkillsDirs.join(', ')}]`,
+      `Loading skills from: managed=${managedSkillsDir}, user=${userSkillsDir}, project=[${projectSkillsDirs.join(', ')}]${hasCCSkills ? `, cc=${ccSkillsDir}` : ''}`,
     )
 
     // Load from additional directories (--add-dir)
@@ -767,6 +779,7 @@ export const getSkillDirCommands = memoize(
       projectSkillsNested,
       additionalSkillsNested,
       legacyCommands,
+      ccSkills,
     ] = await Promise.all([
       isEnvTruthy(process.env.aiko_CODE_DISABLE_POLICY_SKILLS)
         ? Promise.resolve([])
@@ -796,6 +809,10 @@ export const getSkillDirCommands = memoize(
       // here when skills are locked — these ARE skills, regardless of the
       // directory they load from.
       skillsLocked ? Promise.resolve([]) : loadSkillsFromCommandsDir(cwd),
+      // Claude Code skills — always loaded, not gated by policy restrictions
+      hasCCSkills
+        ? loadSkillsFromSkillsDir(ccSkillsDir, 'userSettings')
+        : Promise.resolve([]),
     ])
 
     // Flatten and combine all skills
@@ -805,6 +822,7 @@ export const getSkillDirCommands = memoize(
       ...projectSkillsNested.flat(),
       ...additionalSkillsNested.flat(),
       ...legacyCommands,
+      ...ccSkills,
     ]
 
     // Deduplicate by resolved path (handles symlinks and duplicate parent directories)

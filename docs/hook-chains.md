@@ -1,5 +1,7 @@
 # Hook Chains (Self-Healing Agent Mesh MVP)
 
+> **Fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).**
+
 Hook Chains provide an event-driven recovery layer for important workflow failures.
 When a matching hook event occurs, aiko-code evaluates declarative rules and can dispatch remediation actions such as:
 

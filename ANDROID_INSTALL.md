@@ -1,5 +1,7 @@
 # Aiko Code on Android (Termux)
 
+> **Fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).** This guide covers the fork.
+
 A complete guide to running Aiko Code on Android using Termux + proot Ubuntu.
 
 ---

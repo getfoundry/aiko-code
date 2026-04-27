@@ -5,7 +5,7 @@ import {
 import { logForDebugging } from '../../utils/debug.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import {
-  DEFAULT_CODEX_BASE_URL,
+  DEFAULT_OPENAI_BASE_URL,
   isCodexBaseUrl,
   resolveRuntimeCodexCredentials,
   resolveProviderRequest,
@@ -392,7 +392,7 @@ export function formatCodexPlanType(
     .join(' ')
 }
 
-export function getCodexUsageUrl(baseUrl = DEFAULT_CODEX_BASE_URL): string {
+export function getCodexUsageUrl(baseUrl = DEFAULT_OPENAI_BASE_URL): string {
   return new URL('/backend-api/wham/usage', baseUrl).toString()
 }
 

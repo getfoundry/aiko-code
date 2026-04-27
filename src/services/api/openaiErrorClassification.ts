@@ -217,7 +217,7 @@ export function classifyOpenAINetworkFailure(
       retryable: true,
       message,
       code,
-      hint: 'Localhost failed for this request. Retry with 127.0.0.1 and confirm Ollama is serving on the configured port.',
+      hint: 'Localhost failed for this request. Confirm your local proxy is serving on the configured port.',
     }
   }
 
@@ -229,7 +229,7 @@ export function classifyOpenAINetworkFailure(
       message,
       code,
       hint: isLocalHost
-        ? 'Connection to the local provider was refused. Ensure the local server is running and listening on the configured port.'
+        ? 'Connection to the provider was refused. Ensure the server is running and listening on the configured port.'
         : 'Connection was refused by the provider endpoint. Ensure the server is running and the port is correct.',
     }
   }
@@ -290,7 +290,7 @@ export function classifyOpenAIHttpFailure(options: {
       retryable: false,
       status: options.status,
       message: body,
-      hint: 'Endpoint was not found. Confirm OPENAI_BASE_URL includes /v1 for OpenAI-compatible local providers.',
+      hint: 'Endpoint was not found. Confirm the API base URL includes /v1.',
     }
   }
 
@@ -316,7 +316,7 @@ export function classifyOpenAIHttpFailure(options: {
       retryable: false,
       status: options.status,
       message: body,
-      hint: 'Provider/model rejected tool-calling payload. Retry without tools or use a tool-capable model.',
+      hint: 'Provider rejected tool-calling payload. Retry without tools or use a tool-capable model.',
     }
   }
 

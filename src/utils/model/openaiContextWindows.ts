@@ -16,6 +16,7 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   // Namespaced so they don't collide with bare model names from other providers.
   'github:copilot':                           128_000,
   // aiko
+  'aiko-default':                           200_000,
   'github:copilot:aiko-sonnet-4':           216_000,
   'github:copilot:aiko-haiku-4':            200_000,
   'github:copilot:aiko-haiku-4.5':          144_000,
@@ -56,6 +57,7 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   // provider — this is a curated subset, not an exhaustive mirror of the
   // namespaced entries above. Values are sourced from copilotModels.ts to stay
   // consistent with the /onboard-github path.
+  'aiko-default':                            200_000,
   'github_copilot/aiko-sonnet-4.6':        200_000,
   'github_copilot/aiko-opus-4.6':          200_000,
   'github_copilot/aiko-haiku-4.5':         144_000,
@@ -81,6 +83,8 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   'gpt-5.4':               1_050_000,
   'gpt-5.4-mini':            400_000,
   'gpt-5.4-nano':            400_000,
+  // aiko
+  'aiko-default':               200_000,
   'gpt-4o':                   128_000,
   'gpt-4o-mini':              128_000,
   'gpt-4.1':                  1_047_576,
@@ -268,6 +272,7 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   // GitHub Copilot — values from https://api.githubcopilot.com/models (2026-04-09)
   'github:copilot':                            16_384,
   // aiko
+  'aiko-default':                            32_000,
   'github:copilot:aiko-sonnet-4':            16_000,
   'github:copilot:aiko-haiku-4':             64_000,
   'github:copilot:aiko-haiku-4.5':           32_768,
@@ -300,6 +305,7 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'github:copilot:grok-code-fast-1':          64_000,
 
   // LiteLLM format — see note on context windows above.
+  'aiko-default':                             32_000,
   'github_copilot/aiko-sonnet-4.6':         32_000,
   'github_copilot/aiko-opus-4.6':           32_000,
   'github_copilot/aiko-haiku-4.5':          32_768,
@@ -321,6 +327,8 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'gpt-5.4':                 128_000,
   'gpt-5.4-mini':            128_000,
   'gpt-5.4-nano':            128_000,
+  // aiko
+  'aiko-default':               32_000,
   'gpt-4o':                   16_384,
   'gpt-4o-mini':              16_384,
   'gpt-4.1':                  32_768,

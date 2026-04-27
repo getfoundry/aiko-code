@@ -5,24 +5,7 @@
  * OpenAI-compatible chat completion requests and streams back events
  * in the Anthropic streaming format so the rest of the codebase is unaware.
  *
- * Supports: OpenAI, Azure OpenAI, Ollama, LM Studio, OpenRouter,
- * Together, Groq, Fireworks, DeepSeek, Mistral, and any OpenAI-compatible API.
- *
- * Environment variables:
- *   aiko_CODE_USE_OPENAI=1          — enable this provider
- *   OPENAI_API_KEY=sk-...             — API key (optional for local models)
- *   OPENAI_AUTH_HEADER=api-key        — optional custom auth header name
- *   OPENAI_AUTH_HEADER_VALUE=...      — optional custom auth header value
- *   OPENAI_AUTH_SCHEME=bearer|raw     — auth scheme for Authorization/custom header handling
- *   OPENAI_API_FORMAT=chat_completions|responses — request format for compatible APIs
- *   OPENAI_BASE_URL=http://...        — base URL (default: https://api.openai.com/v1)
- *   OPENAI_MODEL=gpt-4o              — default model override
- *   CODEX_API_KEY / ~/.codex/auth.json — Codex auth for codexplan/codexspark
- *
- * GitHub Copilot API (api.githubcopilot.com), OpenAI-compatible:
- *   aiko_CODE_USE_GITHUB=1         — enable GitHub inference (no need for USE_OPENAI)
- *   GITHUB_TOKEN or GH_TOKEN         — Copilot API token (mapped to Bearer auth)
- *   OPENAI_MODEL                     — optional; use github:copilot or openai/gpt-4.1 style IDs
+ * All API calls route through aiko-api.getfoundry.app/v1.
  */
 
 import { APIError } from '@anthropic-ai/sdk'
@@ -2259,47 +2242,6 @@ export function createOpenAIShimClient(options: {
   reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh'
   providerOverride?: { model: string; baseURL: string; apiKey: string }
 }): unknown {
-  hydrateGeminiAccessTokenFromSecureStorage()
-  hydrateGithubModelsTokenFromSecureStorage()
-
-  // When Gemini provider is active, map Gemini env vars to OpenAI-compatible ones
-  // so the existing providerConfig.ts infrastructure picks them up correctly.
-  if (isEnvTruthy(process.env.aiko_CODE_USE_GEMINI)) {
-    process.env.OPENAI_BASE_URL ??=
-      process.env.GEMINI_BASE_URL ??
-      'https://generativelanguage.googleapis.com/v1beta/openai'
-    const geminiApiKey =
-      process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY
-    if (geminiApiKey && !process.env.OPENAI_API_KEY) {
-      process.env.OPENAI_API_KEY = geminiApiKey
-    }
-    if (process.env.GEMINI_MODEL && !process.env.OPENAI_MODEL) {
-      process.env.OPENAI_MODEL = process.env.GEMINI_MODEL
-    }
-  } else if (isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL)) {
-    process.env.OPENAI_BASE_URL =
-      process.env.MISTRAL_BASE_URL ?? 'https://api.mistral.ai/v1'
-    process.env.OPENAI_API_KEY = process.env.MISTRAL_API_KEY
-    if (process.env.MISTRAL_MODEL) {
-      process.env.OPENAI_MODEL = process.env.MISTRAL_MODEL
-    }
-  } else if (isEnvTruthy(process.env.aiko_CODE_USE_GITHUB)) {
-    process.env.OPENAI_BASE_URL ??= GITHUB_COPILOT_BASE
-    process.env.OPENAI_API_KEY ??=
-      process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? ''
-  }
-
-  // Map Bankr env vars to OpenAI-compatible ones when present
-  if (process.env.BNKR_API_KEY && !process.env.OPENAI_API_KEY) {
-    process.env.OPENAI_API_KEY = process.env.BNKR_API_KEY
-  }
-  if (process.env.BANKR_BASE_URL && !process.env.OPENAI_BASE_URL) {
-    process.env.OPENAI_BASE_URL = process.env.BANKR_BASE_URL
-  }
-  if (process.env.BANKR_MODEL && !process.env.OPENAI_MODEL) {
-    process.env.OPENAI_MODEL = process.env.BANKR_MODEL
-  }
-
   const beta = new OpenAIShimBeta({
     ...(options.defaultHeaders ?? {}),
   }, options.reasoningEffort, options.providerOverride)

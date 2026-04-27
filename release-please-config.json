@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "@getfoundry/aiko",
+      "package-name": "aiko",
       "bump-minor-pre-major": true,
       "include-v-in-tag": true
     }

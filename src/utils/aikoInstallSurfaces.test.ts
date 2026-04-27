@@ -45,7 +45,7 @@ test('install command displays aiko-code.exe path on Windows', async () => {
 test('cleanupNpmInstallations removes both aiko-code and legacy aiko local install dirs', async () => {
   const removedPaths: string[] = []
   ;(globalThis as Record<string, unknown>).MACRO = {
-    PACKAGE_URL: '@getfoundry/aiko',
+    PACKAGE_URL: 'aiko',
   }
 
   mock.module('fs/promises', () => ({

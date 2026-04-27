@@ -1,7 +1,7 @@
 {
-  "name": "@getfoundry/aiko",
+  "name": "aiko",
   "version": "0.7.0",
-  "description": "Aiko Code — your wholesome coding companion~ Fork of Aiko/aiko Code. 9-phase fractal development loop with Fibonacci parallelism budgets baked in.",
+  "description": "Aiko Code — your wholesome coding companion~ Fork of Anthropic's aiko Code. 9-phase fractal development loop with Fibonacci parallelism budgets baked in.",
   "type": "module",
   "bin": {
     "aiko-code": "./bin/aiko-code"

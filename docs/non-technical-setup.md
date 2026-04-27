@@ -1,5 +1,7 @@
 # Aiko Code for Non-Technical Users
 
+> **Fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).**
+
 This guide is for people who want the easiest setup path.
 
 You do not need to build from source. You do not need Bun. You do not need to understand the full codebase.

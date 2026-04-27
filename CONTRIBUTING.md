@@ -1,5 +1,7 @@
 # Contributing to aiko-code
 
+> **This project is a fork of [Anthropic's aiko Code](https://github.com/getfoundry/aiko-code).** Thanks to the Anthropic team for the original project.
+
 Thanks for contributing.
 
 Aiko Code is a fast-moving open-source coding-agent CLI with support for multiple providers, local backends, MCP, and a terminal-first workflow. The best contributions here are focused, well-tested, and easy to review.

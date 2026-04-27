@@ -18,7 +18,7 @@ npm --version
 ## 2. Install aiko-code
 
 ```powershell
-npm install -g @getfoundry/aiko
+npm install -g aiko
 ```
 
 ## 3. Pick One Provider
@@ -129,13 +129,13 @@ Check the basics:
 ## 6. Updating aiko-code
 
 ```powershell
-npm install -g @getfoundry/aiko@latest
+npm install -g aiko@latest
 ```
 
 ## 7. Uninstalling aiko-code
 
 ```powershell
-npm uninstall -g @getfoundry/aiko
+npm uninstall -g aiko
 ```
 
 ## Need Advanced Setup?

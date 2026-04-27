@@ -1,6 +1,6 @@
 import figures from 'figures'
 import * as React from 'react'
-import { DEFAULT_CODEX_BASE_URL } from '../services/api/providerConfig.js'
+import { DEFAULT_OPENAI_BASE_URL } from '../services/api/providerConfig.js'
 import { Box, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useSetAppState } from '../state/AppState.js'
@@ -1763,7 +1763,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             const payload: ProviderProfileInput = {
               provider: 'openai',
               name: CODEX_OAUTH_PROVIDER_NAME,
-              baseUrl: DEFAULT_CODEX_BASE_URL,
+              baseUrl: DEFAULT_OPENAI_BASE_URL,
               model: CODEX_OAUTH_PROVIDER_MODEL,
               apiKey: '',
             }

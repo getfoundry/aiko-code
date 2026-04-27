@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
-  DEFAULT_CODEX_BASE_URL,
+  DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_BASE_URL,
   isCodexBaseUrl,
   resolveCodexApiCredentials,
@@ -411,7 +411,7 @@ export function buildCodexProfileEnv(options: {
     (credentials.source === 'secure-storage' ? 'oauth' : 'existing')
 
   const env: ProfileEnv = {
-    OPENAI_BASE_URL: options.baseUrl || DEFAULT_CODEX_BASE_URL,
+    OPENAI_BASE_URL: options.baseUrl || DEFAULT_OPENAI_BASE_URL,
     OPENAI_MODEL: options.model || 'codexplan',
     CODEX_CREDENTIAL_SOURCE: credentialSource,
   }
@@ -518,7 +518,7 @@ export function buildCodexOAuthProfileEnv(
   }
 
   return {
-    OPENAI_BASE_URL: DEFAULT_CODEX_BASE_URL,
+    OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
     OPENAI_MODEL: 'codexplan',
     CHATGPT_ACCOUNT_ID: accountId,
     CODEX_CREDENTIAL_SOURCE: 'oauth',
@@ -910,7 +910,7 @@ export async function buildLaunchEnv(options: {
     env.OPENAI_BASE_URL =
       persistedOpenAIBaseUrl && isCodexBaseUrl(persistedOpenAIBaseUrl)
         ? persistedOpenAIBaseUrl
-        : DEFAULT_CODEX_BASE_URL
+        : DEFAULT_OPENAI_BASE_URL
     env.OPENAI_MODEL = persistedOpenAIModel || 'codexplan'
     delete env.OPENAI_API_KEY
     delete env.OPENAI_API_FORMAT

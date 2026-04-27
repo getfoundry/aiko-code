@@ -138,7 +138,7 @@ const result = await Bun.build({
     'MACRO.BUILD_TIME': JSON.stringify(new Date().toISOString()),
     'MACRO.ISSUES_EXPLAINER':
       JSON.stringify('report the issue at https://github.com/anthropics/aiko-code/issues'),
-    'MACRO.PACKAGE_URL': JSON.stringify('@getfoundry/aiko'),
+    'MACRO.PACKAGE_URL': JSON.stringify('aiko'),
     'MACRO.NATIVE_PACKAGE_URL': 'undefined',
   },
   plugins: [

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
-import { DEFAULT_CODEX_BASE_URL } from '../services/api/providerConfig.ts'
+import { DEFAULT_OPENAI_BASE_URL } from '../services/api/providerConfig.ts'
 import {
   applySavedProfileToCurrentSession,
   buildStartupEnvFromProfile,
@@ -539,7 +539,7 @@ test('buildCodexProfileEnv tags OAuth-saved profiles so logout can remove them s
   })
 
   assert.deepEqual(env, {
-    OPENAI_BASE_URL: DEFAULT_CODEX_BASE_URL,
+    OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
     OPENAI_MODEL: 'codexplan',
     CODEX_CREDENTIAL_SOURCE: 'oauth',
     CODEX_API_KEY: makeJwt({
@@ -568,7 +568,7 @@ test('clearPersistedCodexOAuthProfile removes only persisted Codex OAuth profile
     } = providerProfileModule
     const oauthProfile = createProfileFile('codex', {
       OPENAI_MODEL: 'codexplan',
-      OPENAI_BASE_URL: DEFAULT_CODEX_BASE_URL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
       CHATGPT_ACCOUNT_ID: 'acct_oauth',
       CODEX_CREDENTIAL_SOURCE: 'oauth',
     })
@@ -583,7 +583,7 @@ test('clearPersistedCodexOAuthProfile removes only persisted Codex OAuth profile
 
     const existingCredentialProfile = createProfileFile('codex', {
       OPENAI_MODEL: 'codexplan',
-      OPENAI_BASE_URL: DEFAULT_CODEX_BASE_URL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
       CHATGPT_ACCOUNT_ID: 'acct_existing',
       CODEX_CREDENTIAL_SOURCE: 'existing',
     })
