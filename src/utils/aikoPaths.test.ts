@@ -32,8 +32,8 @@ describe('aiko-code paths', () => {
     expect(
       resolveaikoConfigHomeDir({
         homeDir: homedir(),
-        aiko-codeExists: true,
-        legacyaikoExists: false,
+        aikoCodeExists: true,
+        legacyAikoExists: false,
       }),
     ).toBe(join(homedir(), '.aiko-code'))
   })
@@ -45,8 +45,8 @@ describe('aiko-code paths', () => {
     expect(
       resolveaikoConfigHomeDir({
         homeDir: homedir(),
-        aiko-codeExists: false,
-        legacyaikoExists: true,
+        aikoCodeExists: false,
+        legacyAikoExists: true,
       }),
     ).toBe(join(homedir(), '.aiko'))
   })

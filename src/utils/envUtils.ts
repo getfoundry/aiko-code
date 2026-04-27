@@ -6,28 +6,38 @@ import { join } from 'path'
 export function resolveaikoConfigHomeDir(options?: {
   configDirEnv?: string
   homeDir?: string
-  aiko-codeExists?: boolean
-  legacyaikoExists?: boolean
+  aikoCodeExists?: boolean
+  legacyAikoExists?: boolean
+  claudeExists?: boolean
 }): string {
   if (options?.configDirEnv) {
     return options.configDirEnv.normalize('NFC')
   }
 
   const homeDir = options?.homeDir ?? homedir()
-  const aiko-codeDir = join(homeDir, '.aiko-code')
-  const legacyaikoDir = join(homeDir, '.aiko')
-  const aiko-codeExists =
-    options?.aiko-codeExists ?? existsSync(aiko-codeDir)
-  const legacyaikoExists =
-    options?.legacyaikoExists ?? existsSync(legacyaikoDir)
+  const aikoCodeDir = join(homeDir, '.aiko-code')
+  const legacyAikoDir = join(homeDir, '.aiko')
+  const claudeDir = join(homeDir, '.claude')
+  const aikoCodeExists =
+    options?.aikoCodeExists ?? existsSync(aikoCodeDir)
+  const legacyAikoExists =
+    options?.legacyAikoExists ?? existsSync(legacyAikoDir)
+  const claudeExists =
+    options?.claudeExists ?? existsSync(claudeDir)
+
+  // If .claude exists (anthropic-codex symlink), use it for config compatibility.
+  // Then fall back to legacy ~/.aiko, then ~/.aiko-code.
+  if (claudeExists) {
+    return claudeDir.normalize('NFC')
+  }
 
   // Preserve existing user config/install state until we ship an explicit
   // migration. New installs (neither path exists) use ~/.aiko-code.
-  if (!aiko-codeExists && legacyaikoExists) {
-    return legacyaikoDir.normalize('NFC')
+  if (!aikoCodeExists && legacyAikoExists) {
+    return legacyAikoDir.normalize('NFC')
   }
 
-  return aiko-codeDir.normalize('NFC')
+  return aikoCodeDir.normalize('NFC')
 }
 
 // Memoized: 150+ callers, many on hot paths. Keyed off aiko_CONFIG_DIR so

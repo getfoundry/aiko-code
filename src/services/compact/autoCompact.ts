@@ -155,16 +155,8 @@ export function calculateTokenWarningState(
 }
 
 export function isAutoCompactEnabled(): boolean {
-  if (isEnvTruthy(process.env.DISABLE_COMPACT)) {
-    return false
-  }
-  // Allow disabling just auto-compact (keeps manual /compact working)
-  if (isEnvTruthy(process.env.DISABLE_AUTO_COMPACT)) {
-    return false
-  }
-  // Check if user has disabled auto-compact in their settings
-  const userConfig = getGlobalConfig()
-  return userConfig.autoCompactEnabled
+  // Auto-compact disabled — tokens never trigger banners
+  return false
 }
 
 export async function shouldAutoCompact(

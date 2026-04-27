@@ -409,7 +409,9 @@ function ModeIndicator({
   const tasksPart = hasBackgroundTasks && !hasTeammatePills && !shouldHideTasksFooter(tasks, showSpinnerTree) ? <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} /> : null;
 
   // Harness indicator — shows when an active /auto session exists
-  if (true) parts.push(<HarnessIndicator key="harness" />);
+  // (returns null when idle or no harness active)
+  const harnessEl = <HarnessIndicator key="harness" />;
+  if (harnessEl !== null) parts.push(harnessEl);
 
   if (parts.length === 0 && !tasksPart && !modePart && showHint) {
     parts.push(<Text dimColor key="shortcuts-hint">

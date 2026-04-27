@@ -86,6 +86,8 @@ export const HarnessIndicator = memo(function HarnessIndicator() {
   const state = getHarnessState();
   if (!state) return null;
   const phase = getPhaseName(state.step);
+  // Don't show Survey 0/9 — harness is idle, not in progress
+  if (state.step === 0) return null;
   return (
     <Text color="aiko" dimColor={true}>
       {'⟐ '}
