@@ -11,14 +11,47 @@ import { which } from './which.js'
 type Platform = 'win32' | 'darwin' | 'linux'
 
 // Config and data paths
+
+/**
+ * Resolve a config file path that merges ~/.claude and ~/.aiko-code.
+ * Priority: ~/.aiko-code (writes here) > ~/.claude (reads from here as fallback).
+ * Returns the resolved file path for reading, or the write target path.
+ * isWrite=true means return the primary write directory (aiko-code).
+ */
+function resolveMergedConfigPath(
+  filename: string,
+  isWrite: boolean,
+): string {
+  const homeDir = homedir()
+  const aikoCodeDir = join(homeDir, '.aiko-code')
+  const claudeDir = join(homeDir, '.claude')
+  const configDir = process.env.aiko_CONFIG_DIR
+
+  if (configDir) {
+    return join(configDir, filename)
+  }
+
+  // Write always goes to aiko-code
+  if (isWrite) {
+    return join(aikoCodeDir, filename)
+  }
+
+  // Read: try aiko-code first (has priority), fall back to .claude
+  const aikoPath = join(aikoCodeDir, filename)
+  if (getFsImplementation().existsSync(aikoPath)) {
+    return aikoPath
+  }
+  return join(claudeDir, filename)
+}
+
 export const getGlobalaikoFile = memoize((): string => {
   // Legacy fallback for backwards compatibility
   if (
     getFsImplementation().existsSync(
-      join(getaikoConfigHomeDir(), '.config.json'),
+      join(resolveMergedConfigPath('.config.json', false), ''),
     )
   ) {
-    return join(getaikoConfigHomeDir(), '.config.json')
+    return join(resolveMergedConfigPath('.config.json', false), '')
   }
 
   const oauthSuffix = fileSuffixForOauthConfig()
