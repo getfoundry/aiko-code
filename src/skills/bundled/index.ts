@@ -5,7 +5,7 @@ import { registeraikoInChromeSkill } from './aikoInChrome.js'
 import { registerDebugSkill } from './debug.js'
 import { registerKeybindingsSkill } from './keybindings.js'
 import { registerLoopSkill } from './loop.js'
-import { registerFcodeHarness } from './aiko-codeHarness.js'
+import { registerAikoHarness } from './aikoCodeHarness.js'
 import { registerSimplifySkill } from './simplify.js'
 import { registerUpdateConfigSkill } from './updateConfig.js'
 
@@ -40,7 +40,7 @@ export function initBundledSkills(): void {
   // unconditionally so the static import is bundled; visibility is gated
   // at runtime by the isEnabled callback.
   registerLoopSkill()
-  registerFcodeHarness()
+  registerAikoHarness()
   if (feature('AGENT_TRIGGERS_REMOTE')) {
     /* eslint-disable @typescript-eslint/no-require-imports */
     const {

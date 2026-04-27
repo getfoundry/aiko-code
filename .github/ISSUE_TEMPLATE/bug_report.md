@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a reproducible problem in fcode
+about: Report a reproducible problem in aiko-code
 title: ""
 labels: ""
 assignees: ""
@@ -26,7 +26,7 @@ What happened instead?
 
 ## Environment
 
-- fcode version:
+- aiko-code version:
 - OS:
 - Terminal:
 - Provider:

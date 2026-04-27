@@ -2186,9 +2186,21 @@ async function* executeHooks({
           updateAttributionState: toolUseContext.updateAttributionState,
         }
       : undefined
+    // Collect results from callback hooks in this fast-path
+    const results: HookResult[] = []
     for (const [i, { hook }] of matchingHooks.entries()) {
       if (hook.type === 'callback') {
-        await hook.callback(hookInput, toolUseID, signal, i, context)
+        results.push(
+          await executeHookCallback({
+            toolUseID,
+            hook,
+            hookEvent,
+            hookInput,
+            signal: signal || new AbortController().signal,
+            hookIndex: i,
+            toolUseContext,
+          }),
+        )
       }
     }
     const totalDurationMs = Date.now() - batchStartTime
@@ -2204,6 +2216,10 @@ async function* executeHooks({
       numCancelled: 0,
       totalDurationMs,
     })
+    // Yield collected results instead of returning early
+    for (const r of results) {
+      yield r
+    }
     return
   }
 

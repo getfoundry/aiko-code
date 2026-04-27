@@ -8,7 +8,7 @@ assignees: ""
 
 ## Summary
 
-What would you like fcode to do?
+What would you like aiko-code to do?
 
 ## Problem
 
