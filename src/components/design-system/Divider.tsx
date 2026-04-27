@@ -72,7 +72,7 @@ export function Divider(t0) {
     padding: t2,
     title
   } = t0;
-  const char = t1 === undefined ? "\u2500" : t1;
+  const char = t1 === undefined ? "\u2550" : t1; // ═ thick divider
   const padding = t2 === undefined ? 0 : t2;
   const {
     columns: terminalWidth

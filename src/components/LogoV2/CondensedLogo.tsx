@@ -12,8 +12,7 @@ import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import { formatModelAndBilling, getLogoDisplayData, truncatePath } from '../../utils/logoV2Utils.js';
 import { renderModelSetting } from '../../utils/model/model.js';
 import { OffscreenFreeze } from '../OffscreenFreeze.js';
-import { AnimatedClawd } from './AnimatedClawd.js';
-import { Clawd } from './Clawd.js';
+import { ComicMascot } from './ComicMascot.js';
 import { GuestPassesUpsell, incrementGuestPassesSeenCount, useShowGuestPassesUpsell } from './GuestPassesUpsell.js';
 import { incrementOverageCreditUpsellSeenCount, OverageCreditUpsell, useShowOverageCreditUpsell } from './OverageCreditUpsell.js';
 export function CondensedLogo() {
@@ -81,7 +80,7 @@ export function CondensedLogo() {
   const truncatedCwd = truncatePath(cwd, Math.max(cwdAvailableWidth, 10));
   let t4;
   if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
-    t4 = isFullscreenEnvEnabled() ? <AnimatedClawd /> : <Clawd />;
+    t4 = isFullscreenEnvEnabled() ? <ComicMascot /> : <ComicMascot />;
     $[7] = t4;
   } else {
     t4 = $[7];
@@ -101,7 +100,7 @@ export function CondensedLogo() {
   } else {
     t6 = $[10];
   }
-  const t6a = 'your friendly coding companion ✧';
+  const t6a = 'your wholesome coding companion ⚡';
   let t7;
   if ($[11] !== shouldSplit || $[12] !== truncatedBilling || $[13] !== truncatedModel) {
     t7 = shouldSplit ? <><Text><Text color="inactive">Model</Text><Text dimColor={true}>  {truncatedModel}</Text></Text><Text><Text color="inactive">Mode</Text><Text dimColor={true}>   {truncatedBilling}</Text></Text></> : <Text><Text color="inactive">Model</Text><Text dimColor={true}>  {truncatedModel} · {truncatedBilling}</Text></Text>;
@@ -141,7 +140,7 @@ export function CondensedLogo() {
   }
   let t12;
   if ($[23] !== t10 || $[24] !== t11 || $[25] !== t6 || $[26] !== t7 || $[27] !== t9) {
-    t12 = <OffscreenFreeze><Box borderStyle="round" borderColor="inactive" paddingX={2} paddingY={0} flexDirection="row" gap={2} alignItems="center"><Box flexDirection="column" alignItems="center"><Text color="inactive">•</Text>{t4}<Text color="inactive">•</Text></Box><Box flexDirection="column"><Text bold={true}>AIKO CODE</Text><Text dimColor={true}>{t6a}</Text><Box marginTop={1}>{t6}</Box>{t7}{t9}{t10}{t11}</Box></Box></OffscreenFreeze>;
+    t12 = <OffscreenFreeze><Box borderStyle="round" borderColor="aiko" paddingX={2} paddingY={0} flexDirection="row" gap={2} alignItems="center"><Box flexDirection="column" alignItems="center"><Text color="inactive">•</Text>{t4}<Text color="inactive">•</Text></Box><Box flexDirection="column"><Text bold={true}>AIKO CODE</Text><Text color="aiko">{t6a}</Text><Box marginTop={1}>{t6}</Box>{t7}{t9}{t10}{t11}</Box></Box></OffscreenFreeze>;
     $[23] = t10;
     $[24] = t11;
     $[25] = t6;
