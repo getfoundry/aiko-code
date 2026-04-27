@@ -1,3 +1,40 @@
+# Harness — 9-Phase Fractal Loop (Ralph)
+
+The harness is the default development workflow. Trigger it with `/auto "task description"` or `/loop "task description"`.
+
+## Phases
+
+| Step | Phase     | Focus                              | Workers |
+|------|-----------|------------------------------------|---------|
+| 1    | Survey    | Inventory what exists              | 1       |
+| 2    | Boundaries| Design separations/architecture    | 1       |
+| 3    | Skeleton  | Minimal runnable seed              | 2       |
+| 4    | Signals   | Tests, types, falsifiable checks   | 3       |
+| 5    | Edges     | Adversarial/edge case testing      | 5       |
+| 6    | Integration| End-to-end wiring                 | 8       |
+| 7    | Verdict   | PROMOTE / HOLD / REJECT            | 1       |
+| 8    | Audit     | Cold re-read, adversarial review   | 13      |
+| 9    | Ship      | Deliver/hand off                   | 21      |
+
+## Commands
+
+- `/auto "task"` — start the loop
+- `/stop` — advance to next phase
+- `/cancel` — abort current session
+- `/log` — read teachings
+- `/steer "new north star"` — re-aim mid-flight
+- `/fib-harness` — repair stuck harness
+
+## How it works
+
+The loop persists state in `.aiko/aiko-code.<session>.local.md`. Each Stop hook call (`hooks/stop-hook.sh` → `core/loop.sh`) advances the phase, picks principles from `creation-teachings.json`, and generates a phase-specific prompt with a Fibonacci parallelism budget.
+
+## Plugin location
+
+`src/plugins/bundled/aiko-code/` — the Stop hook is registered in `hooks/hooks.json`.
+
+---
+
 # Design Quality — Active Guidelines
 
 ## Shared Design Laws (always apply)
