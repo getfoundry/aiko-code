@@ -127,13 +127,13 @@ const MISTRAL_DEFAULT_BASE_URL = 'https://api.mistral.ai/v1'
 const GITHUB_COPILOT_BASE = 'https://api.githubcopilot.com'
 
 function currentBaseUrl(): string {
-  if (isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
+  if (isTruthy(process.env.aiko_CODE_USE_GEMINI)) {
     return process.env.GEMINI_BASE_URL ?? GEMINI_DEFAULT_BASE_URL
   }
-  if (isTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)) {
+  if (isTruthy(process.env.aiko_CODE_USE_MISTRAL)) {
     return process.env.MISTRAL_BASE_URL ?? MISTRAL_DEFAULT_BASE_URL
   }
-  if (isTruthy(process.env.CLAUDE_CODE_USE_GITHUB)) {
+  if (isTruthy(process.env.aiko_CODE_USE_GITHUB)) {
     return process.env.OPENAI_BASE_URL ?? GITHUB_COPILOT_BASE
   }
   return process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'
@@ -218,10 +218,10 @@ function checkGithubEnv(): CheckResult[] {
 
 function checkOpenAIEnv(): CheckResult[] {
   const results: CheckResult[] = []
-  const useGemini = isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)
-  const useGithub = isTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
-  const useMistral = isTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
-  const useOpenAI = isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
+  const useGemini = isTruthy(process.env.aiko_CODE_USE_GEMINI)
+  const useGithub = isTruthy(process.env.aiko_CODE_USE_GITHUB)
+  const useMistral = isTruthy(process.env.aiko_CODE_USE_MISTRAL)
+  const useOpenAI = isTruthy(process.env.aiko_CODE_USE_OPENAI)
 
   if (useGemini) {
     return checkGeminiEnv()
@@ -236,7 +236,7 @@ function checkOpenAIEnv(): CheckResult[] {
   }
 
   if (!useOpenAI) {
-    results.push(pass('Provider mode', 'Anthropic login flow enabled (CLAUDE_CODE_USE_OPENAI is off).'))
+    results.push(pass('Provider mode', 'Anthropic login flow enabled (aiko_CODE_USE_OPENAI is off).'))
     return results
   }
 
@@ -304,10 +304,10 @@ function checkOpenAIEnv(): CheckResult[] {
 }
 
 async function checkBaseUrlReachability(): Promise<CheckResult> {
-  const useGemini = isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)
-  const useOpenAI = isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
-  const useGithub = isTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
-  const useMistral = isTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
+  const useGemini = isTruthy(process.env.aiko_CODE_USE_GEMINI)
+  const useOpenAI = isTruthy(process.env.aiko_CODE_USE_OPENAI)
+  const useGithub = isTruthy(process.env.aiko_CODE_USE_GITHUB)
+  const useMistral = isTruthy(process.env.aiko_CODE_USE_MISTRAL)
 
   if (!useGemini && !useOpenAI && !useGithub && !useMistral) {
     return pass('Provider reachability', 'Skipped (OpenAI-compatible mode disabled).')
@@ -350,7 +350,7 @@ async function checkBaseUrlReachability(): Promise<CheckResult> {
         headers['chatgpt-account-id'] = credentials.accountId
       }
       headers['Content-Type'] = 'application/json'
-      headers.originator = 'openclaude'
+      headers.originator = 'aiko-code'
       method = 'POST'
       body = JSON.stringify({
         model: request.resolvedModel,
@@ -410,10 +410,10 @@ async function checkBaseUrlReachability(): Promise<CheckResult> {
 }
 
 async function checkProviderGenerationReadiness(): Promise<CheckResult> {
-  const useGemini = isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)
-  const useOpenAI = isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
-  const useGithub = isTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
-  const useMistral = isTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
+  const useGemini = isTruthy(process.env.aiko_CODE_USE_GEMINI)
+  const useOpenAI = isTruthy(process.env.aiko_CODE_USE_OPENAI)
+  const useGithub = isTruthy(process.env.aiko_CODE_USE_GITHUB)
+  const useMistral = isTruthy(process.env.aiko_CODE_USE_MISTRAL)
 
   if (!useGemini && !useOpenAI && !useGithub && !useMistral) {
     return pass('Provider generation readiness', 'Skipped (OpenAI-compatible mode disabled).')
@@ -505,10 +505,10 @@ function isAtomicChatUrl(baseUrl: string): boolean {
 
 function checkOllamaProcessorMode(): CheckResult {
   if (
-    !isTruthy(process.env.CLAUDE_CODE_USE_OPENAI) ||
-    isTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
-    isTruthy(process.env.CLAUDE_CODE_USE_GITHUB) ||
-    isTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
+    !isTruthy(process.env.aiko_CODE_USE_OPENAI) ||
+    isTruthy(process.env.aiko_CODE_USE_GEMINI) ||
+    isTruthy(process.env.aiko_CODE_USE_GITHUB) ||
+    isTruthy(process.env.aiko_CODE_USE_MISTRAL)
   ) {
     return pass('Ollama processor mode', 'Skipped (OpenAI-compatible mode disabled).')
   }
@@ -552,28 +552,28 @@ function checkOllamaProcessorMode(): CheckResult {
 }
 
 function serializeSafeEnvSummary(): Record<string, string | boolean> {
-  if (isTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
+  if (isTruthy(process.env.aiko_CODE_USE_GEMINI)) {
     return {
-      CLAUDE_CODE_USE_GEMINI: true,
+      aiko_CODE_USE_GEMINI: true,
       GEMINI_MODEL: process.env.GEMINI_MODEL ?? '(unset, default: gemini-2.0-flash)',
       GEMINI_BASE_URL: process.env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta/openai',
       GEMINI_API_KEY_SET: Boolean(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY),
     }
   }
-  if (isTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)) {
+  if (isTruthy(process.env.aiko_CODE_USE_MISTRAL)) {
     return {
-      CLAUDE_CODE_USE_MISTRAL: true,
+      aiko_CODE_USE_MISTRAL: true,
       MISTRAL_MODEL: process.env.MISTRAL_MODEL ?? '(unset, default: devstral-latest)',
       MISTRAL_BASE_URL: process.env.MISTRAL_BASE_URL ?? 'https://api.mistral.ai/v1',
       MISTRAL_API_KEY_SET: Boolean(process.env.MISTRAL_API_KEY),
     }
   }
   if (
-    isTruthy(process.env.CLAUDE_CODE_USE_GITHUB) &&
-    !isTruthy(process.env.CLAUDE_CODE_USE_OPENAI)
+    isTruthy(process.env.aiko_CODE_USE_GITHUB) &&
+    !isTruthy(process.env.aiko_CODE_USE_OPENAI)
   ) {
     return {
-      CLAUDE_CODE_USE_GITHUB: true,
+      aiko_CODE_USE_GITHUB: true,
       OPENAI_MODEL:
         process.env.OPENAI_MODEL ??
         '(unset, default: github:copilot → openai/gpt-4.1)',
@@ -589,7 +589,7 @@ function serializeSafeEnvSummary(): Record<string, string | boolean> {
     baseUrl: process.env.OPENAI_BASE_URL,
   })
   return {
-    CLAUDE_CODE_USE_OPENAI: isTruthy(process.env.CLAUDE_CODE_USE_OPENAI),
+    aiko_CODE_USE_OPENAI: isTruthy(process.env.aiko_CODE_USE_OPENAI),
     OPENAI_MODEL: process.env.OPENAI_MODEL ?? '(unset)',
     OPENAI_BASE_URL: request.baseUrl,
     OPENAI_API_KEY_SET: Boolean(process.env.OPENAI_API_KEY),

@@ -60,7 +60,7 @@ export function findThinkingTriggerPositions(text: string): Array<{
 
 const RAINBOW_COLORS: Array<keyof Theme> = [
   'rainbow_red',
-  'rainbow_orange',
+  'rainbow_violet',
   'rainbow_yellow',
   'rainbow_green',
   'rainbow_blue',
@@ -70,7 +70,7 @@ const RAINBOW_COLORS: Array<keyof Theme> = [
 
 const RAINBOW_SHIMMER_COLORS: Array<keyof Theme> = [
   'rainbow_red_shimmer',
-  'rainbow_orange_shimmer',
+  'rainbow_violet_shimmer',
   'rainbow_yellow_shimmer',
   'rainbow_green_shimmer',
   'rainbow_blue_shimmer',
@@ -102,9 +102,9 @@ export function modelSupportsThinking(model: string): boolean {
   // launch DRI and research. This can greatly affect model quality and bashing.
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
-  // 1P and Foundry: all Claude 4+ models (including Haiku 4.5)
+  // 1P and Foundry: all aiko 4+ models (including Haiku 4.5)
   if (provider === 'foundry' || provider === 'firstParty') {
-    return !canonical.includes('claude-3-')
+    return !canonical.includes('aiko-3-')
   }
   if (
     canonical.startsWith('deepseek-v4-') ||
@@ -130,7 +130,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
     return supported3P
   }
   const canonical = getCanonicalName(model)
-  // Supported by a subset of Claude 4 models
+  // Supported by a subset of aiko 4 models
   if (canonical.includes('opus-4-6') || canonical.includes('sonnet-4-6')) {
     return true
   }

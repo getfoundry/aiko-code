@@ -1,6 +1,6 @@
 import { basename, join } from 'path'
 
-import type { MemoryFileInfo } from '../../utils/claudemd.js'
+import type { MemoryFileInfo } from '../../utils/aikomd.js'
 import {
   findProjectInstructionFilePathInAncestors,
   isProjectInstructionFileName,

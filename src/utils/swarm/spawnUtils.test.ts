@@ -20,7 +20,7 @@ afterEach(() => {
 test('buildInheritedEnvVars marks spawned teammates as host-managed for provider routing', () => {
   const envVars = buildInheritedEnvVars()
 
-  expect(envVars).toContain('CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1')
+  expect(envVars).toContain('aiko_CODE_PROVIDER_MANAGED_BY_HOST=1')
 })
 
 test('buildInheritedEnvVars forwards PATH for source-built teammate tool lookups', () => {

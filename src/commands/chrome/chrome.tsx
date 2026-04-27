@@ -4,14 +4,14 @@ import { type OptionWithDescription, Select } from '../../components/CustomSelec
 import { Dialog } from '../../components/design-system/Dialog.js';
 import { Box, Text } from '../../ink.js';
 import { useAppState } from '../../state/AppState.js';
-import { isClaudeAISubscriber } from '../../utils/auth.js';
+import { isaikoAISubscriber } from '../../utils/auth.js';
 import { openBrowser } from '../../utils/browser.js';
-import { CLAUDE_IN_CHROME_MCP_SERVER_NAME, openInChrome } from '../../utils/claudeInChrome/common.js';
-import { isChromeExtensionInstalled } from '../../utils/claudeInChrome/setup.js';
+import { aiko_IN_CHROME_MCP_SERVER_NAME, openInChrome } from '../../utils/aikoInChrome/common.js';
+import { isChromeExtensionInstalled } from '../../utils/aikoInChrome/setup.js';
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
 import { env } from '../../utils/env.js';
 import { isRunningOnHomespace } from '../../utils/envUtils.js';
-const CHROME_EXTENSION_URL = 'https://claude.ai/chrome';
+const CHROME_EXTENSION_URL = 'https://aiko.ai/chrome';
 const CHROME_PERMISSIONS_URL = 'https://clau.de/chrome/permissions';
 const CHROME_RECONNECT_URL = 'https://clau.de/chrome/reconnect';
 type MenuAction = 'install-extension' | 'reconnect' | 'manage-permissions' | 'toggle-default';
@@ -19,16 +19,16 @@ type Props = {
   onDone: (result?: string) => void;
   isExtensionInstalled: boolean;
   configEnabled: boolean | undefined;
-  isClaudeAISubscriber: boolean;
+  isaikoAISubscriber: boolean;
   isWSL: boolean;
 };
-function ClaudeInChromeMenu(t0) {
+function aikoInChromeMenu(t0) {
   const $ = _c(41);
   const {
     onDone,
     isExtensionInstalled: installed,
     configEnabled,
-    isClaudeAISubscriber,
+    isaikoAISubscriber,
     isWSL
   } = t0;
   const mcpClients = useAppState(_temp);
@@ -102,7 +102,7 @@ function ClaudeInChromeMenu(t0) {
             const newValue = !enabledByDefault;
             saveGlobalConfig(current => ({
               ...current,
-              claudeInChromeDefaultEnabled: newValue
+              aikoInChromeDefaultEnabled: newValue
             }));
             setEnabledByDefault(newValue);
           }
@@ -186,7 +186,7 @@ function ClaudeInChromeMenu(t0) {
   } else {
     options = $[8];
   }
-  const isDisabled = isWSL || true && !isClaudeAISubscriber;
+  const isDisabled = isWSL || true && !isaikoAISubscriber;
   let t5;
   if ($[18] !== onDone) {
     t5 = () => onDone();
@@ -197,30 +197,30 @@ function ClaudeInChromeMenu(t0) {
   }
   let t6;
   if ($[20] === Symbol.for("react.memo_cache_sentinel")) {
-    t6 = <Text>Claude in Chrome works with the Chrome extension to let you control your browser directly from OpenClaude. Navigate websites, fill forms, capture screenshots, record GIFs, and debug with console logs and network requests.</Text>;
+    t6 = <Text>aiko in Chrome works with the Chrome extension to let you control your browser directly from aiko-code. Navigate websites, fill forms, capture screenshots, record GIFs, and debug with console logs and network requests.</Text>;
     $[20] = t6;
   } else {
     t6 = $[20];
   }
   let t7;
   if ($[21] !== isWSL) {
-    t7 = isWSL && <Text color="error">Claude in Chrome is not supported in WSL at this time.</Text>;
+    t7 = isWSL && <Text color="error">aiko in Chrome is not supported in WSL at this time.</Text>;
     $[21] = isWSL;
     $[22] = t7;
   } else {
     t7 = $[22];
   }
   let t8;
-  if ($[23] !== isClaudeAISubscriber) {
-    t8 = true && !isClaudeAISubscriber && <Text color="error">Claude in Chrome requires a claude.ai subscription.</Text>;
-    $[23] = isClaudeAISubscriber;
+  if ($[23] !== isaikoAISubscriber) {
+    t8 = true && !isaikoAISubscriber && <Text color="error">aiko in Chrome requires a aiko.ai subscription.</Text>;
+    $[23] = isaikoAISubscriber;
     $[24] = t8;
   } else {
     t8 = $[24];
   }
   let t9;
   if ($[25] !== handleAction || $[26] !== isConnected || $[27] !== isDisabled || $[28] !== isExtensionInstalled || $[29] !== options || $[30] !== selectKey || $[31] !== showInstallHint) {
-    t9 = !isDisabled && <>{!isHomespace && <Box flexDirection="column"><Text>Status:{" "}{isConnected ? <Text color="success">Enabled</Text> : <Text color="inactive">Disabled</Text>}</Text><Text>Extension:{" "}{isExtensionInstalled ? <Text color="success">Installed</Text> : <Text color="warning">Not detected</Text>}</Text></Box>}<Select key={selectKey} options={options} onChange={handleAction} hideIndexes={true} />{showInstallHint && <Text color="warning">Once installed, select {"\"Reconnect extension\""} to connect.</Text>}<Text><Text dimColor={true}>Usage: </Text><Text>claude --chrome</Text><Text dimColor={true}> or </Text><Text>claude --no-chrome</Text></Text><Text dimColor={true}>Site-level permissions are inherited from the Chrome extension. Manage permissions in the Chrome extension settings to control which sites Claude can browse, click, and type on.</Text></>;
+    t9 = !isDisabled && <>{!isHomespace && <Box flexDirection="column"><Text>Status:{" "}{isConnected ? <Text color="success">Enabled</Text> : <Text color="inactive">Disabled</Text>}</Text><Text>Extension:{" "}{isExtensionInstalled ? <Text color="success">Installed</Text> : <Text color="warning">Not detected</Text>}</Text></Box>}<Select key={selectKey} options={options} onChange={handleAction} hideIndexes={true} />{showInstallHint && <Text color="warning">Once installed, select {"\"Reconnect extension\""} to connect.</Text>}<Text><Text dimColor={true}>Usage: </Text><Text>aiko --chrome</Text><Text dimColor={true}> or </Text><Text>aiko --no-chrome</Text></Text><Text dimColor={true}>Site-level permissions are inherited from the Chrome extension. Manage permissions in the Chrome extension settings to control which sites aiko can browse, click, and type on.</Text></>;
     $[25] = handleAction;
     $[26] = isConnected;
     $[27] = isDisabled;
@@ -234,7 +234,7 @@ function ClaudeInChromeMenu(t0) {
   }
   let t10;
   if ($[33] === Symbol.for("react.memo_cache_sentinel")) {
-    t10 = <Text dimColor={true}>Learn more: https://code.claude.com/docs/en/chrome</Text>;
+    t10 = <Text dimColor={true}>Learn more: https://code.aiko.com/docs/en/chrome</Text>;
     $[33] = t10;
   } else {
     t10 = $[33];
@@ -251,7 +251,7 @@ function ClaudeInChromeMenu(t0) {
   }
   let t12;
   if ($[38] !== t11 || $[39] !== t5) {
-    t12 = <Dialog title="Claude in Chrome (Beta)" onCancel={t5} color="chromeYellow">{t11}</Dialog>;
+    t12 = <Dialog title="aiko in Chrome (Beta)" onCancel={t5} color="chromeYellow">{t11}</Dialog>;
     $[38] = t11;
     $[39] = t5;
     $[40] = t12;
@@ -270,7 +270,7 @@ function _temp3(k_1) {
   return k_1 + 1;
 }
 function _temp2(c) {
-  return c.name === CLAUDE_IN_CHROME_MCP_SERVER_NAME;
+  return c.name === aiko_IN_CHROME_MCP_SERVER_NAME;
 }
 function _temp(s) {
   return s.mcp.clients;
@@ -278,7 +278,7 @@ function _temp(s) {
 export const call = async function (onDone: (result?: string) => void): Promise<React.ReactNode> {
   const isExtensionInstalled = await isChromeExtensionInstalled();
   const config = getGlobalConfig();
-  const isSubscriber = isClaudeAISubscriber();
+  const isSubscriber = isaikoAISubscriber();
   const isWSL = env.isWslEnvironment();
-  return <ClaudeInChromeMenu onDone={onDone} isExtensionInstalled={isExtensionInstalled} configEnabled={config.claudeInChromeDefaultEnabled} isClaudeAISubscriber={isSubscriber} isWSL={isWSL} />;
+  return <aikoInChromeMenu onDone={onDone} isExtensionInstalled={isExtensionInstalled} configEnabled={config.aikoInChromeDefaultEnabled} isaikoAISubscriber={isSubscriber} isWSL={isWSL} />;
 };

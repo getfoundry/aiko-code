@@ -34,7 +34,7 @@ import { isEnvTruthy } from './envUtils.ts'
 
 import { PROVIDERS } from './configConstants.js'
 
-export const PROFILE_FILE_NAME = '.openclaude-profile.json'
+export const PROFILE_FILE_NAME = '.aiko-profile.json'
 export const DEFAULT_GEMINI_BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/openai'
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash'
@@ -42,13 +42,13 @@ export const DEFAULT_MISTRAL_BASE_URL = 'https://api.mistral.ai/v1'
 export const DEFAULT_MISTRAL_MODEL = 'devstral-latest'
 
 const PROFILE_ENV_KEYS = [
-  'CLAUDE_CODE_USE_OPENAI',
-  'CLAUDE_CODE_USE_GITHUB',
-  'CLAUDE_CODE_USE_GEMINI',
-  'CLAUDE_CODE_USE_MISTRAL',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CODE_USE_FOUNDRY',
+  'aiko_CODE_USE_OPENAI',
+  'aiko_CODE_USE_GITHUB',
+  'aiko_CODE_USE_GEMINI',
+  'aiko_CODE_USE_MISTRAL',
+  'aiko_CODE_USE_BEDROCK',
+  'aiko_CODE_USE_VERTEX',
+  'aiko_CODE_USE_FOUNDRY',
   'OPENAI_BASE_URL',
   'OPENAI_MODEL',
   'OPENAI_API_FORMAT',
@@ -485,7 +485,7 @@ export function buildBankrProfileEnv(options: {
         processEnv.BANKR_MODEL,
         { BNKR_API_KEY: key },
       ) ||
-      'claude-opus-4.6',
+      'aiko-opus-4.6',
   }
 
   const baseUrl =
@@ -603,18 +603,18 @@ export function hasExplicitProviderSelection(
   processEnv: NodeJS.ProcessEnv = process.env,
 ): boolean {
   // If env was already applied from a provider profile, preserve it.
-  if (processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED === '1') {
+  if (processEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED === '1') {
     return true
   }
 
   return (
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_OPENAI) ||
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_GITHUB) ||
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_GEMINI) ||
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_MISTRAL) ||
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_BEDROCK) ||
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_VERTEX) ||
-    isEnvTruthy(processEnv.CLAUDE_CODE_USE_FOUNDRY)
+    isEnvTruthy(processEnv.aiko_CODE_USE_OPENAI) ||
+    isEnvTruthy(processEnv.aiko_CODE_USE_GITHUB) ||
+    isEnvTruthy(processEnv.aiko_CODE_USE_GEMINI) ||
+    isEnvTruthy(processEnv.aiko_CODE_USE_MISTRAL) ||
+    isEnvTruthy(processEnv.aiko_CODE_USE_BEDROCK) ||
+    isEnvTruthy(processEnv.aiko_CODE_USE_VERTEX) ||
+    isEnvTruthy(processEnv.aiko_CODE_USE_FOUNDRY)
   )
 }
 
@@ -703,7 +703,7 @@ export async function buildLaunchEnv(options: {
         continue;
       }
 
-      const env_key_name = `CLAUDE_CODE_USE_${provider.toUpperCase()}`
+      const env_key_name = `aiko_CODE_USE_${provider.toUpperCase()}`
 
       if (env_key_name in processEnv && isEnvTruthy(processEnv[env_key_name])) {
         options.profile = provider;
@@ -714,11 +714,11 @@ export async function buildLaunchEnv(options: {
   if (options.profile === 'gemini') {
     const env: NodeJS.ProcessEnv = {
       ...processEnv,
-      CLAUDE_CODE_USE_GEMINI: '1',
+      aiko_CODE_USE_GEMINI: '1',
     }
 
-    delete env.CLAUDE_CODE_USE_OPENAI
-    delete env.CLAUDE_CODE_USE_GITHUB
+    delete env.aiko_CODE_USE_OPENAI
+    delete env.aiko_CODE_USE_GITHUB
     delete env.CODEX_CREDENTIAL_SOURCE
 
     env.GEMINI_MODEL =
@@ -772,15 +772,15 @@ export async function buildLaunchEnv(options: {
   if (options.profile === 'mistral') {
     const env: NodeJS.ProcessEnv = {
       ...processEnv,
-      CLAUDE_CODE_USE_MISTRAL: '1',
+      aiko_CODE_USE_MISTRAL: '1',
     }
 
-    delete env.CLAUDE_CODE_USE_OPENAI
-    delete env.CLAUDE_CODE_USE_GITHUB
-    delete env.CLAUDE_CODE_USE_GEMINI
-    delete env.CLAUDE_CODE_USE_BEDROCK
-    delete env.CLAUDE_CODE_USE_VERTEX
-    delete env.CLAUDE_CODE_USE_FOUNDRY
+    delete env.aiko_CODE_USE_OPENAI
+    delete env.aiko_CODE_USE_GITHUB
+    delete env.aiko_CODE_USE_GEMINI
+    delete env.aiko_CODE_USE_BEDROCK
+    delete env.aiko_CODE_USE_VERTEX
+    delete env.aiko_CODE_USE_FOUNDRY
 
     const shellMistralModel = normalizeProfileModel(
       sanitizeProviderConfigValue(
@@ -842,15 +842,15 @@ export async function buildLaunchEnv(options: {
 
   const env: NodeJS.ProcessEnv = {
     ...processEnv,
-    CLAUDE_CODE_USE_OPENAI: '1',
+    aiko_CODE_USE_OPENAI: '1',
   }
 
-  delete env.CLAUDE_CODE_USE_MISTRAL
-  delete env.CLAUDE_CODE_USE_BEDROCK
-  delete env.CLAUDE_CODE_USE_VERTEX
-  delete env.CLAUDE_CODE_USE_FOUNDRY
-  delete env.CLAUDE_CODE_USE_GEMINI
-  delete env.CLAUDE_CODE_USE_GITHUB
+  delete env.aiko_CODE_USE_MISTRAL
+  delete env.aiko_CODE_USE_BEDROCK
+  delete env.aiko_CODE_USE_VERTEX
+  delete env.aiko_CODE_USE_FOUNDRY
+  delete env.aiko_CODE_USE_GEMINI
+  delete env.aiko_CODE_USE_GITHUB
   delete env.CODEX_CREDENTIAL_SOURCE
   delete env.GEMINI_API_KEY
   delete env.GEMINI_AUTH_MODE
@@ -1025,13 +1025,13 @@ export async function buildStartupEnvFromProfile(options?: {
   const processEnv = options?.processEnv ?? process.env
   const persisted = options?.persisted ?? loadProfileFile()
 
-  const profileManagedEnv = processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED === '1'
+  const profileManagedEnv = processEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED === '1'
 
-  // The legacy single-profile file (~/.openclaude-profile.json) is a
+  // The legacy single-profile file (~/.aiko-profile.json) is a
   // first-run / fallback mechanism. The newer plural provider-profile
   // system (`/provider` presets + activeProviderProfileId in config) is
   // applied earlier in the bootstrap via applyActiveProviderProfileFromConfig
-  // and signals completion with CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED=1.
+  // and signals completion with aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED=1.
   //
   // If the plural system has already set env, trust it — do NOT overlay the
   // legacy file. addProviderProfile() does not sync the legacy file, so a
@@ -1043,7 +1043,7 @@ export async function buildStartupEnvFromProfile(options?: {
     return processEnv
   }
 
-  if (isEnvTruthy(processEnv.CLAUDE_CODE_USE_GITHUB)) {
+  if (isEnvTruthy(processEnv.aiko_CODE_USE_GITHUB)) {
     return processEnv
   }
 
@@ -1056,7 +1056,7 @@ export async function buildStartupEnvFromProfile(options?: {
     persisted,
     goal:
       options?.goal ??
-      normalizeRecommendationGoal(processEnv.OPENCLAUDE_PROFILE_GOAL),
+      normalizeRecommendationGoal(processEnv.AIKO_PROFILE_GOAL),
     processEnv,
     getOllamaChatBaseUrl:
       options?.getOllamaChatBaseUrl ?? getOllamaChatBaseUrl,
@@ -1086,8 +1086,8 @@ export async function applySavedProfileToCurrentSession(options: {
     options.profileFile.profile === 'codex' &&
     options.profileFile.env.CODEX_CREDENTIAL_SOURCE === 'oauth'
 
-  delete baseEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED
-  delete baseEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID
+  delete baseEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED
+  delete baseEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID
   if (isCodexOAuthProfile) {
     delete baseEnv.CODEX_API_KEY
     delete baseEnv.CODEX_ACCOUNT_ID
@@ -1097,7 +1097,7 @@ export async function applySavedProfileToCurrentSession(options: {
   const nextEnv = await buildLaunchEnv({
     profile: options.profileFile.profile,
     persisted: options.profileFile,
-    goal: normalizeRecommendationGoal(processEnv.OPENCLAUDE_PROFILE_GOAL),
+    goal: normalizeRecommendationGoal(processEnv.AIKO_PROFILE_GOAL),
     processEnv: baseEnv,
     getOllamaChatBaseUrl,
     readGeminiAccessToken,
@@ -1107,8 +1107,8 @@ export async function applySavedProfileToCurrentSession(options: {
     return validationError
   }
 
-  delete processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED
-  delete processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID
+  delete processEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED
+  delete processEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID
   applyProfileEnvToProcessEnv(processEnv, nextEnv)
   return null
 }

@@ -146,15 +146,15 @@ export async function checkRemoteAgentEligibility({
 export function formatPreconditionError(error: BackgroundRemoteSessionPrecondition): string {
   switch (error.type) {
     case 'not_logged_in':
-      return 'Please run /login and sign in with your Claude.ai account (not Console).';
+      return 'Please run /login and sign in with your aiko.ai account (not Console).';
     case 'no_remote_environment':
-      return 'No cloud environment available. Set one up at https://claude.ai/code/onboarding?magic=env-setup';
+      return 'No cloud environment available. Set one up at https://aiko.ai/code/onboarding?magic=env-setup';
     case 'not_in_git_repo':
       return 'Background tasks require a git repository. Initialize git or run from a git repository.';
     case 'no_git_remote':
       return 'Background tasks require a GitHub remote. Add one with `git remote add origin REPO_URL`.';
     case 'github_app_not_installed':
-      return 'The Claude GitHub app must be installed on this repository first.\nhttps://github.com/apps/claude/installations/new';
+      return 'The aiko GitHub app must be installed on this repository first.\nhttps://github.com/apps/aiko/installations/new';
     case 'policy_blocked':
       return "Remote sessions are disabled by your organization's policy. Contact your organization admin to enable them.";
   }
@@ -243,7 +243,7 @@ The remote Ultraplan session did not produce a plan (${reason}). Inspect the ses
  *
  * Two producers, two event shapes:
  * - bughunter mode: run_hunt.sh is a SessionStart hook; its echo lands as
- *   {type:'system', subtype:'hook_progress', stdout:'...'}. Claude never
+ *   {type:'system', subtype:'hook_progress', stdout:'...'}. aiko never
  *   takes a turn so there are zero assistant messages.
  * - prompt mode: a real assistant turn wraps the review in the tag.
  *
@@ -322,7 +322,7 @@ function extractReviewTagFromLog(log: SDKMessage[]): string | null {
  * Enqueue a remote-review completion notification. Injects the review text
  * directly into the message queue so the local model receives it on the next
  * turn — no file indirection, no mode change. Session is kept alive so the
- * claude.ai URL stays a durable record the user can revisit; TTL handles cleanup.
+ * aiko.ai URL stays a durable record the user can revisit; TTL handles cleanup.
  */
 function enqueueRemoteReviewNotification(taskId: string, reviewContent: string, setAppState: SetAppState): void {
   if (!markTaskNotified(taskId, setAppState)) return;
@@ -556,7 +556,7 @@ function startRemoteSessionPolling(taskId: string, context: TaskContext): () => 
       const task = appState.tasks?.[taskId] as RemoteAgentTaskState | undefined;
       if (!task || task.status !== 'running') {
         // Task was killed externally (TaskStopTool) or already terminal.
-        // Session left alive so the claude.ai URL stays valid — the run_hunt.sh
+        // Session left alive so the aiko.ai URL stays valid — the run_hunt.sh
         // post_stage() calls land as assistant events there, and the user may
         // want to revisit them after closing the terminal. TTL reaps it.
         return;
@@ -664,7 +664,7 @@ function startRemoteSessionPolling(taskId: string, context: TaskContext): () => 
         consecutiveIdlePolls = 0;
       }
       const stableIdle = consecutiveIdlePolls >= STABLE_IDLE_POLLS;
-      // stableIdle is a prompt-mode completion signal (Claude stops writing
+      // stableIdle is a prompt-mode completion signal (aiko stops writing
       // → session idles → done). In bughunter mode the session is "idle" the
       // entire time the SessionStart hook runs; the previous guard checked
       // hasAssistantEvents as a prompt-mode proxy, but post_stage() now
@@ -727,7 +727,7 @@ function startRemoteSessionPolling(taskId: string, context: TaskContext): () => 
         // message queue. No mode change, no file indirection — the local model
         // just sees the review appear as a task-notification on its next turn.
         // Session kept alive — run_hunt.sh's post_stage() has already written
-        // the formatted findings as an assistant event, so the claude.ai URL
+        // the formatted findings as an assistant event, so the aiko.ai URL
         // stays a durable record the user can revisit. TTL handles cleanup.
         if (task.isRemoteReview) {
           // cachedReviewContent hit the tag in the delta scan. Full-log scan
@@ -799,7 +799,7 @@ function startRemoteSessionPolling(taskId: string, context: TaskContext): () => 
 }
 
 /**
- * RemoteAgentTask - Handles remote Claude.ai session execution.
+ * RemoteAgentTask - Handles remote aiko.ai session execution.
  *
  * Replaces the BackgroundRemoteSession implementation from:
  * - src/utils/background/remote/remoteSession.ts

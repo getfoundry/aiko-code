@@ -1,0 +1,15 @@
+{
+  "description": "Aiko Code stop hook — blocks exit, advances the phase, and re-feeds the task prompt with the next core + tactical principle.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${aiko_PLUGIN_ROOT}/hooks/stop-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

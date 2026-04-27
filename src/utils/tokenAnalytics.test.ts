@@ -14,7 +14,7 @@ describe('TokenUsageTracker', () => {
       output_tokens: 500,
       cache_read_input_tokens: 200,
       cache_creation_input_tokens: 100,
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'aiko-sonnet-4-5-20250514',
     })
 
     expect(tracker.size).toBe(1)
@@ -24,13 +24,13 @@ describe('TokenUsageTracker', () => {
     tracker.record({
       input_tokens: 1000,
       output_tokens: 500,
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'aiko-sonnet-4-5-20250514',
     })
 
     tracker.record({
       input_tokens: 2000,
       output_tokens: 300,
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'aiko-sonnet-4-5-20250514',
     })
 
     const analytics = tracker.getAnalytics()
@@ -47,7 +47,7 @@ describe('TokenUsageTracker', () => {
       input_tokens: 1000,
       output_tokens: 500,
       cache_read_input_tokens: 500, // 33% cache
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'aiko-sonnet-4-5-20250514',
     })
 
     const analytics = tracker.getAnalytics()

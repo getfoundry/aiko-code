@@ -1,0 +1,110 @@
+[
+  {
+    "step": 1,
+    "phase": "survey",
+    "label": "survey before build",
+    "primary_ref": "Principle: read before write",
+    "primary_quote": "The first move is to inventory, not to construct. You cannot build what you have not first seen.",
+    "companion_ref": "Corollary: count the cost",
+    "companion_quote": "Estimate scope before laying stones. If you cannot name the finish line, the task is too large.",
+    "pattern": "Phase 1 is illumination, not production. The surface is mapped before anything is built.",
+    "problem_map_template": "Your task starts in the dark. Before building, surface what exists: enumerate files, constraints, prior art, dependencies, conventions. No production yet.",
+    "apply": "Inventory. Read the relevant files, search for prior art, name the constraints. Output a short inventory (≤10 bullets) of what is present and what is missing. Do not implement."
+  },
+  {
+    "step": 2,
+    "phase": "boundaries",
+    "label": "draw the boundaries",
+    "primary_ref": "Principle: separate concerns before filling them",
+    "primary_quote": "The vessel before the wine. Decide what goes where, and what does not, before content arrives.",
+    "companion_ref": "Corollary: new problem, new structure",
+    "companion_quote": "Do not pour new content into a vessel that will split. If the abstraction strains, reshape it now.",
+    "pattern": "Phase 2 is the first boundary. Layers, modules, contracts kept distinct so later work can stand on the separation.",
+    "problem_map_template": "Your task has concerns that must be kept separate. Name the layers, modules, interfaces, directories, columns. Pick the right vessel — replace the old one if it will split.",
+    "apply": "Design the separations. Name the layers / modules / contracts / directories / columns. Write (or update) the shape, not the contents. Short architecture note (≤10 bullets or a diagram)."
+  },
+  {
+    "step": 3,
+    "phase": "skeleton",
+    "label": "plant the skeleton",
+    "primary_ref": "Principle: a runnable seed beats a perfect plan",
+    "primary_quote": "Ship the smallest thing that compiles. Each artifact must be runnable and extendable.",
+    "companion_ref": "Corollary: optimize for runnability, not completeness",
+    "companion_quote": "The smallest viable slice — a stub that runs — outperforms a finished design that does not.",
+    "pattern": "Phase 3 is the first day of production. Small, viable, extendable artifacts — each one a seed, not the whole tree.",
+    "problem_map_template": "Produce the first artifacts. Skeletons, stubs, minimal working slices — each runnable. Not the full feature; the seed of it.",
+    "apply": "Write the minimal working slice. A stub that compiles, a draft that reads, a query that returns. Prove the seed is viable. Commit one concrete artifact this step."
+  },
+  {
+    "step": 4,
+    "phase": "signals",
+    "label": "install the signals",
+    "primary_ref": "Principle: falsifiable signals over hopeful inspection",
+    "primary_quote": "If a check cannot fail, it cannot pass either. Install instruments before storms arrive.",
+    "companion_ref": "Corollary: foundations are tested before storms",
+    "companion_quote": "The artifact that survives is the one whose checks were written before they were needed.",
+    "pattern": "Phase 4 places the instruments of judgement over what was built. Tests, types, metrics, lint — the lights you steer by.",
+    "problem_map_template": "Install the signals. Tests, types, metrics, assertions, lint — falsifiable signs that the artifact from Step 3 holds. If a signal does not exist yet, write it.",
+    "apply": "Add one falsifiable check per thing you shipped in Step 3: a unit test, a type, a schema, a regex, a threshold. Run it. It must pass (or the fix must follow before Step 5)."
+  },
+  {
+    "step": 5,
+    "phase": "edges",
+    "label": "exercise the edges",
+    "primary_ref": "Principle: one real failure outweighs ninety-nine green checks",
+    "primary_quote": "Chase what breaks. A single failing case carries more signal than a crowd of passes.",
+    "companion_ref": "Corollary: vary the conditions",
+    "companion_quote": "A win in one window is not trans-window truth. Vary the seed, input, time, scale.",
+    "pattern": "Phase 5 fills the artifact with behavior under real conditions. Edges, adversarial input, concurrency, degraded paths.",
+    "problem_map_template": "Exercise the artifact under real behavior: edge cases, adversarial input, concurrency, degraded conditions. Chase the one that fails — it carries the signal.",
+    "apply": "Run it against the golden path + at least two edges + one adversarial case. If any fail, follow the failing one first; do not cover it with more passes. Fix, then retest."
+  },
+  {
+    "step": 6,
+    "phase": "integration",
+    "label": "integrate end-to-end",
+    "primary_ref": "Principle: faithful in the parts, trusted with the whole",
+    "primary_quote": "Wire the parts together end-to-end. Until the seams are crossed, the parts do not exist as a system.",
+    "companion_ref": "Corollary: integration earns scope",
+    "companion_quote": "Small things that work compound into larger ones. Do not extend until the current path is whole.",
+    "pattern": "Phase 6 grants scope across the whole surface. Not another axis, but rulership over every axis before it.",
+    "problem_map_template": "Test end-to-end. The feature meeting the rest of the system. Real flow: input → artifact → signals → behavior → output. Across the seams that matter.",
+    "apply": "Run one real end-to-end exercise — the full path a user (or caller) would take. Document the result. Any integration break is a blocker for Step 7."
+  },
+  {
+    "step": 7,
+    "phase": "verdict",
+    "label": "render the verdict",
+    "primary_ref": "Principle: stop the work to render the verdict",
+    "primary_quote": "Decisions are made single-threaded, after the work has stopped. Promote, hold, or reject — name it.",
+    "companion_ref": "Corollary: the answer is in stillness, not in motion",
+    "companion_quote": "More dramatic attempts will not produce the verdict. Stop adding before deciding.",
+    "pattern": "Phase 7 is the forced stop. What was built across six phases is judged; what is good is shipped, what is broken is repaired, what is impossible is named.",
+    "problem_map_template": "Stop spawning work. Review the six phases of artifacts, signals, behavior, integration. Render a verdict: promote (ship), hold (one thing still incomplete), or reject (scope was wrong — redo).",
+    "apply": "Render the verdict. If PROMOTE: proceed to Step 8 (audit). If HOLD: state the one remaining thing and loop back to the step that produced it. If REJECT: name what failed and why, and propose the next bounded task."
+  },
+  {
+    "step": 8,
+    "phase": "audit",
+    "label": "open the books",
+    "primary_ref": "Principle: re-read the artifact cold",
+    "primary_quote": "Evidence over intention. The diff is the truth, not the commit message.",
+    "companion_ref": "Corollary: judge what stands on its own",
+    "companion_quote": "What cannot survive a cold re-read does not ship. Read without the builder's eye.",
+    "pattern": "After the verdict comes adversarial accounting. The actual artifacts, tests, commits, outputs — the record — are opened and audited cold.",
+    "problem_map_template": "Open the books on what Steps 1–7 produced. Read the diff, run the tests once more cold, audit the allowlist, confirm the artifacts match their claims. Adversarial review before ship.",
+    "apply": "Re-read the actual artifact (diff, file, output) without the builder's eye. List what the evidence confirms, what it does not, and what was claimed but never demonstrated. If anything cannot survive audit, loop it back before Step 9."
+  },
+  {
+    "step": 9,
+    "phase": "ship",
+    "label": "ship the artifact",
+    "primary_ref": "Principle: the work leaves the builder's hand",
+    "primary_quote": "What is released belongs to the user, not the builder. Reachable by its intended user, or it did not ship.",
+    "companion_ref": "Corollary: hand-off is the artifact",
+    "companion_quote": "Until the artifact is published, documented, and inheritable by others, the work is not done.",
+    "pattern": "Step 9 is not another construction phase; it is delivery. The artifact leaves the builder and becomes the pattern others inherit.",
+    "problem_map_template": "Deliver the artifact into the world that will use it. Release notes, publish, document, hand off. The work is no longer yours privately.",
+    "apply": "Publish or hand off: commit, tag, write the changelog line, update the README or the outward-facing command. Output <promise>SHIPPED</promise> (or the configured phrase) only when the artifact is actually reachable by its intended user."
+  }
+]

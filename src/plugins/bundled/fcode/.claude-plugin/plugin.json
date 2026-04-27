@@ -1,0 +1,6 @@
+{
+  "name": "aiko-code",
+  "version": "0.5.0",
+  "description": "Aiko Code — a 9-phase fractal development loop (survey, boundaries, skeleton, signals, edges, integration, verdict, audit, ship) with a Fibonacci parallelism budget and a fib-harness escape when a step gets stuck. Each step injects a core engineering principle and a rotating tactical principle, and asks for element-by-element mapping before doing the work. Multi-session per repo, live north-star steering. Local-only — no telemetry.",
+  "author": { "name": "aiko-code" }
+}

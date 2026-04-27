@@ -109,7 +109,7 @@ describe('getPrimaryModel', () => {
   })
 
   test('returns first model when others are empty from trailing commas', () => {
-    expect(getPrimaryModel('claude-sonnet-4-6,,')).toBe('claude-sonnet-4-6')
+    expect(getPrimaryModel('aiko-sonnet-4-6,,')).toBe('aiko-sonnet-4-6')
   })
 })
 

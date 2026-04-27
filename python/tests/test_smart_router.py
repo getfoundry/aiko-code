@@ -124,21 +124,21 @@ def test_select_provider_returns_none_when_all_down():
 def test_get_model_large_request():
     p = make_provider("openai")
     r = make_router()
-    model = r.get_model_for_provider(p, "claude-sonnet")
+    model = r.get_model_for_provider(p, "aiko-sonnet")
     assert model == "openai-big"
 
 
-def test_get_model_large_message_overrides_claude_label():
+def test_get_model_large_message_overrides_aiko_label():
     p = make_provider("openai")
     r = make_router()
-    model = r.get_model_for_provider(p, "claude-haiku", is_large_request=True)
+    model = r.get_model_for_provider(p, "aiko-haiku", is_large_request=True)
     assert model == "openai-big"
 
 
 def test_get_model_small_request():
     p = make_provider("openai")
     r = make_router()
-    model = r.get_model_for_provider(p, "claude-haiku")
+    model = r.get_model_for_provider(p, "aiko-haiku")
     assert model == "openai-small"
 
 
@@ -149,7 +149,7 @@ async def test_route_returns_best_provider():
     p1 = make_provider("expensive", cost=0.05, latency=50.0)
     p2 = make_provider("cheap", cost=0.0005, latency=200.0)
     r = make_router(providers=[p1, p2], strategy="cost")
-    result = await r.route([{"role": "user", "content": "Hi"}], "claude-haiku")
+    result = await r.route([{"role": "user", "content": "Hi"}], "aiko-haiku")
     assert result["provider"] == "cheap"
 
 
@@ -159,7 +159,7 @@ async def test_route_uses_big_model_for_large_message_bodies():
     r = make_router(providers=[p])
     result = await r.route([
         {"role": "user", "content": "x" * 3001},
-    ], "claude-haiku")
+    ], "aiko-haiku")
     assert result["model"] == "openai-big"
 
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/aiko-code/marketplace.schema.json",
+  "name": "aiko-code",
+  "description": "Aiko Code — a 9-phase fractal development loop.",
+  "owner": {
+    "name": "aiko-code"
+  },
+  "plugins": [
+    {
+      "name": "aiko-code",
+      "description": "9-phase development loop (survey → ship) with a Fibonacci parallelism budget and a fib-harness escape. Each step injects a core engineering principle and a rotating tactical principle.",
+      "category": "workflow",
+      "source": "./"
+    }
+  ]
+}

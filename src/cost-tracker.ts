@@ -273,9 +273,9 @@ function round(number: number, precision: number): number {
 // Env-gated verbose token usage log. Treated as a boolean regardless of
 // value specifics — any truthy-ish string switches it on. `verbose` is the
 // documented keyword but we accept `1`/`true` for ergonomic parity with
-// other OPENCLAUDE_* flags.
+// other AIKO_* flags.
 function shouldLogTokenUsageVerbose(): boolean {
-  const v = (process.env.OPENCLAUDE_LOG_TOKEN_USAGE ?? '').trim().toLowerCase()
+  const v = (process.env.AIKO_LOG_TOKEN_USAGE ?? '').trim().toLowerCase()
   if (!v) return false
   return v !== '0' && v !== 'false' && v !== 'off'
 }
@@ -319,7 +319,7 @@ export function addToTotalSessionCost(
   // Record normalized cache metrics for REPL display + /cache-stats.
   // Resolved from the current process provider — at this point `usage` has
   // already been Anthropic-shaped by the shim layer, so we feed the
-  // corresponding bucket (anthropic / copilot-claude / openai-like) to the
+  // corresponding bucket (anthropic / copilot-aiko / openai-like) to the
   // extractor. For providers that genuinely don't report cache data
   // (vanilla Copilot, Ollama), resolveCacheProvider steers us to
   // supported:false so the UI shows "N/A" instead of lying with "0%".
@@ -334,12 +334,12 @@ export function addToTotalSessionCost(
   recordCacheRequest(cacheMetrics, model)
 
   // Opt-in structured per-request debug log on stderr. Power-user knob, not
-  // shown in the REPL — complements CLAUDE_CODE_ENABLE_TOKEN_USAGE_ATTACHMENT
+  // shown in the REPL — complements aiko_CODE_ENABLE_TOKEN_USAGE_ATTACHMENT
   // (which is model-facing). Any truthy value except "0"/"false" enables it.
   if (shouldLogTokenUsageVerbose()) {
     process.stderr.write(
       JSON.stringify({
-        tag: 'openclaude.tokenUsage',
+        tag: 'aiko-code.tokenUsage',
         model,
         provider: cacheProvider,
         input_tokens: usage.input_tokens,

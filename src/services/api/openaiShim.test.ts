@@ -11,11 +11,11 @@ const originalEnv = {
   OPENAI_AUTH_HEADER: process.env.OPENAI_AUTH_HEADER,
   OPENAI_AUTH_SCHEME: process.env.OPENAI_AUTH_SCHEME,
   OPENAI_AUTH_HEADER_VALUE: process.env.OPENAI_AUTH_HEADER_VALUE,
-  CLAUDE_CODE_USE_GITHUB: process.env.CLAUDE_CODE_USE_GITHUB,
+  aiko_CODE_USE_GITHUB: process.env.aiko_CODE_USE_GITHUB,
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   GH_TOKEN: process.env.GH_TOKEN,
-  CLAUDE_CODE_USE_OPENAI: process.env.CLAUDE_CODE_USE_OPENAI,
-  CLAUDE_CODE_USE_GEMINI: process.env.CLAUDE_CODE_USE_GEMINI,
+  aiko_CODE_USE_OPENAI: process.env.aiko_CODE_USE_OPENAI,
+  aiko_CODE_USE_GEMINI: process.env.aiko_CODE_USE_GEMINI,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
   GEMINI_ACCESS_TOKEN: process.env.GEMINI_ACCESS_TOKEN,
@@ -83,11 +83,11 @@ beforeEach(() => {
   delete process.env.OPENAI_AUTH_HEADER
   delete process.env.OPENAI_AUTH_SCHEME
   delete process.env.OPENAI_AUTH_HEADER_VALUE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
-  delete process.env.CLAUDE_CODE_USE_OPENAI
-  delete process.env.CLAUDE_CODE_USE_GEMINI
+  delete process.env.aiko_CODE_USE_OPENAI
+  delete process.env.aiko_CODE_USE_GEMINI
   delete process.env.GEMINI_API_KEY
   delete process.env.GOOGLE_API_KEY
   delete process.env.GEMINI_ACCESS_TOKEN
@@ -106,11 +106,11 @@ afterEach(() => {
   restoreEnv('OPENAI_AUTH_HEADER', originalEnv.OPENAI_AUTH_HEADER)
   restoreEnv('OPENAI_AUTH_SCHEME', originalEnv.OPENAI_AUTH_SCHEME)
   restoreEnv('OPENAI_AUTH_HEADER_VALUE', originalEnv.OPENAI_AUTH_HEADER_VALUE)
-  restoreEnv('CLAUDE_CODE_USE_GITHUB', originalEnv.CLAUDE_CODE_USE_GITHUB)
+  restoreEnv('aiko_CODE_USE_GITHUB', originalEnv.aiko_CODE_USE_GITHUB)
   restoreEnv('GITHUB_TOKEN', originalEnv.GITHUB_TOKEN)
   restoreEnv('GH_TOKEN', originalEnv.GH_TOKEN)
-  restoreEnv('CLAUDE_CODE_USE_OPENAI', originalEnv.CLAUDE_CODE_USE_OPENAI)
-  restoreEnv('CLAUDE_CODE_USE_GEMINI', originalEnv.CLAUDE_CODE_USE_GEMINI)
+  restoreEnv('aiko_CODE_USE_OPENAI', originalEnv.aiko_CODE_USE_OPENAI)
+  restoreEnv('aiko_CODE_USE_GEMINI', originalEnv.aiko_CODE_USE_GEMINI)
   restoreEnv('GEMINI_API_KEY', originalEnv.GEMINI_API_KEY)
   restoreEnv('GOOGLE_API_KEY', originalEnv.GOOGLE_API_KEY)
   restoreEnv('GEMINI_ACCESS_TOKEN', originalEnv.GEMINI_ACCESS_TOKEN)
@@ -160,7 +160,7 @@ test('strips canonical Anthropic headers from direct shim defaultHeaders', async
       'anthropic-version': '2023-06-01',
       'anthropic-beta': 'prompt-caching-2024-07-31',
       'x-anthropic-additional-protection': 'true',
-      'x-claude-remote-session-id': 'remote-123',
+      'x-aiko-remote-session-id': 'remote-123',
       'x-app': 'cli',
       'x-client-app': 'sdk',
       'x-safe-header': 'keep-me',
@@ -178,7 +178,7 @@ test('strips canonical Anthropic headers from direct shim defaultHeaders', async
   expect(capturedHeaders?.get('anthropic-version')).toBeNull()
   expect(capturedHeaders?.get('anthropic-beta')).toBeNull()
   expect(capturedHeaders?.get('x-anthropic-additional-protection')).toBeNull()
-  expect(capturedHeaders?.get('x-claude-remote-session-id')).toBeNull()
+  expect(capturedHeaders?.get('x-aiko-remote-session-id')).toBeNull()
   expect(capturedHeaders?.get('x-app')).toBeNull()
   expect(capturedHeaders?.get('x-client-app')).toBeNull()
   expect(capturedHeaders?.get('x-safe-header')).toBe('keep-me')
@@ -481,7 +481,7 @@ test('strips canonical Anthropic headers from per-request shim headers too', asy
 test('strips Anthropic-specific headers on GitHub Codex transport requests', async () => {
   let capturedHeaders: Headers | undefined
 
-  process.env.CLAUDE_CODE_USE_GITHUB = '1'
+  process.env.aiko_CODE_USE_GITHUB = '1'
   process.env.OPENAI_API_KEY = 'github-test-key'
   delete process.env.OPENAI_BASE_URL
   delete process.env.OPENAI_MODEL
@@ -528,7 +528,7 @@ test('strips Anthropic-specific headers on GitHub Codex transport requests', asy
 test('strips Anthropic-specific headers on GitHub Codex transport with providerOverride API key', async () => {
   let capturedHeaders: Headers | undefined
 
-  process.env.CLAUDE_CODE_USE_GITHUB = '1'
+  process.env.aiko_CODE_USE_GITHUB = '1'
   process.env.OPENAI_API_KEY = 'env-should-not-win'
   delete process.env.OPENAI_BASE_URL
   delete process.env.OPENAI_MODEL
@@ -563,14 +563,14 @@ test('strips Anthropic-specific headers on GitHub Codex transport with providerO
     {
       headers: {
         'anthropic-version': '2023-06-01',
-        'x-claude-remote-session-id': 'remote-123',
+        'x-aiko-remote-session-id': 'remote-123',
         'x-safe-header': 'keep-me',
       },
     },
   )
 
   expect(capturedHeaders?.get('anthropic-version')).toBeNull()
-  expect(capturedHeaders?.get('x-claude-remote-session-id')).toBeNull()
+  expect(capturedHeaders?.get('x-aiko-remote-session-id')).toBeNull()
   expect(capturedHeaders?.get('x-safe-header')).toBe('keep-me')
   expect(capturedHeaders?.get('authorization')).toBe('Bearer provider-override-key')
   expect(capturedHeaders?.get('editor-plugin-version')).toBe('copilot-chat/0.26.7')
@@ -1147,7 +1147,7 @@ test('uses GEMINI_ACCESS_TOKEN for Gemini OpenAI-compatible requests', async () 
   let capturedProject: string | null = null
   let requestUrl: string | undefined
 
-  process.env.CLAUDE_CODE_USE_GEMINI = '1'
+  process.env.aiko_CODE_USE_GEMINI = '1'
   process.env.GEMINI_AUTH_MODE = 'access-token'
   process.env.GEMINI_ACCESS_TOKEN = 'gemini-access-token'
   process.env.GOOGLE_CLOUD_PROJECT = 'gemini-project'
@@ -3426,7 +3426,7 @@ test('preserves valid tool_result and drops orphan tool_result', async () => {
             type: 'tool_use',
             id: 'valid_call_1',
             name: 'Search',
-            input: { query: 'openclaude' },
+            input: { query: 'aiko-code' },
           },
         ],
       },

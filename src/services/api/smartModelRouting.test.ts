@@ -7,8 +7,8 @@ import {
 
 const ENABLED: SmartRoutingConfig = {
   enabled: true,
-  simpleModel: 'claude-haiku-4-5',
-  strongModel: 'claude-opus-4-7',
+  simpleModel: 'aiko-haiku-4-5',
+  strongModel: 'aiko-opus-4-7',
 }
 
 describe('routeModel — disabled / misconfigured', () => {
@@ -17,7 +17,7 @@ describe('routeModel — disabled / misconfigured', () => {
       { userText: 'hi' },
       { ...ENABLED, enabled: false },
     )
-    expect(decision.model).toBe('claude-opus-4-7')
+    expect(decision.model).toBe('aiko-opus-4-7')
     expect(decision.complexity).toBe('strong')
     expect(decision.reason).toContain('disabled')
   })
@@ -27,16 +27,16 @@ describe('routeModel — disabled / misconfigured', () => {
       { userText: 'hi' },
       { ...ENABLED, simpleModel: '' },
     )
-    expect(decision.model).toBe('claude-opus-4-7')
+    expect(decision.model).toBe('aiko-opus-4-7')
     expect(decision.complexity).toBe('strong')
   })
 
   test('simpleModel === strongModel routes to strong (no-op)', () => {
     const decision = routeModel(
       { userText: 'hi' },
-      { ...ENABLED, simpleModel: 'claude-opus-4-7' },
+      { ...ENABLED, simpleModel: 'aiko-opus-4-7' },
     )
-    expect(decision.model).toBe('claude-opus-4-7')
+    expect(decision.model).toBe('aiko-opus-4-7')
     expect(decision.complexity).toBe('strong')
   })
 })
@@ -44,13 +44,13 @@ describe('routeModel — disabled / misconfigured', () => {
 describe('routeModel — simple path', () => {
   test('short greeting routes to simple', () => {
     const decision = routeModel({ userText: 'thanks!', turnNumber: 5 }, ENABLED)
-    expect(decision.model).toBe('claude-haiku-4-5')
+    expect(decision.model).toBe('aiko-haiku-4-5')
     expect(decision.complexity).toBe('simple')
   })
 
   test('empty input routes to simple', () => {
     const decision = routeModel({ userText: '   ' }, ENABLED)
-    expect(decision.model).toBe('claude-haiku-4-5')
+    expect(decision.model).toBe('aiko-haiku-4-5')
     expect(decision.complexity).toBe('simple')
   })
 
@@ -69,7 +69,7 @@ describe('routeModel — strong path', () => {
       { userText: 'fix the bug', turnNumber: 1 },
       ENABLED,
     )
-    expect(decision.model).toBe('claude-opus-4-7')
+    expect(decision.model).toBe('aiko-opus-4-7')
     expect(decision.complexity).toBe('strong')
     expect(decision.reason).toContain('first turn')
   })

@@ -12,8 +12,8 @@ const SYNC_START = '\x1B[?2026h'
 const SYNC_END = '\x1B[?2026l'
 
 const ORIGINAL_ENV = {
-  CLAUDE_CODE_SIMPLE: process.env.CLAUDE_CODE_SIMPLE,
-  CLAUDE_CODE_USE_GITHUB: process.env.CLAUDE_CODE_USE_GITHUB,
+  aiko_CODE_SIMPLE: process.env.aiko_CODE_SIMPLE,
+  aiko_CODE_USE_GITHUB: process.env.aiko_CODE_USE_GITHUB,
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   GH_TOKEN: process.env.GH_TOKEN,
 }
@@ -251,7 +251,7 @@ function mockProviderManagerDependencies(
 
   mock.module('../utils/githubModelsCredentials.js', () => ({
     clearGithubModelsToken: () => ({ success: true }),
-    GITHUB_MODELS_HYDRATED_ENV_MARKER: 'CLAUDE_CODE_GITHUB_TOKEN_HYDRATED',
+    GITHUB_MODELS_HYDRATED_ENV_MARKER: 'aiko_CODE_GITHUB_TOKEN_HYDRATED',
     hydrateGithubModelsTokenFromSecureStorage: () => {},
     readGithubModelsToken: githubSyncRead,
     readGithubModelsTokenAsync: githubAsyncRead,
@@ -419,7 +419,7 @@ afterEach(() => {
 })
 
 test('ProviderManager resolves GitHub virtual provider from async storage without sync reads in render flow', async () => {
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -449,7 +449,7 @@ test('ProviderManager resolves GitHub virtual provider from async storage withou
 })
 
 test('ProviderManager avoids first-frame false negative while stored-token lookup is pending', async () => {
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -490,7 +490,7 @@ test('ProviderManager avoids first-frame false negative while stored-token looku
 })
 
 test('ProviderManager first-run Ollama preset auto-detects installed models', async () => {
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -582,8 +582,8 @@ test('ProviderManager first-run Ollama preset auto-detects installed models', as
 })
 
 test('ProviderManager first-run Codex OAuth switches the current session after login completes', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -664,7 +664,7 @@ test('ProviderManager first-run Codex OAuth switches the current session after l
     expect.objectContaining({
       action: 'saved',
       message:
-        'Codex OAuth configured. OpenClaude switched to it for this session.',
+        'Codex OAuth configured. aiko-code switched to it for this session.',
     }),
   )
 
@@ -672,8 +672,8 @@ test('ProviderManager first-run Codex OAuth switches the current session after l
 })
 
 test('ProviderManager first-run Codex OAuth reports next-startup fallback when session activation fails', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -753,8 +753,8 @@ test('ProviderManager first-run Codex OAuth reports next-startup fallback when s
 })
 
 test('ProviderManager does not hijack a manual Codex profile when OAuth credentials are not yet linked', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -842,8 +842,8 @@ test('ProviderManager does not hijack a manual Codex profile when OAuth credenti
 })
 
 test('ProviderManager keeps Codex OAuth as next-startup only when activating the session fails from the menu', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -918,8 +918,8 @@ test('ProviderManager keeps Codex OAuth as next-startup only when activating the
 })
 
 test('ProviderManager activating a multi-model provider sets the session model to the primary model', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -1000,8 +1000,8 @@ test('ProviderManager activating a multi-model provider sets the session model t
 })
 
 test('ProviderManager editing an active multi-model provider keeps app state on the primary model', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -1135,8 +1135,8 @@ test('ProviderManager editing an active multi-model provider keeps app state on 
 })
 
 test('ProviderManager resolves Codex OAuth state from async storage without sync reads in render flow', async () => {
-  delete process.env.CLAUDE_CODE_SIMPLE
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_SIMPLE
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 
@@ -1170,8 +1170,8 @@ test('ProviderManager resolves Codex OAuth state from async storage without sync
 })
 
 test('ProviderManager hides Codex OAuth setup in bare mode', async () => {
-  process.env.CLAUDE_CODE_SIMPLE = '1'
-  delete process.env.CLAUDE_CODE_USE_GITHUB
+  process.env.aiko_CODE_SIMPLE = '1'
+  delete process.env.aiko_CODE_USE_GITHUB
   delete process.env.GITHUB_TOKEN
   delete process.env.GH_TOKEN
 

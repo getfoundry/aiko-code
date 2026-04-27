@@ -1,7 +1,7 @@
 """
 smart_router.py
 ---------------
-Intelligent auto-router for openclaude.
+Intelligent auto-router for Aiko Code.
 
 Instead of always using one fixed provider, the smart router:
 - Pings all configured providers on startup
@@ -21,7 +21,7 @@ Usage in server.py:
     ROUTER_STRATEGY=latency    # or: cost, balanced
     ROUTER_FALLBACK=true       # auto-retry on failure
 
-Contribution to: https://github.com/Gitlawb/openclaude
+Contribution to: https://github.com/getfoundry/aiko-code
 """
 
 import asyncio
@@ -143,7 +143,7 @@ def build_default_providers() -> list[Provider]:
 
 class SmartRouter:
     """
-    Intelligently routes Claude Code API requests to the best
+    Intelligently routes aiko Code API requests to the best
     available LLM provider based on latency, cost, and health.
     """
 
@@ -238,14 +238,14 @@ class SmartRouter:
     def get_model_for_provider(
         self,
         provider: Provider,
-        claude_model: str,
+        aiko_model: str,
         is_large_request: bool = False,
     ) -> str:
-        """Map a Claude model name to the provider's actual model."""
+        """Map a aiko model name to the provider's actual model."""
         if is_large_request:
             return provider.big_model
         is_large = any(
-            keyword in claude_model.lower()
+            keyword in aiko_model.lower()
             for keyword in ["opus", "sonnet", "large", "big"]
         )
         return provider.big_model if is_large else provider.small_model
@@ -269,7 +269,7 @@ class SmartRouter:
     async def route(
         self,
         messages: list[dict],
-        claude_model: str = "claude-sonnet",
+        aiko_model: str = "aiko-sonnet",
         attempt: int = 0,
         exclude_providers: Optional[list[str]] = None,
     ) -> dict:
@@ -304,7 +304,7 @@ class SmartRouter:
         provider = min(available, key=lambda p: p.score(self.strategy))
         model = self.get_model_for_provider(
             provider,
-            claude_model,
+            aiko_model,
             is_large_request=large,
         )
 

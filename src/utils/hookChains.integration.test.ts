@@ -19,10 +19,10 @@ type ImportHarnessOptions = {
 }
 
 const tempDirs: string[] = []
-const originalHookChainsEnabled = process.env.CLAUDE_CODE_ENABLE_HOOK_CHAINS
+const originalHookChainsEnabled = process.env.aiko_CODE_ENABLE_HOOK_CHAINS
 
 async function createConfigFile(config: unknown): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'openclaude-hook-chains-int-'))
+  const dir = await mkdtemp(join(tmpdir(), 'aiko-code-hook-chains-int-'))
   tempDirs.push(dir)
   const filePath = join(dir, 'hook-chains.json')
   await writeFile(filePath, JSON.stringify(config, null, 2), 'utf-8')
@@ -101,16 +101,16 @@ async function importHookChainsHarness(
 }
 
 beforeEach(() => {
-  process.env.CLAUDE_CODE_ENABLE_HOOK_CHAINS = '1'
+  process.env.aiko_CODE_ENABLE_HOOK_CHAINS = '1'
 })
 
 afterEach(async () => {
   mock.restore()
 
   if (originalHookChainsEnabled === undefined) {
-    delete process.env.CLAUDE_CODE_ENABLE_HOOK_CHAINS
+    delete process.env.aiko_CODE_ENABLE_HOOK_CHAINS
   } else {
-    process.env.CLAUDE_CODE_ENABLE_HOOK_CHAINS = originalHookChainsEnabled
+    process.env.aiko_CODE_ENABLE_HOOK_CHAINS = originalHookChainsEnabled
   }
 
   await Promise.all(

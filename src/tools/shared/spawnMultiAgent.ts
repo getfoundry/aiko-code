@@ -300,7 +300,7 @@ export async function generateUniqueTeammateName(
 // ============================================================================
 
 /**
- * Ensures a team file exists on disk. If it doesn't (e.g. when a non-Claude
+ * Ensures a team file exists on disk. If it doesn't (e.g. when a non-aiko
  * model skips the TeamCreate step), auto-creates a minimal team file so
  * the spawn can proceed.
  */
@@ -373,7 +373,7 @@ async function ensureTeamFileExists(
 /**
  * Handle spawn operation using split-pane view (default).
  * When inside tmux: Creates teammates in a shared window with leader on left, teammates on right.
- * When outside tmux: Creates a claude-swarm session with all teammates in a tiled layout.
+ * When outside tmux: Creates a aiko-swarm session with all teammates in a tiled layout.
  */
 async function handleSpawnSplitPane(
   input: SpawnInput,
@@ -457,7 +457,7 @@ async function handleSpawnSplitPane(
   // Create a pane in the swarm view
   // - Inside tmux: splits current window (leader on left, teammates on right)
   // - In iTerm2 with it2: uses native iTerm2 split panes
-  // - Outside both: creates claude-swarm session with tiled teammates
+  // - Outside both: creates aiko-swarm session with tiled teammates
   const { paneId, isFirstTeammate } = await createTeammatePaneInSwarmView(
     sanitizedName,
     teammateColor,
@@ -469,11 +469,11 @@ async function handleSpawnSplitPane(
     await enablePaneBorderStatus()
   }
 
-  // Build the command to spawn Claude Code with teammate identity
+  // Build the command to spawn aiko Code with teammate identity
   // Note: We spawn without a prompt - initial instructions are sent via mailbox
   const binaryPath = getTeammateCommand()
 
-  // Build teammate identity CLI args (replaces CLAUDE_CODE_* env vars)
+  // Build teammate identity CLI args (replaces aiko_CODE_* env vars)
   const teammateArgs = [
     `--agent-id ${quote([teammateId])}`,
     `--agent-name ${quote([sanitizedName])}`,
@@ -508,7 +508,7 @@ async function handleSpawnSplitPane(
 
   const flagsStr = inheritedFlags ? ` ${inheritedFlags}` : ''
   // Propagate env vars that teammates need but may not inherit from tmux split-window shells.
-  // Includes CLAUDECODE, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS, and API provider vars.
+  // Includes aikoCODE, aiko_CODE_EXPERIMENTAL_AGENT_TEAMS, and API provider vars.
   const envStr = buildInheritedEnvVars()
   const spawnCommand = `cd ${quote([workingDir])} && env ${envStr} ${quote([binaryPath])} ${teammateArgs}${flagsStr}`
 
@@ -671,11 +671,11 @@ async function handleSpawnSeparateWindow(
 
   const paneId = createWindowResult.stdout.trim()
 
-  // Build the command to spawn Claude Code with teammate identity
+  // Build the command to spawn aiko Code with teammate identity
   // Note: We spawn without a prompt - initial instructions are sent via mailbox
   const binaryPath = getTeammateCommand()
 
-  // Build teammate identity CLI args (replaces CLAUDE_CODE_* env vars)
+  // Build teammate identity CLI args (replaces aiko_CODE_* env vars)
   const teammateArgs = [
     `--agent-id ${quote([teammateId])}`,
     `--agent-name ${quote([sanitizedName])}`,
@@ -710,7 +710,7 @@ async function handleSpawnSeparateWindow(
 
   const flagsStr = inheritedFlags ? ` ${inheritedFlags}` : ''
   // Propagate env vars that teammates need but may not inherit from tmux split-window shells.
-  // Includes CLAUDECODE, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS, and API provider vars.
+  // Includes aikoCODE, aiko_CODE_EXPERIMENTAL_AGENT_TEAMS, and API provider vars.
   const envStr = buildInheritedEnvVars()
   const spawnCommand = `cd ${quote([workingDir])} && env ${envStr} ${quote([binaryPath])} ${teammateArgs}${flagsStr}`
 
@@ -1090,7 +1090,7 @@ async function handleSpawnInProcess(
 }
 
 /**
- * Handle spawn operation - creates a new Claude Code instance.
+ * Handle spawn operation - creates a new aiko Code instance.
  * Uses in-process mode when enabled, otherwise uses tmux/iTerm2 split-pane view.
  * Falls back to in-process if pane backend detection fails (e.g., iTerm2 without
  * it2 CLI or tmux installed).

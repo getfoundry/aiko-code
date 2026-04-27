@@ -1,25 +1,27 @@
-# OpenClaude
+# Aiko Code
 
-OpenClaude is an open-source coding-agent CLI for cloud and local model providers.
+> Fork of [Aiko](https://github.com/anthropics/aiko-code) — the original open-source coding agent.
+
+Aiko Code is a fractal coding harness and CLI. It wraps Aiko with a 9-phase development loop, Fibonacci parallelism budgets, and principle-driven iteration baked in.
 
 Use OpenAI-compatible APIs, Gemini, GitHub Models, Codex OAuth, Codex, Ollama, Atomic Chat, and other supported backends while keeping one terminal-first workflow: prompts, tools, agents, MCP, slash commands, and streaming output.
 
-[![PR Checks](https://github.com/Gitlawb/openclaude/actions/workflows/pr-checks.yml/badge.svg?branch=main)](https://github.com/Gitlawb/openclaude/actions/workflows/pr-checks.yml)
-[![Release](https://img.shields.io/github/v/tag/Gitlawb/openclaude?label=release&color=0ea5e9)](https://github.com/Gitlawb/openclaude/tags)
-[![Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/Gitlawb/openclaude/discussions)
+[![PR Checks](https://github.com/getfoundry/aiko-code/actions/workflows/pr-checks.yml/badge.svg?branch=main)](https://github.com/getfoundry/aiko-code/actions/workflows/pr-checks.yml)
+[![Release](https://img.shields.io/github/v/tag/getfoundry/aiko-code?label=release&color=0ea5e9)](https://github.com/getfoundry/aiko-code/tags)
+[![Discussions](https://img.shields.io/badge/discussions-open-7c3aed)](https://github.com/getfoundry/aiko-code/discussions)
 [![Security Policy](https://img.shields.io/badge/security-policy-0f766e)](SECURITY.md)
 [![License](https://img.shields.io/badge/license-MIT-2563eb)](LICENSE)
 
-OpenClaude is also mirrored to GitLawb:
-[gitlawb.com/node/repos/z6MkqDnb/openclaude](https://gitlawb.com/node/repos/z6MkqDnb/openclaude)
+Aiko Code is also mirrored to Radicle:
+[app.radicle.xyz/nodes/seed.radicle.xyz/rad:z6MkqDnb/aiko-code](https://app.radicle.xyz/nodes/seed.radicle.xyz/rad:z6MkqDnb/aiko-code)
 
 [Quick Start](#quick-start) | [Setup Guides](#setup-guides) | [Providers](#supported-providers) | [Source Build](#source-build-and-local-development) | [VS Code Extension](#vs-code-extension) | [Sponsors](#sponsors) | [Community](#community)
 
 ## Sponsors
 
 <p align="center">
-  <a href="https://gitlawb.com">
-    <img src="https://gitlawb.com/logo.png" alt="GitLawb logo" width="96">
+  <a href="https://getfoundry.dev">
+    <img src="https://getfoundry.dev/logo.png" alt="Foundry logo" width="96">
   </a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://bankr.bot">
@@ -28,16 +30,16 @@ OpenClaude is also mirrored to GitLawb:
 </p>
 
 <p align="center">
-  <a href="https://gitlawb.com"><strong>GitLawb</strong></a>
+  <a href="https://getfoundry.dev"><strong>Foundry</strong></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://bankr.bot"><strong>Bankr.bot</strong></a>
 </p>
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=gitlawb/openclaude&type=date&legend=top-left)](https://www.star-history.com/?repos=gitlawb%2Fopenclaude&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/chart?repos=getfoundry/aiko-code&type=date&legend=top-left)](https://www.star-history.com/?repos=getfoundry%2Faiko-code&type=date&legend=top-left)
 
-## Why OpenClaude
+## Why Aiko Code
 
 - Use one CLI across cloud APIs and local model backends
 - Save provider profiles inside the app with `/provider`
@@ -49,19 +51,42 @@ OpenClaude is also mirrored to GitLawb:
 
 ### Install
 
+#### Option 1: From npm (recommended)
+
 ```bash
-npm install -g @gitlawb/openclaude
+npm install -g @getfoundry/aiko
 ```
 
-If the install later reports `ripgrep not found`, install ripgrep system-wide and confirm `rg --version` works in the same terminal before starting OpenClaude.
+Then run `aiko-code` from any directory.
+
+#### Option 2: From source
+
+Requires [Bun](https://bun.sh) ≥ 1.3 and Node.js ≥ 20.
+
+```bash
+git clone https://github.com/getfoundry/aiko-code.git
+cd aiko-code
+bun install
+bun run build
+npm link        # exposes the `aiko-code` binary globally
+```
+
+After linking, run `aiko-code` from any directory. To update later: `git pull && bun run build`.
+
+To run without linking: `node dist/cli.mjs` (or `bun run start`).
+
+#### Requirements
+
+- **ripgrep** — required for in-repo search. Install via `brew install ripgrep` (macOS), `apt install ripgrep` (Debian/Ubuntu), or `choco install ripgrep` (Windows). Confirm `rg --version` works in the same terminal before starting Aiko Code.
+- **Node.js ≥ 20** — required to run the built CLI.
 
 ### Start
 
 ```bash
-openclaude
+aiko-code
 ```
 
-Inside OpenClaude:
+Inside Aiko Code:
 
 - run `/provider` for guided provider setup and saved profiles
 - run `/onboard-github` for GitHub Models onboarding
@@ -71,21 +96,21 @@ Inside OpenClaude:
 macOS / Linux:
 
 ```bash
-export CLAUDE_CODE_USE_OPENAI=1
+export aiko_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=sk-your-key-here
 export OPENAI_MODEL=gpt-4o
 
-openclaude
+aiko-code
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:CLAUDE_CODE_USE_OPENAI="1"
+$env:aiko_CODE_USE_OPENAI="1"
 $env:OPENAI_API_KEY="sk-your-key-here"
 $env:OPENAI_MODEL="gpt-4o"
 
-openclaude
+aiko-code
 ```
 
 ### Fastest local Ollama setup
@@ -93,21 +118,21 @@ openclaude
 macOS / Linux:
 
 ```bash
-export CLAUDE_CODE_USE_OPENAI=1
+export aiko_CODE_USE_OPENAI=1
 export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_MODEL=qwen2.5-coder:7b
 
-openclaude
+aiko-code
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:CLAUDE_CODE_USE_OPENAI="1"
+$env:aiko_CODE_USE_OPENAI="1"
 $env:OPENAI_BASE_URL="http://localhost:11434/v1"
 $env:OPENAI_MODEL="qwen2.5-coder:7b"
 
-openclaude
+aiko-code
 ```
 
 ### Using Ollama's launch command
@@ -115,7 +140,7 @@ openclaude
 If you have [Ollama](https://ollama.com) installed, you can skip the env var setup entirely:
 
 ```bash
-ollama launch openclaude --model qwen2.5-coder:7b
+ollama launch aiko-code --model qwen2.5-coder:7b
 ```
 
 This automatically sets `ANTHROPIC_BASE_URL`, model routing, and auth so all API traffic goes through your local Ollama instance. Works with any model you have pulled — local or cloud.
@@ -141,7 +166,7 @@ Advanced and source-build guides:
 | Gemini | `/provider` or env vars | Supports API key, access token, or local ADC workflow on current `main` |
 | GitHub Models | `/onboard-github` | Interactive onboarding with saved credentials |
 | Codex OAuth | `/provider` | Opens ChatGPT sign-in in your browser and stores Codex credentials securely |
-| Codex | `/provider` | Uses existing Codex CLI auth, OpenClaude secure storage, or env credentials |
+| Codex | `/provider` | Uses existing Codex CLI auth, Aiko Code secure storage, or env credentials |
 | Ollama | `/provider`, env vars, or `ollama launch` | Local inference with no API key |
 | Atomic Chat | `/provider`, env vars, or `bun run dev:atomic-chat` | Local Model Provider; auto-detects loaded models |
 | Bedrock / Vertex / Foundry | env vars | Additional provider integrations for supported environments |
@@ -152,25 +177,25 @@ Advanced and source-build guides:
 - **Streaming responses**: Real-time token output and tool progress
 - **Tool calling**: Multi-step tool loops with model calls, tool execution, and follow-up responses
 - **Images**: URL and base64 image inputs for providers that support vision
-- **Provider profiles**: Guided setup plus saved `.openclaude-profile.json` support
+- **Provider profiles**: Guided setup plus saved `.aiko-profile.json` support
 - **Local and remote model backends**: Cloud APIs, local servers, and Apple Silicon local inference
 
 ## Provider Notes
 
-OpenClaude supports multiple providers, but behavior is not identical across all of them.
+Aiko Code supports multiple providers, but behavior is not identical across all of them.
 
 - Anthropic-specific features may not exist on other providers
 - Tool quality depends heavily on the selected model
 - Smaller local models can struggle with long multi-step tool flows
-- Some providers impose lower output caps than the CLI defaults, and OpenClaude adapts where possible
+- Some providers impose lower output caps than the CLI defaults, and Aiko Code adapts where possible
 
 For best results, use models with strong tool/function calling support.
 
 ## Agent Routing
 
-OpenClaude can route different agents to different models through settings-based routing. This is useful for cost optimization or splitting work by model strength.
+Aiko Code can route different agents to different models through settings-based routing. This is useful for cost optimization or splitting work by model strength.
 
-Add to `~/.claude/settings.json`:
+Add to `~/.aiko/settings.json`:
 
 ```json
 {
@@ -204,7 +229,7 @@ By default, `WebSearch` works on non-Anthropic models using DuckDuckGo. This giv
 
 > **Note:** DuckDuckGo fallback works by scraping search results and may be rate-limited, blocked, or subject to DuckDuckGo's Terms of Service. If you want a more reliable supported option, configure Firecrawl.
 
-For Anthropic-native backends and Codex responses, OpenClaude keeps the native provider web search behavior.
+For Anthropic-native backends and Codex responses, Aiko Code keeps the native provider web search behavior.
 
 `WebFetch` works, but its basic HTTP plus HTML-to-markdown path can still fail on JavaScript-rendered sites or sites that block plain HTTP requests.
 
@@ -216,7 +241,7 @@ export FIRECRAWL_API_KEY=your-key-here
 
 With Firecrawl enabled:
 
-- `WebSearch` can use Firecrawl's search API while DuckDuckGo remains the default free path for non-Claude models
+- `WebSearch` can use Firecrawl's search API while DuckDuckGo remains the default free path for non-aiko models
 - `WebFetch` uses Firecrawl's scrape endpoint instead of raw HTTP, handling JS-rendered pages correctly
 
 Free tier at [firecrawl.dev](https://firecrawl.dev) includes 500 credits. The key is optional.
@@ -225,7 +250,7 @@ Free tier at [firecrawl.dev](https://firecrawl.dev) includes 500 credits. The ke
 
 ## Headless gRPC Server
 
-OpenClaude can be run as a headless gRPC service, allowing you to integrate its agentic capabilities (tools, bash, file editing) into other applications, CI/CD pipelines, or custom user interfaces. The server uses bidirectional streaming to send real-time text chunks, tool calls, and request permissions for sensitive commands.
+Aiko Code can be run as a headless gRPC service, allowing you to integrate its agentic capabilities (tools, bash, file editing) into other applications, CI/CD pipelines, or custom user interfaces. The server uses bidirectional streaming to send real-time text chunks, tool calls, and request permissions for sensitive commands.
 
 ### 1. Start the gRPC Server
 
@@ -252,7 +277,7 @@ In a separate terminal, run:
 npm run dev:grpc:cli
 ```
 
-*Note: The gRPC definitions are located in `src/proto/openclaude.proto`. You can use this file to generate clients in Python, Go, Rust, or any other language.*
+*Note: The gRPC definitions are located in `src/proto/aiko.proto`. You can use this file to generate clients in Python, Go, Rust, or any other language.*
 
 ---
 
@@ -277,7 +302,7 @@ Helpful commands:
 
 ## Testing And Coverage
 
-OpenClaude uses Bun's built-in test runner for unit tests.
+Aiko Code uses Bun's built-in test runner for unit tests.
 
 Run the full unit suite:
 
@@ -316,20 +341,20 @@ Recommended contributor validation before opening a PR:
 - `bun run test:coverage` for broader unit coverage when your change affects shared runtime or provider logic
 - focused `bun test ...` runs for the files and flows you changed
 
-Coverage output is written to `coverage/lcov.info`, and OpenClaude also generates a git-activity-style heatmap at `coverage/index.html`.
+Coverage output is written to `coverage/lcov.info`, and Aiko Code also generates a git-activity-style heatmap at `coverage/index.html`.
 ## Repository Structure
 
 - `src/` - core CLI/runtime
 - `scripts/` - build, verification, and maintenance scripts
 - `docs/` - setup, contributor, and project documentation
 - `python/` - standalone Python helpers and their tests
-- `vscode-extension/openclaude-vscode/` - VS Code extension
+- `vscode-extension/aiko-vscode/` - VS Code extension
 - `.github/` - repo automation, templates, and CI configuration
 - `bin/` - CLI launcher entrypoints
 
 ## VS Code Extension
 
-The repo includes a VS Code extension in [`vscode-extension/openclaude-vscode`](vscode-extension/openclaude-vscode) for OpenClaude launch integration, provider-aware control-center UI, and theme support.
+The repo includes a VS Code extension in [`vscode-extension/aiko-vscode`](vscode-extension/aiko-vscode) for Aiko Code launch integration, provider-aware control-center UI, and theme support.
 
 ## Security
 
@@ -337,8 +362,8 @@ If you believe you found a security issue, see [SECURITY.md](SECURITY.md).
 
 ## Community
 
-- Use [GitHub Discussions](https://github.com/Gitlawb/openclaude/discussions) for Q&A, ideas, and community conversation
-- Use [GitHub Issues](https://github.com/Gitlawb/openclaude/issues) for confirmed bugs and actionable feature work
+- Use [GitHub Discussions](https://github.com/getfoundry/aiko-code/discussions) for Q&A, ideas, and community conversation
+- Use [GitHub Issues](https://github.com/getfoundry/aiko-code/issues) for confirmed bugs and actionable feature work
 
 ## Contributing
 
@@ -350,13 +375,13 @@ For larger changes, open an issue first so the scope is clear before implementat
 - `bun run test:coverage`
 - `bun run smoke`
 - focused `bun test ...` runs for files and flows you changed
-
-
 ## Disclaimer
 
-OpenClaude is an independent community project and is not affiliated with, endorsed by, or sponsored by Anthropic.
+Aiko Code is a fork of [Aiko](https://github.com/anthropics/aiko-code), the original open-source coding agent and CLI. It is an independent community project and is not affiliated with, endorsed by, or sponsored by Anthropic.
 
-OpenClaude originated from the Claude Code codebase and has since been substantially modified to support multiple providers and open use. "Claude" and "Claude Code" are trademarks of Anthropic PBC. See [LICENSE](LICENSE) for details.
+Aiko Code originated from the Aiko/aiko Code codebase and has since been substantially modified to add fractal development loops, multi-provider support, and structured iteration. "aiko" and "aiko Code" are trademarks of Anthropic PBC. See [LICENSE](LICENSE) for details.
+
+Aiko Code originated from the aiko Code codebase and has since been substantially modified to support multiple providers and open use. "aiko" and "aiko Code" are trademarks of Anthropic PBC. See [LICENSE](LICENSE) for details.
 
 ## License
 

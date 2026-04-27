@@ -1,12 +1,12 @@
 /**
- * MDM (Mobile Device Management) profile enforcement for Claude Code managed settings.
+ * MDM (Mobile Device Management) profile enforcement for aiko Code managed settings.
  *
  * Reads enterprise settings from OS-level MDM configuration:
- * - macOS: `com.anthropic.claudecode` preference domain
+ * - macOS: `com.anthropic.aikocode` preference domain
  *   (MDM profiles at /Library/Managed Preferences/ only — not user-writable ~/Library/Preferences/)
- * - Windows: `HKLM\SOFTWARE\Policies\ClaudeCode` (admin-only)
- *   and `HKCU\SOFTWARE\Policies\ClaudeCode` (user-writable, lowest priority)
- * - Linux: No MDM equivalent (uses /etc/claude-code/managed-settings.json instead)
+ * - Windows: `HKLM\SOFTWARE\Policies\aikoCode` (admin-only)
+ *   and `HKCU\SOFTWARE\Policies\aikoCode` (user-writable, lowest priority)
+ * - Linux: No MDM equivalent (uses /etc/aiko-code/managed-settings.json instead)
  *
  * Policy settings use "first source wins" — the highest-priority source that exists
  * provides all policy settings. Priority (highest to lowest):

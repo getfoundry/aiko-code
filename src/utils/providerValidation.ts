@@ -5,7 +5,7 @@ import {
   resolveCodexApiCredentials,
   resolveProviderRequest,
 } from '../services/api/providerConfig.js'
-import { getGlobalClaudeFile } from './env.js'
+import { getGlobalaikoFile } from './env.js'
 import { isBareMode } from './envUtils.js'
 import {
   type GeminiResolvedCredential,
@@ -66,12 +66,12 @@ function checkGithubTokenStatus(
 }
 
 function getOpenAIMissingKeyMessage(): string {
-  const globalConfigPath = getGlobalClaudeFile()
+  const globalConfigPath = getGlobalaikoFile()
   const profilePath = resolve(process.cwd(), PROFILE_FILE_NAME)
 
   return [
-    'OPENAI_API_KEY is required when CLAUDE_CODE_USE_OPENAI=1 and OPENAI_BASE_URL is not local.',
-    `To recover, run /provider and switch provider, or set CLAUDE_CODE_USE_OPENAI=0 in your shell environment.`,
+    'OPENAI_API_KEY is required when aiko_CODE_USE_OPENAI=1 and OPENAI_BASE_URL is not local.',
+    `To recover, run /provider and switch provider, or set aiko_CODE_USE_OPENAI=0 in your shell environment.`,
     `Saved startup settings can come from ${globalConfigPath} or ${profilePath}.`,
   ].join('\n')
 }
@@ -85,15 +85,15 @@ export async function getProviderValidationError(
   },
 ): Promise<string | null> {
   const secretSource = env
-  const useOpenAI = isEnvTruthy(env.CLAUDE_CODE_USE_OPENAI)
-  const useGithub = isEnvTruthy(env.CLAUDE_CODE_USE_GITHUB)
+  const useOpenAI = isEnvTruthy(env.aiko_CODE_USE_OPENAI)
+  const useGithub = isEnvTruthy(env.aiko_CODE_USE_GITHUB)
 
-  if (isEnvTruthy(env.CLAUDE_CODE_USE_GEMINI)) {
+  if (isEnvTruthy(env.aiko_CODE_USE_GEMINI)) {
     const geminiCredential = await (
       options?.resolveGeminiCredential ?? resolveGeminiCredential
     )(env)
     if (geminiCredential.kind === 'none') {
-      return 'GEMINI_API_KEY, GOOGLE_API_KEY, GEMINI_ACCESS_TOKEN, or Google ADC credentials are required when CLAUDE_CODE_USE_GEMINI=1.'
+      return 'GEMINI_API_KEY, GOOGLE_API_KEY, GEMINI_ACCESS_TOKEN, or Google ADC credentials are required when aiko_CODE_USE_GEMINI=1.'
     }
     return null
   }
@@ -207,6 +207,6 @@ export async function validateProviderEnvForStartupOrExit(
   }
 
   console.error(
-    `Warning: provider configuration is incomplete.\n${error}\nOpenClaude will continue starting so you can run /provider and repair the saved provider settings.`,
+    `Warning: provider configuration is incomplete.\n${error}\naiko-code will continue starting so you can run /provider and repair the saved provider settings.`,
   )
 }

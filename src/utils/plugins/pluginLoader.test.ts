@@ -23,12 +23,12 @@ describe('mergePluginSources', () => {
   test('keeps the enabled copy when duplicate marketplace plugins disagree on enabled state', () => {
     const enabledOfficial = marketplacePlugin(
       'frontend-design',
-      'claude-plugins-official',
+      'aiko-plugins-official',
       true,
     )
     const disabledLegacy = marketplacePlugin(
       'frontend-design',
-      'claude-code-plugins',
+      'aiko-code-plugins',
       false,
     )
 
@@ -45,12 +45,12 @@ describe('mergePluginSources', () => {
   test('keeps the later copy when duplicate marketplace plugins are both enabled', () => {
     const legacy = marketplacePlugin(
       'frontend-design',
-      'claude-code-plugins',
+      'aiko-code-plugins',
       true,
     )
     const official = marketplacePlugin(
       'frontend-design',
-      'claude-plugins-official',
+      'aiko-plugins-official',
       true,
     )
 

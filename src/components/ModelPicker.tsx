@@ -30,8 +30,8 @@ export type Props = {
   /**
    * When true, skip writing effortLevel to userSettings on selection.
    * Used by the assistant installer wizard where the model choice is
-   * project-scoped (written to the assistant's .claude/settings.json via
-   * install.ts) and should not leak to the user's global ~/.claude/settings.
+   * project-scoped (written to the assistant's .aiko/settings.json via
+   * install.ts) and should not leak to the user's global ~/.aiko/settings.
    */
   skipSettingsWrite?: boolean;
 };
@@ -265,7 +265,7 @@ export function ModelPicker(t0) {
   } else {
     t15 = $[41];
   }
-  const t16 = headerText ?? "Switch between Claude models. Applies to this session and future OpenClaude sessions. For other/previous model names, specify with --model.";
+  const t16 = headerText ?? "Switch between aiko models. Applies to this session and future Aiko Code sessions. For other/previous model names, specify with --model.";
   let t17;
   if ($[42] !== t16) {
     t17 = <Text dimColor={true}>{t16}</Text>;
@@ -407,7 +407,7 @@ function EffortLevelIndicator(t0) {
   const {
     effort
   } = t0;
-  const t1 = effort ? "claude" : "subtle";
+  const t1 = effort ? "aiko" : "subtle";
   const t2 = effort ?? "low";
   let t3;
   if ($[0] !== t2) {

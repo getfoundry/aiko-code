@@ -2,14 +2,14 @@ import { afterEach, beforeEach, expect, mock, test } from 'bun:test'
 
 // Mock the Anthropic-API-side before importing the module under test, so
 // queryHaiku resolves into whatever the individual test wants (slow, failing,
-// or successful). We preserve every other export from claude.js so unrelated
+// or successful). We preserve every other export from aiko.js so unrelated
 // transitive imports still work.
 const haikuMock = mock()
 
 beforeEach(async () => {
   haikuMock.mockReset()
-  const actual = await import('../../services/api/claude.js')
-  mock.module('../../services/api/claude.js', () => ({
+  const actual = await import('../../services/api/aiko.js')
+  mock.module('../../services/api/aiko.js', () => ({
     ...actual,
     queryHaiku: haikuMock,
   }))
@@ -38,9 +38,9 @@ test('returns raw truncated markdown when queryHaiku throws', async () => {
     throw new Error('MiniMax rejected the model name')
   })
 
-  const output = await runApply('Gitlawb homepage content.')
+  const output = await runApply('Foundry homepage content.')
   expect(output).toContain('[Secondary-model summarization unavailable')
-  expect(output).toContain('Gitlawb homepage content.')
+  expect(output).toContain('Foundry homepage content.')
 })
 
 test('returns raw truncated markdown when queryHaiku simulates a timeout', async () => {
@@ -60,12 +60,12 @@ test('returns raw truncated markdown when queryHaiku simulates a timeout', async
 test('returns the model response when queryHaiku succeeds', async () => {
   haikuMock.mockImplementation(async () => ({
     message: {
-      content: [{ type: 'text', text: 'This page is about GitLawb, an AI legal platform.' }],
+      content: [{ type: 'text', text: 'This page is about Foundry, an AI coding platform.' }],
     },
   }))
 
   const output = await runApply('some page content')
-  expect(output).toBe('This page is about GitLawb, an AI legal platform.')
+  expect(output).toBe('This page is about Foundry, an AI coding platform.')
 })
 
 test('returns fallback when queryHaiku resolves with empty content', async () => {

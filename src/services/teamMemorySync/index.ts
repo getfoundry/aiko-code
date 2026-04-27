@@ -6,9 +6,9 @@
  * across all authenticated org members.
  *
  * API contract (anthropic/anthropic#250711 + #283027):
- *   GET  /api/claude_code/team_memory?repo={owner/repo}            → TeamMemoryData (includes entryChecksums)
- *   GET  /api/claude_code/team_memory?repo={owner/repo}&view=hashes → metadata + entryChecksums only (no entry bodies)
- *   PUT  /api/claude_code/team_memory?repo={owner/repo}            → upload entries (upsert semantics)
+ *   GET  /api/aiko_code/team_memory?repo={owner/repo}            → TeamMemoryData (includes entryChecksums)
+ *   GET  /api/aiko_code/team_memory?repo={owner/repo}&view=hashes → metadata + entryChecksums only (no entry bodies)
+ *   PUT  /api/aiko_code/team_memory?repo={owner/repo}            → upload entries (upsert semantics)
  *   404 = no data exists yet
  *
  * Sync semantics:
@@ -29,8 +29,8 @@ import { createHash } from 'crypto'
 import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
 import { join, relative, sep } from 'path'
 import {
-  CLAUDE_AI_INFERENCE_SCOPE,
-  CLAUDE_AI_PROFILE_SCOPE,
+  aiko_AI_INFERENCE_SCOPE,
+  aiko_AI_PROFILE_SCOPE,
   getOauthConfig,
   OAUTH_BETA_HEADER,
 } from '../../constants/oauth.js'
@@ -42,7 +42,7 @@ import {
 import { count } from '../../utils/array.js'
 import {
   checkAndRefreshOAuthTokenIfNeeded,
-  getClaudeAIOAuthTokens,
+  getaikoAIOAuthTokens,
 } from '../../utils/auth.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { classifyAxiosError } from '../../utils/errors.js'
@@ -53,7 +53,7 @@ import {
 } from '../../utils/model/providers.js'
 import { sleep } from '../../utils/sleep.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getaikoCodeUserAgent } from '../../utils/userAgent.js'
 import { logEvent } from '../analytics/index.js'
 import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../analytics/metadata.js'
 import { getRetryDelay } from '../api/withRetry.js'
@@ -74,7 +74,7 @@ const TEAM_MEMORY_SYNC_TIMEOUT_MS = 30_000
 // this case doesn't give us anything to learn (one file is just too big).
 const MAX_FILE_SIZE_BYTES = 250_000
 // No client-side DEFAULT_MAX_ENTRIES: the server's entry-count cap is
-// GB-tunable per-org (claude_code_team_memory_limits), so any compile-time
+// GB-tunable per-org (aiko_code_team_memory_limits), so any compile-time
 // constant here will drift.  We only truncate after learning the effective
 // limit from a structured 413's extra_details.max_entries.
 // Gateway body-size cap.  The API gateway rejects PUT bodies over ~256-512KB
@@ -152,31 +152,31 @@ function isUsingOAuth(): boolean {
   if (getAPIProvider() !== 'firstParty' || !isFirstPartyAnthropicBaseUrl()) {
     return false
   }
-  const tokens = getClaudeAIOAuthTokens()
+  const tokens = getaikoAIOAuthTokens()
   return Boolean(
     tokens?.accessToken &&
-      tokens.scopes?.includes(CLAUDE_AI_INFERENCE_SCOPE) &&
-      tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE),
+      tokens.scopes?.includes(aiko_AI_INFERENCE_SCOPE) &&
+      tokens.scopes.includes(aiko_AI_PROFILE_SCOPE),
   )
 }
 
 function getTeamMemorySyncEndpoint(repoSlug: string): string {
   const baseUrl =
     process.env.TEAM_MEMORY_SYNC_URL || getOauthConfig().BASE_API_URL
-  return `${baseUrl}/api/claude_code/team_memory?repo=${encodeURIComponent(repoSlug)}`
+  return `${baseUrl}/api/aiko_code/team_memory?repo=${encodeURIComponent(repoSlug)}`
 }
 
 function getAuthHeaders(): {
   headers?: Record<string, string>
   error?: string
 } {
-  const oauthTokens = getClaudeAIOAuthTokens()
+  const oauthTokens = getaikoAIOAuthTokens()
   if (oauthTokens?.accessToken) {
     return {
       headers: {
         Authorization: `Bearer ${oauthTokens.accessToken}`,
         'anthropic-beta': OAUTH_BETA_HEADER,
-        'User-Agent': getClaudeCodeUserAgent(),
+        'User-Agent': getaikoCodeUserAgent(),
       },
     }
   }
@@ -637,7 +637,7 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
   // Truncate only if we've LEARNED a cap from the server (via a structured
   // 413's extra_details.max_entries — anthropic/anthropic#293258).  The
   // server's entry-count cap is GB-tunable per-org via
-  // claude_code_team_memory_limits; we have no way to know it in advance.
+  // aiko_code_team_memory_limits; we have no way to know it in advance.
   // Before the first 413 we send everything and let the server be
   // authoritative.  The server validates total stored entries after merge
   // (not PUT body count) and rejects atomically — nothing is written on 413.
@@ -850,7 +850,7 @@ export async function pullTeamMemory(
 
   const filesWritten = await writeRemoteEntriesToLocal(entries)
   if (filesWritten > 0) {
-    const { clearMemoryFileCaches } = await import('../../utils/claudemd.js')
+    const { clearMemoryFileCaches } = await import('../../utils/aikomd.js')
     clearMemoryFileCaches()
   }
   logForDebugging(`team-memory-sync: pulled ${filesWritten} files`, {

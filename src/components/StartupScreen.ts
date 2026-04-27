@@ -85,10 +85,10 @@ const LOGO_CODE = [
 // ─── Provider detection ───────────────────────────────────────────────────────
 
 export function detectProvider(modelOverride?: string): { name: string; model: string; baseUrl: string; isLocal: boolean } {
-  const useGemini = process.env.CLAUDE_CODE_USE_GEMINI === '1' || process.env.CLAUDE_CODE_USE_GEMINI === 'true'
-  const useGithub = process.env.CLAUDE_CODE_USE_GITHUB === '1' || process.env.CLAUDE_CODE_USE_GITHUB === 'true'
-  const useOpenAI = process.env.CLAUDE_CODE_USE_OPENAI === '1' || process.env.CLAUDE_CODE_USE_OPENAI === 'true'
-  const useMistral = process.env.CLAUDE_CODE_USE_MISTRAL === '1' || process.env.CLAUDE_CODE_USE_MISTRAL === 'true'
+  const useGemini = process.env.aiko_CODE_USE_GEMINI === '1' || process.env.aiko_CODE_USE_GEMINI === 'true'
+  const useGithub = process.env.aiko_CODE_USE_GITHUB === '1' || process.env.aiko_CODE_USE_GITHUB === 'true'
+  const useOpenAI = process.env.aiko_CODE_USE_OPENAI === '1' || process.env.aiko_CODE_USE_OPENAI === 'true'
+  const useMistral = process.env.aiko_CODE_USE_MISTRAL === '1' || process.env.aiko_CODE_USE_MISTRAL === 'true'
 
   if (useGemini) {
     const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-2.0-flash'

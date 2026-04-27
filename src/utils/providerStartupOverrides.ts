@@ -2,13 +2,13 @@ import { saveGlobalConfig } from './config.js'
 import { updateSettingsForSource } from './settings/settings.js'
 
 export const STARTUP_PROVIDER_OVERRIDE_ENV_KEYS = [
-  'CLAUDE_CODE_USE_OPENAI',
-  'CLAUDE_CODE_USE_GEMINI',
-  'CLAUDE_CODE_USE_MISTRAL',
-  'CLAUDE_CODE_USE_GITHUB',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CODE_USE_FOUNDRY',
+  'aiko_CODE_USE_OPENAI',
+  'aiko_CODE_USE_GEMINI',
+  'aiko_CODE_USE_MISTRAL',
+  'aiko_CODE_USE_GITHUB',
+  'aiko_CODE_USE_BEDROCK',
+  'aiko_CODE_USE_VERTEX',
+  'aiko_CODE_USE_FOUNDRY',
   'OPENAI_BASE_URL',
   'OPENAI_API_BASE',
   'OPENAI_MODEL',

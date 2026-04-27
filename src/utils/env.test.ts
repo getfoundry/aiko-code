@@ -4,31 +4,31 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 
 const originalEnv = {
-  CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
-  CLAUDE_CODE_CUSTOM_OAUTH_URL: process.env.CLAUDE_CODE_CUSTOM_OAUTH_URL,
+  aiko_CONFIG_DIR: process.env.aiko_CONFIG_DIR,
+  aiko_CODE_CUSTOM_OAUTH_URL: process.env.aiko_CODE_CUSTOM_OAUTH_URL,
   USER_TYPE: process.env.USER_TYPE,
 }
 
 let tempDir: string
 
 beforeEach(() => {
-  tempDir = mkdtempSync(join(tmpdir(), 'openclaude-env-test-'))
-  process.env.CLAUDE_CONFIG_DIR = tempDir
-  delete process.env.CLAUDE_CODE_CUSTOM_OAUTH_URL
+  tempDir = mkdtempSync(join(tmpdir(), 'aiko-code-env-test-'))
+  process.env.aiko_CONFIG_DIR = tempDir
+  delete process.env.aiko_CODE_CUSTOM_OAUTH_URL
   delete process.env.USER_TYPE
 })
 
 afterEach(() => {
   rmSync(tempDir, { recursive: true, force: true })
-  if (originalEnv.CLAUDE_CONFIG_DIR === undefined) {
-    delete process.env.CLAUDE_CONFIG_DIR
+  if (originalEnv.aiko_CONFIG_DIR === undefined) {
+    delete process.env.aiko_CONFIG_DIR
   } else {
-    process.env.CLAUDE_CONFIG_DIR = originalEnv.CLAUDE_CONFIG_DIR
+    process.env.aiko_CONFIG_DIR = originalEnv.aiko_CONFIG_DIR
   }
-  if (originalEnv.CLAUDE_CODE_CUSTOM_OAUTH_URL === undefined) {
-    delete process.env.CLAUDE_CODE_CUSTOM_OAUTH_URL
+  if (originalEnv.aiko_CODE_CUSTOM_OAUTH_URL === undefined) {
+    delete process.env.aiko_CODE_CUSTOM_OAUTH_URL
   } else {
-    process.env.CLAUDE_CODE_CUSTOM_OAUTH_URL = originalEnv.CLAUDE_CODE_CUSTOM_OAUTH_URL
+    process.env.aiko_CODE_CUSTOM_OAUTH_URL = originalEnv.aiko_CODE_CUSTOM_OAUTH_URL
   }
   if (originalEnv.USER_TYPE === undefined) {
     delete process.env.USER_TYPE
@@ -41,22 +41,22 @@ async function importFreshEnvModule() {
   return import(`./env.js?ts=${Date.now()}-${Math.random()}`)
 }
 
-// getGlobalClaudeFile — three migration branches
+// getGlobalaikoFile — three migration branches
 
-test('getGlobalClaudeFile: new install returns .openclaude.json when neither file exists', async () => {
-  const { getGlobalClaudeFile } = await importFreshEnvModule()
-  expect(getGlobalClaudeFile()).toBe(join(tempDir, '.openclaude.json'))
+test('getGlobalaikoFile: new install returns .aiko.json when neither file exists', async () => {
+  const { getGlobalaikoFile } = await importFreshEnvModule()
+  expect(getGlobalaikoFile()).toBe(join(tempDir, '.aiko.json'))
 })
 
-test('getGlobalClaudeFile: existing user keeps .claude.json when only legacy file exists', async () => {
-  writeFileSync(join(tempDir, '.claude.json'), '{}')
-  const { getGlobalClaudeFile } = await importFreshEnvModule()
-  expect(getGlobalClaudeFile()).toBe(join(tempDir, '.claude.json'))
+test('getGlobalaikoFile: existing user keeps .aiko.json when only legacy file exists', async () => {
+  writeFileSync(join(tempDir, '.aiko.json'), '{}')
+  const { getGlobalaikoFile } = await importFreshEnvModule()
+  expect(getGlobalaikoFile()).toBe(join(tempDir, '.aiko.json'))
 })
 
-test('getGlobalClaudeFile: migrated user uses .openclaude.json when both files exist', async () => {
-  writeFileSync(join(tempDir, '.claude.json'), '{}')
-  writeFileSync(join(tempDir, '.openclaude.json'), '{}')
-  const { getGlobalClaudeFile } = await importFreshEnvModule()
-  expect(getGlobalClaudeFile()).toBe(join(tempDir, '.openclaude.json'))
+test('getGlobalaikoFile: migrated user uses .aiko.json when both files exist', async () => {
+  writeFileSync(join(tempDir, '.aiko.json'), '{}')
+  writeFileSync(join(tempDir, '.aiko.json'), '{}')
+  const { getGlobalaikoFile } = await importFreshEnvModule()
+  expect(getGlobalaikoFile()).toBe(join(tempDir, '.aiko.json'))
 })

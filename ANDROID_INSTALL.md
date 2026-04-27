@@ -1,6 +1,6 @@
-# OpenClaude on Android (Termux)
+# Aiko Code on Android (Termux)
 
-A complete guide to running OpenClaude on Android using Termux + proot Ubuntu.
+A complete guide to running Aiko Code on Android using Termux + proot Ubuntu.
 
 ---
 
@@ -14,7 +14,7 @@ A complete guide to running OpenClaude on Android using Termux + proot Ubuntu.
 
 ## Why This Setup?
 
-OpenClaude requires [Bun](https://bun.sh) to build, and Bun does not support Android natively. The workaround is running a real Ubuntu environment inside Termux via `proot-distro`, where Bun's Linux binary works correctly.
+Aiko Code requires [Bun](https://bun.sh) to build, and Bun does not support Android natively. The workaround is running a real Ubuntu environment inside Termux via `proot-distro`, where Bun's Linux binary works correctly.
 
 ---
 
@@ -39,11 +39,11 @@ Verify Node.js:
 node --version  # should be v20+
 ```
 
-### Step 3 — Clone OpenClaude
+### Step 3 — Clone aiko-code
 
 ```bash
-git clone https://github.com/Gitlawb/openclaude.git
-cd openclaude
+git clone https://github.com/getfoundry/aiko-code.git
+cd aiko-code
 npm install
 npm link
 ```
@@ -65,16 +65,16 @@ source ~/.bashrc
 bun --version  # should show 1.3.11+
 ```
 
-### Step 6 — Build OpenClaude
+### Step 6 — Build aiko-code
 
 ```bash
-cd /data/data/com.termux/files/home/openclaude
+cd /data/data/com.termux/files/home/aiko-code
 bun run build
 ```
 
 You should see:
 ```
-✓ Built openclaude v0.1.6 → dist/cli.mjs
+✓ Built Aiko Code v0.1.6 → dist/cli.mjs
 ```
 
 ### Step 7 — Save env vars permanently
@@ -82,7 +82,7 @@ You should see:
 Still inside Ubuntu, add your OpenRouter config to `.bashrc`:
 
 ```bash
-echo 'export CLAUDE_CODE_USE_OPENAI=1' >> ~/.bashrc
+echo 'export aiko_CODE_USE_OPENAI=1' >> ~/.bashrc
 echo 'export OPENAI_API_KEY=your_openrouter_key_here' >> ~/.bashrc
 echo 'export OPENAI_BASE_URL=https://openrouter.ai/api/v1' >> ~/.bashrc
 echo 'export OPENAI_MODEL=qwen/qwen3.6-plus-preview:free' >> ~/.bashrc
@@ -91,7 +91,7 @@ source ~/.bashrc
 
 Replace `your_openrouter_key_here` with your actual key from [openrouter.ai/keys](https://openrouter.ai/keys).
 
-### Step 8 — Run OpenClaude
+### Step 8 — Run aiko-code
 
 ```bash
 node dist/cli.mjs
@@ -107,7 +107,7 @@ Every time you reopen Termux after killing it, run:
 
 ```bash
 proot-distro login ubuntu
-cd /data/data/com.termux/files/home/openclaude
+cd /data/data/com.termux/files/home/aiko-code
 node dist/cli.mjs
 ```
 
@@ -118,7 +118,7 @@ node dist/cli.mjs
 **`qwen/qwen3.6-plus-preview:free`** — Best free model on OpenRouter as of April 2026.
 
 - 1M token context window
-- Beats Claude 4.5 Opus on Terminal-Bench 2.0 agentic coding (61.6 vs 59.3)
+- Beats aiko 4.5 Opus on Terminal-Bench 2.0 agentic coding (61.6 vs 59.3)
 - Built-in chain-of-thought reasoning
 - Native tool use and function calling
 - $0/M tokens (preview period)
@@ -146,7 +146,7 @@ node dist/cli.mjs
 
 ## Why Not Groq or Cerebras?
 
-Both were tested and fail due to OpenClaude's large system prompt (~50K tokens):
+Both were tested and fail due to aiko-code's large system prompt (~50K tokens):
 
 - **Groq free tier**: TPM limits too low (6K–12K tokens/min)
 - **Cerebras free tier**: TPM limits exceeded, even on `llama3.1-8b`
@@ -159,4 +159,4 @@ OpenRouter free models have no TPM restrictions — only 20 req/min and 200 req/
 
 - **Don't swipe Termux away** from recent apps mid-session — use the home button to minimize instead.
 - The Ubuntu environment persists between Termux sessions; your build and config are saved.
-- Run `bun run build` again only if you pull updates to the OpenClaude repo.
+- Run `bun run build` again only if you pull updates to the aiko-code repo.

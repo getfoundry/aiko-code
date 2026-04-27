@@ -82,7 +82,7 @@ export function getBuiltinPlugins(): {
         description: definition.description,
         version: definition.version,
       },
-      path: BUILTIN_MARKETPLACE_NAME, // sentinel — no filesystem path
+      path: definition.pluginRoot ?? BUILTIN_MARKETPLACE_NAME, // pluginRoot if provided, else sentinel
       source: pluginId,
       repository: pluginId,
       enabled: isEnabled,

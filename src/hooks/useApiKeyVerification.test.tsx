@@ -6,7 +6,7 @@ import { createRoot, Text } from '../ink.js'
 
 type AuthState = {
   anthropicAuthEnabled: boolean
-  claudeSubscriber: boolean
+  aikoSubscriber: boolean
   key?: string
   source?: string
 }
@@ -60,7 +60,7 @@ afterEach(() => {
 test('useApiKeyVerification resets stale missing status when the session switches to a third-party provider', async () => {
   const authState: AuthState = {
     anthropicAuthEnabled: true,
-    claudeSubscriber: false,
+    aikoSubscriber: false,
   }
   const seenStatuses: string[] = []
 
@@ -71,14 +71,14 @@ test('useApiKeyVerification resets stale missing status when the session switche
     }),
     getApiKeyFromApiKeyHelper: async () => undefined,
     isAnthropicAuthEnabled: () => authState.anthropicAuthEnabled,
-    isClaudeAISubscriber: () => authState.claudeSubscriber,
+    isaikoAISubscriber: () => authState.aikoSubscriber,
   }))
 
   mock.module('../bootstrap/state.js', () => ({
     getIsNonInteractiveSession: () => false,
   }))
 
-  mock.module('../services/api/claude.js', () => ({
+  mock.module('../services/api/aiko.js', () => ({
     verifyApiKey: async () => true,
   }))
 

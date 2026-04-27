@@ -20,7 +20,7 @@ import { createProfileFile } from '../../utils/providerProfile.js'
 
 const SYNC_START = '\x1B[?2026h'
 const SYNC_END = '\x1B[?2026l'
-const ORIGINAL_SIMPLE_ENV = process.env.CLAUDE_CODE_SIMPLE
+const ORIGINAL_SIMPLE_ENV = process.env.aiko_CODE_SIMPLE
 const ORIGINAL_CODEX_API_KEY = process.env.CODEX_API_KEY
 const ORIGINAL_CHATGPT_ACCOUNT_ID = process.env.CHATGPT_ACCOUNT_ID
 const ORIGINAL_CODEX_ACCOUNT_ID = process.env.CODEX_ACCOUNT_ID
@@ -152,9 +152,9 @@ afterEach(() => {
   mock.restore()
 
   if (ORIGINAL_SIMPLE_ENV === undefined) {
-    delete process.env.CLAUDE_CODE_SIMPLE
+    delete process.env.aiko_CODE_SIMPLE
   } else {
-    process.env.CLAUDE_CODE_SIMPLE = ORIGINAL_SIMPLE_ENV
+    process.env.aiko_CODE_SIMPLE = ORIGINAL_SIMPLE_ENV
   }
 
   if (ORIGINAL_CODEX_API_KEY === undefined) {
@@ -299,7 +299,7 @@ test('buildProfileSaveMessage maps provider fields without echoing secrets', () 
       OPENAI_MODEL: 'gpt-4o',
       OPENAI_BASE_URL: 'https://api.openai.com/v1',
     },
-    'D:/codings/Opensource/openclaude/.openclaude-profile.json',
+    'D:/codings/Opensource/aiko-code/.aiko-profile.json',
   )
 
   expect(message).toContain('Saved OpenAI-compatible profile.')
@@ -316,7 +316,7 @@ test('buildProfileSaveMessage labels local openai-compatible profiles consistent
       OPENAI_MODEL: 'gpt-5.4',
       OPENAI_BASE_URL: 'http://127.0.0.1:8080/v1',
     },
-    'D:/codings/Opensource/openclaude/.openclaude-profile.json',
+    'D:/codings/Opensource/aiko-code/.aiko-profile.json',
   )
 
   expect(message).toContain('Saved Local OpenAI-compatible profile.')
@@ -332,7 +332,7 @@ test('buildProfileSaveMessage describes Gemini access token / ADC mode clearly',
       GEMINI_MODEL: 'gemini-2.5-flash',
       GEMINI_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta/openai',
     },
-    'D:/codings/Opensource/openclaude/.openclaude-profile.json',
+    'D:/codings/Opensource/aiko-code/.aiko-profile.json',
   )
 
   expect(message).toContain('Saved Google Gemini profile.')
@@ -349,15 +349,15 @@ test('buildProfileSaveMessage reflects immediate Codex activation for existing c
       OPENAI_BASE_URL: 'https://chatgpt.com/backend-api/codex',
       CHATGPT_ACCOUNT_ID: 'acct_codex',
     },
-    'D:/codings/Opensource/openclaude/.openclaude-profile.json',
+    'D:/codings/Opensource/aiko-code/.aiko-profile.json',
     {
       activatedInSession: true,
     },
   )
 
   expect(message).toContain('Saved Codex profile.')
-  expect(message).toContain('OpenClaude switched to it for this session.')
-  expect(message).not.toContain('Restart OpenClaude to use it.')
+  expect(message).toContain('aiko-code switched to it for this session.')
+  expect(message).not.toContain('Restart Aiko Code to use it.')
 })
 
 test('buildProfileSaveMessage reflects immediate Codex OAuth activation when the session switched successfully', () => {
@@ -369,15 +369,15 @@ test('buildProfileSaveMessage reflects immediate Codex OAuth activation when the
       CHATGPT_ACCOUNT_ID: 'acct_codex',
       CODEX_CREDENTIAL_SOURCE: 'oauth',
     },
-    'D:/codings/Opensource/openclaude/.openclaude-profile.json',
+    'D:/codings/Opensource/aiko-code/.aiko-profile.json',
     {
       activatedInSession: true,
     },
   )
 
   expect(message).toContain('Saved Codex profile.')
-  expect(message).toContain('OpenClaude switched to it for this session.')
-  expect(message).not.toContain('Restart OpenClaude to use it.')
+  expect(message).toContain('aiko-code switched to it for this session.')
+  expect(message).not.toContain('Restart Aiko Code to use it.')
 })
 
 test('buildCodexOAuthProfileEnv uses the fresh OAuth account id without persisting an API key', () => {
@@ -434,14 +434,14 @@ test('explicitly declared env takes precedence over applySavedProfileToCurrentSe
     '../../utils/providerProfile.js?apply-saved-profile-codex'
   )
   const processEnv: NodeJS.ProcessEnv = {
-    CLAUDE_CODE_USE_OPENAI: '1',
+    aiko_CODE_USE_OPENAI: '1',
     OPENAI_MODEL: 'gpt-4o',
     OPENAI_BASE_URL: 'https://api.openai.com/v1',
     OPENAI_API_KEY: 'sk-openai',
     CODEX_API_KEY: 'codex-live',
     CHATGPT_ACCOUNT_ID: 'acct_codex',
-    CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED: '1',
-    CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID: 'provider_old',
+    aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED: '1',
+    aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID: 'provider_old',
   }
   const profileFile = createProfileFile('codex', {
     OPENAI_MODEL: 'codexplan',
@@ -456,7 +456,7 @@ test('explicitly declared env takes precedence over applySavedProfileToCurrentSe
   })
 
   expect(warning).toBeNull()
-  expect(processEnv.CLAUDE_CODE_USE_OPENAI).toBe('1')
+  expect(processEnv.aiko_CODE_USE_OPENAI).toBe('1')
   expect(processEnv.OPENAI_MODEL).toBe('gpt-4o')
   expect(processEnv.OPENAI_BASE_URL).toBe(
     "https://api.openai.com/v1",
@@ -464,8 +464,8 @@ test('explicitly declared env takes precedence over applySavedProfileToCurrentSe
   expect(processEnv.CODEX_API_KEY).toBeUndefined()
   expect(processEnv.CHATGPT_ACCOUNT_ID).toBeUndefined()
   expect(processEnv.OPENAI_API_KEY).toBe("sk-openai")
-  expect(processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED).toBeUndefined()
-  expect(processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID).toBeUndefined()
+  expect(processEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED).toBeUndefined()
+  expect(processEnv.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID).toBeUndefined()
 })
 
 test('explicitly declared env takes precedence over applySavedProfileToCurrentSession', async () => {
@@ -474,7 +474,7 @@ test('explicitly declared env takes precedence over applySavedProfileToCurrentSe
     '../../utils/providerProfile.js?apply-saved-profile-codex-oauth'
   )
   const processEnv: NodeJS.ProcessEnv = {
-    CLAUDE_CODE_USE_OPENAI: '1',
+    aiko_CODE_USE_OPENAI: '1',
     OPENAI_MODEL: 'gpt-4o',
     OPENAI_BASE_URL: 'https://api.openai.com/v1',
     CODEX_API_KEY: 'stale-codex-key',
@@ -505,7 +505,7 @@ test('explicitly declared env takes precedence over applySavedProfileToCurrentSe
 test('buildCurrentProviderSummary redacts poisoned model and endpoint values', () => {
   const summary = buildCurrentProviderSummary({
     processEnv: {
-      CLAUDE_CODE_USE_OPENAI: '1',
+      aiko_CODE_USE_OPENAI: '1',
       OPENAI_API_KEY: 'sk-secret-12345678',
       OPENAI_MODEL: 'sk-secret-12345678',
       OPENAI_BASE_URL: 'sk-secret-12345678',
@@ -521,7 +521,7 @@ test('buildCurrentProviderSummary redacts poisoned model and endpoint values', (
 test('buildCurrentProviderSummary labels generic local openai-compatible providers', () => {
   const summary = buildCurrentProviderSummary({
     processEnv: {
-      CLAUDE_CODE_USE_OPENAI: '1',
+      aiko_CODE_USE_OPENAI: '1',
       OPENAI_MODEL: 'qwen2.5-coder-7b-instruct',
       OPENAI_BASE_URL: 'http://127.0.0.1:8080/v1',
     },
@@ -536,7 +536,7 @@ test('buildCurrentProviderSummary labels generic local openai-compatible provide
 test('buildCurrentProviderSummary does not relabel local gpt-5.4 providers as Codex when custom base URL is set', () => {
   const summary = buildCurrentProviderSummary({
     processEnv: {
-      CLAUDE_CODE_USE_OPENAI: '1',
+      aiko_CODE_USE_OPENAI: '1',
       OPENAI_MODEL: 'gpt-5.4',
       OPENAI_BASE_URL: 'http://127.0.0.1:8080/v1',
     },
@@ -551,7 +551,7 @@ test('buildCurrentProviderSummary does not relabel local gpt-5.4 providers as Co
 test('buildCurrentProviderSummary recognizes GitHub Models mode', () => {
   const summary = buildCurrentProviderSummary({
     processEnv: {
-      CLAUDE_CODE_USE_GITHUB: '1',
+      aiko_CODE_USE_GITHUB: '1',
       OPENAI_MODEL: 'github:copilot',
       OPENAI_BASE_URL: 'https://models.github.ai/inference',
     },
@@ -578,7 +578,7 @@ test('getProviderWizardDefaults ignores poisoned current provider values', () =>
 })
 
 test('ProviderWizard hides Codex OAuth while running in bare mode', async () => {
-  process.env.CLAUDE_CODE_SIMPLE = '1'
+  process.env.aiko_CODE_SIMPLE = '1'
 
   const output = await renderProviderWizardFrame()
 

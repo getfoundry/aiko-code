@@ -32,6 +32,8 @@ export type BuiltinPluginDefinition = {
   isAvailable?: () => boolean
   /** Default enabled state before the user sets a preference (defaults to true) */
   defaultEnabled?: boolean
+  /** Filesystem path the runtime should treat as this plugin's root for hook pathExists checks. Defaults to the "builtin" sentinel. */
+  pluginRoot?: string
 }
 
 export type PluginRepository = {

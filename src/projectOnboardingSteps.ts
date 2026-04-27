@@ -22,14 +22,14 @@ export function getSteps(): Step[] {
   return [
     {
       key: 'workspace',
-      text: 'Ask Claude to create a new app or clone a repository',
+      text: 'Ask aiko to create a new app or clone a repository',
       isComplete: false,
       isCompletable: true,
       isEnabled: isWorkspaceDirEmpty,
     },
     {
-      key: 'claudemd',
-      text: 'Set up repo instructions (/init creates AGENTS.md or updates existing CLAUDE.md; either file counts)',
+      key: 'aikomd',
+      text: 'Set up repo instructions (/init creates AGENTS.md or updates existing aiko.md; either file counts)',
       isComplete: hasRepoInstructions,
       isCompletable: true,
       isEnabled: !isWorkspaceDirEmpty,

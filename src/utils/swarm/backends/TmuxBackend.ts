@@ -63,7 +63,7 @@ function getTmuxColorName(color: AgentColorName): string {
     green: 'green',
     yellow: 'yellow',
     purple: 'magenta',
-    orange: 'colour208',
+    violet: 'colour208',
     pink: 'colour205',
     cyan: 'cyan',
   }
@@ -98,7 +98,7 @@ function runTmuxInSwarm(
  * - Leader stays on left (30%), teammates on right (70%)
  *
  * When running OUTSIDE tmux (leader is in regular terminal):
- * - Creates a claude-swarm session with a swarm-view window
+ * - Creates a aiko-swarm session with a swarm-view window
  * - All teammates are equally distributed (no leader pane)
  */
 export class TmuxBackend implements PaneBackend {

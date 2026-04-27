@@ -36,7 +36,7 @@ describe('cacheStatsTracker — aggregation', () => {
   test('one recorded request flows into both turn and session', () => {
     recordRequest(
       makeMetrics({ read: 500, total: 1000, hitRate: 0.5 }),
-      'claude-sonnet-4',
+      'aiko-sonnet-4',
     )
     expect(getCurrentTurnCacheMetrics().read).toBe(500)
     expect(getCurrentTurnCacheMetrics().total).toBe(1000)
@@ -201,7 +201,7 @@ describe('cacheStatsTracker — unsupported mixing', () => {
     )
     recordRequest(
       makeMetrics({ read: 100, total: 500, hitRate: 0.2 }),
-      'claude',
+      'aiko',
     )
     const turn = getCurrentTurnCacheMetrics()
     expect(turn.supported).toBe(true)

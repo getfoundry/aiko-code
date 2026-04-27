@@ -1,14 +1,15 @@
 {
-  "name": "@gitlawb/openclaude",
+  "name": "@getfoundry/aiko",
   "version": "0.7.0",
-  "description": "OpenClaude opens coding-agent workflows to any LLM — OpenAI, Gemini, DeepSeek, Ollama, and 200+ models",
+  "description": "Aiko Code — your wholesome coding companion~ Fork of Aiko/aiko Code. 9-phase fractal development loop with Fibonacci parallelism budgets baked in.",
   "type": "module",
   "bin": {
-    "openclaude": "./bin/openclaude"
+    "aiko-code": "./bin/aiko-code"
   },
   "files": [
     "bin/",
     "dist/cli.mjs",
+    "dist/plugins/",
     "README.md"
   ],
   "scripts": {
@@ -140,10 +141,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gitlawb/openclaude.git"
+    "url": "https://github.com/getfoundry/aiko-code.git"
   },
   "keywords": [
-    "claude-code",
+    "aiko-code",
     "openai",
     "llm",
     "cli",

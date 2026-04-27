@@ -21,7 +21,7 @@ mkdirSync(testDir, { recursive: true })
 writeFileSync(stubFile, stubMatch[1])
 
 // Point the stub at our test flags file (checked by _loadFlags on first access)
-process.env.CLAUDE_FEATURE_FLAGS_FILE = flagsFile
+process.env.aiko_FEATURE_FLAGS_FILE = flagsFile
 
 const stub = await import(stubFile)
 
@@ -37,7 +37,7 @@ describe('growthbook stub — local feature flag overrides', () => {
 
   afterAll(() => {
     rmSync(testDir, { recursive: true, force: true })
-    delete process.env.CLAUDE_FEATURE_FLAGS_FILE
+    delete process.env.aiko_FEATURE_FLAGS_FILE
   })
 
   // ── File absent ──────────────────────────────────────────────────

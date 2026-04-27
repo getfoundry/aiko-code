@@ -111,24 +111,24 @@ export function _resetTmuxControlModeProbeForTesting(): void {
  * Users can enable via `/config` instead of setting the env.
  *
  * Priority order:
- *   CLAUDE_CODE_NO_FLICKER=0  → always off
- *   CLAUDE_CODE_NO_FLICKER=1  → always on (overrides tmux -CC guard too)
+ *   aiko_CODE_NO_FLICKER=0  → always off
+ *   aiko_CODE_NO_FLICKER=1  → always on (overrides tmux -CC guard too)
  *   tmux -CC detected         → off (corrupts terminal state)
  *   config flickerFreeMode    → on/off per user preference
  *   default                   → off
  */
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit env opt-out always wins.
-  if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_NO_FLICKER)) return false
+  if (isEnvDefinedFalsy(process.env.aiko_CODE_NO_FLICKER)) return false
   // Explicit env opt-in overrides everything including tmux -CC.
-  if (isEnvTruthy(process.env.CLAUDE_CODE_NO_FLICKER)) return true
+  if (isEnvTruthy(process.env.aiko_CODE_NO_FLICKER)) return true
   // Auto-disable under tmux -CC: alt-screen + mouse tracking corrupts
   // terminal state on double-click and mouse wheel is dead.
   if (isTmuxControlMode()) {
     if (!loggedTmuxCcDisable) {
       loggedTmuxCcDisable = true
       logForDebugging(
-        'fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override',
+        'fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set aiko_CODE_NO_FLICKER=1 to override',
       )
     }
     return false
@@ -142,26 +142,26 @@ export function isFullscreenEnvEnabled(): boolean {
 
 /**
  * Whether fullscreen mode should enable SGR mouse tracking (DEC 1000/1002/1006).
- * Set CLAUDE_CODE_DISABLE_MOUSE=1 to keep alt-screen + virtualized scroll
+ * Set aiko_CODE_DISABLE_MOUSE=1 to keep alt-screen + virtualized scroll
  * (keyboard PgUp/PgDn/Ctrl+Home/End still work) but skip mouse capture,
  * so tmux/kitty/terminal-native copy-on-select keeps working.
  *
- * Compare with CLAUDE_CODE_NO_FLICKER=0 which is all-or-nothing — it also
+ * Compare with aiko_CODE_NO_FLICKER=0 which is all-or-nothing — it also
  * disables alt-screen and virtualized scrollback.
  */
 export function isMouseTrackingEnabled(): boolean {
-  return !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_MOUSE)
+  return !isEnvTruthy(process.env.aiko_CODE_DISABLE_MOUSE)
 }
 
 /**
  * Whether mouse click handling is disabled (clicks/drags ignored, wheel still
- * works). Set CLAUDE_CODE_DISABLE_MOUSE_CLICKS=1 to prevent accidental clicks
+ * works). Set aiko_CODE_DISABLE_MOUSE_CLICKS=1 to prevent accidental clicks
  * from triggering cursor positioning, text selection, or message expansion.
  *
- * Fullscreen-specific — only reachable when CLAUDE_CODE_NO_FLICKER is active.
+ * Fullscreen-specific — only reachable when aiko_CODE_NO_FLICKER is active.
  */
 export function isMouseClicksDisabled(): boolean {
-  return isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_MOUSE_CLICKS)
+  return isEnvTruthy(process.env.aiko_CODE_DISABLE_MOUSE_CLICKS)
 }
 
 /**

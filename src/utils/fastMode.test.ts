@@ -46,7 +46,7 @@ function installCommonMocks(options?: {
 
   mock.module('./auth.js', () => ({
     getAnthropicApiKey: () => options?.apiKey ?? null,
-    getClaudeAIOAuthTokens: () =>
+    getaikoAIOAuthTokens: () =>
       options?.oauthToken ? { accessToken: options.oauthToken } : null,
     handleOAuth401Error: async () => {},
     hasProfileScope: () => options?.hasProfileScope ?? false,
@@ -74,7 +74,7 @@ function installCommonMocks(options?: {
   }))
 
   mock.module('./model/model.js', () => ({
-    getDefaultMainLoopModelSetting: () => 'claude-sonnet-4-6',
+    getDefaultMainLoopModelSetting: () => 'aiko-sonnet-4-6',
     isOpus1mMergeEnabled: () => false,
     parseUserSpecifiedModel: (model: string) => model,
   }))

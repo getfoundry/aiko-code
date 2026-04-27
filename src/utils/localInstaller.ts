@@ -6,23 +6,23 @@ import { access, chmod, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
 import { type ReleaseChannel, saveGlobalConfig } from './config.js'
-import { getClaudeConfigHomeDir } from './envUtils.js'
+import { getaikoConfigHomeDir } from './envUtils.js'
 import { getErrnoCode } from './errors.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
 import { jsonStringify } from './slowOperations.js'
 
-// Lazy getters: getClaudeConfigHomeDir() is memoized and reads process.env.
+// Lazy getters: getaikoConfigHomeDir() is memoized and reads process.env.
 // Evaluating at module scope would capture the value before entrypoints like
-// hfi.tsx get a chance to set CLAUDE_CONFIG_DIR in main(), and would also
+// hfi.tsx get a chance to set aiko_CONFIG_DIR in main(), and would also
 // populate the memoize cache with that stale value for all 150+ other callers.
 function getLocalInstallDir(): string {
-  return join(getClaudeConfigHomeDir(), 'local')
+  return join(getaikoConfigHomeDir(), 'local')
 }
 
 function getLegacyLocalInstallDir(homeDir = homedir()): string {
-  return join(homeDir, '.claude', 'local')
+  return join(homeDir, '.aiko', 'local')
 }
 
 export function getCandidateLocalInstallDirs(options?: {
@@ -30,7 +30,7 @@ export function getCandidateLocalInstallDirs(options?: {
   homeDir?: string
 }): string[] {
   const homeDir = options?.homeDir ?? homedir()
-  const configHomeDir = options?.configHomeDir ?? getClaudeConfigHomeDir()
+  const configHomeDir = options?.configHomeDir ?? getaikoConfigHomeDir()
   return Array.from(
     new Set([join(configHomeDir, 'local'), getLegacyLocalInstallDir(homeDir)]),
   )
@@ -38,21 +38,21 @@ export function getCandidateLocalInstallDirs(options?: {
 
 function getCandidateLocalBinaryPaths(localInstallDir: string): string[] {
   return [
-    join(localInstallDir, 'node_modules', '.bin', 'openclaude'),
-    join(localInstallDir, 'node_modules', '.bin', 'claude'),
+    join(localInstallDir, 'node_modules', '.bin', 'aiko-code'),
+    join(localInstallDir, 'node_modules', '.bin', 'aiko'),
   ]
 }
 
 export function isManagedLocalInstallationPath(execPath: string): boolean {
   const normalizedExecPath = execPath.replace(/\\+/g, '/')
   return (
-    normalizedExecPath.includes('/.openclaude/local/node_modules/') ||
-    normalizedExecPath.includes('/.claude/local/node_modules/')
+    normalizedExecPath.includes('/.aiko/local/node_modules/') ||
+    normalizedExecPath.includes('/.aiko/local/node_modules/')
   )
 }
 
-export function getLocalClaudePath(): string {
-  return join(getLocalInstallDir(), 'openclaude')
+export function getLocalaikoPath(): string {
+  return join(getLocalInstallDir(), 'aiko-code')
 }
 
 /**
@@ -95,17 +95,17 @@ export async function ensureLocalPackageEnvironment(): Promise<boolean> {
     await writeIfMissing(
       join(localInstallDir, 'package.json'),
       jsonStringify(
-        { name: 'openclaude-local', version: '0.0.1', private: true },
+        { name: 'aiko-code-local', version: '0.0.1', private: true },
         null,
         2,
       ),
     )
 
     // Create the wrapper script if it doesn't exist
-    const wrapperPath = getLocalClaudePath()
+    const wrapperPath = getLocalaikoPath()
     const created = await writeIfMissing(
       wrapperPath,
-      `#!/bin/sh\nexec "${localInstallDir}/node_modules/.bin/openclaude" "$@"`,
+      `#!/bin/sh\nexec "${localInstallDir}/node_modules/.bin/aiko-code" "$@"`,
       0o755,
     )
     if (created) {
@@ -121,11 +121,11 @@ export async function ensureLocalPackageEnvironment(): Promise<boolean> {
 }
 
 /**
- * Install or update Claude CLI package in the local directory
+ * Install or update aiko CLI package in the local directory
  * @param channel - Release channel to use (latest or stable)
  * @param specificVersion - Optional specific version to install (overrides channel)
  */
-export async function installOrUpdateClaudePackage(
+export async function installOrUpdateaikoPackage(
   channel: ReleaseChannel,
   specificVersion?: string | null,
 ): Promise<'in_progress' | 'success' | 'install_failed'> {
@@ -149,7 +149,7 @@ export async function installOrUpdateClaudePackage(
 
     if (result.code !== 0) {
       const error = new Error(
-        `Failed to install Claude CLI package: ${result.stderr}`,
+        `Failed to install aiko CLI package: ${result.stderr}`,
       )
       logError(error)
       return result.code === 190 ? 'in_progress' : 'install_failed'

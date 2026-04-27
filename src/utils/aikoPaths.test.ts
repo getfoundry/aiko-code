@@ -24,110 +24,110 @@ afterEach(() => {
   mock.restore()
 })
 
-describe('OpenClaude paths', () => {
-  test('defaults user config home to ~/.openclaude', async () => {
-    delete process.env.CLAUDE_CONFIG_DIR
-    const { resolveClaudeConfigHomeDir } = await importFreshEnvUtils()
+describe('aiko-code paths', () => {
+  test('defaults user config home to ~/.aiko-code', async () => {
+    delete process.env.aiko_CONFIG_DIR
+    const { resolveaikoConfigHomeDir } = await importFreshEnvUtils()
 
     expect(
-      resolveClaudeConfigHomeDir({
+      resolveaikoConfigHomeDir({
         homeDir: homedir(),
-        openClaudeExists: true,
-        legacyClaudeExists: false,
+        aiko-codeExists: true,
+        legacyaikoExists: false,
       }),
-    ).toBe(join(homedir(), '.openclaude'))
+    ).toBe(join(homedir(), '.aiko-code'))
   })
 
-  test('falls back to ~/.claude when legacy config exists and ~/.openclaude does not', async () => {
-    delete process.env.CLAUDE_CONFIG_DIR
-    const { resolveClaudeConfigHomeDir } = await importFreshEnvUtils()
+  test('falls back to ~/.aiko when legacy config exists and ~/.aiko-code does not', async () => {
+    delete process.env.aiko_CONFIG_DIR
+    const { resolveaikoConfigHomeDir } = await importFreshEnvUtils()
 
     expect(
-      resolveClaudeConfigHomeDir({
+      resolveaikoConfigHomeDir({
         homeDir: homedir(),
-        openClaudeExists: false,
-        legacyClaudeExists: true,
+        aiko-codeExists: false,
+        legacyaikoExists: true,
       }),
-    ).toBe(join(homedir(), '.claude'))
+    ).toBe(join(homedir(), '.aiko'))
   })
 
-  test('uses CLAUDE_CONFIG_DIR override when provided', async () => {
-    process.env.CLAUDE_CONFIG_DIR = '/tmp/custom-openclaude'
-    const { getClaudeConfigHomeDir, resolveClaudeConfigHomeDir } =
+  test('uses aiko_CONFIG_DIR override when provided', async () => {
+    process.env.aiko_CONFIG_DIR = '/tmp/custom-aiko-code'
+    const { getaikoConfigHomeDir, resolveaikoConfigHomeDir } =
       await importFreshEnvUtils()
 
-    expect(getClaudeConfigHomeDir()).toBe('/tmp/custom-openclaude')
+    expect(getaikoConfigHomeDir()).toBe('/tmp/custom-aiko-code')
     expect(
-      resolveClaudeConfigHomeDir({
-        configDirEnv: '/tmp/custom-openclaude',
+      resolveaikoConfigHomeDir({
+        configDirEnv: '/tmp/custom-aiko-code',
       }),
-    ).toBe('/tmp/custom-openclaude')
+    ).toBe('/tmp/custom-aiko-code')
   })
 
-  test('project and local settings paths use .openclaude', async () => {
+  test('project and local settings paths use .aiko-code', async () => {
     const { getRelativeSettingsFilePathForSource } = await importFreshSettings()
 
     expect(getRelativeSettingsFilePathForSource('projectSettings')).toBe(
-      '.openclaude/settings.json',
+      '.aiko/settings.json',
     )
     expect(getRelativeSettingsFilePathForSource('localSettings')).toBe(
-      '.openclaude/settings.local.json',
+      '.aiko/settings.local.json',
     )
   })
 
-  test('local installer uses openclaude wrapper path', async () => {
-    // Force .openclaude config home so the test doesn't fall back to
-    // ~/.claude when ~/.openclaude doesn't exist on this machine.
-    process.env.CLAUDE_CONFIG_DIR = join(homedir(), '.openclaude')
-    const { getLocalClaudePath } = await importFreshLocalInstaller()
+  test('local installer uses aiko-code wrapper path', async () => {
+    // Force .aiko-code config home so the test doesn't fall back to
+    // ~/.aiko when ~/.aiko-code doesn't exist on this machine.
+    process.env.aiko_CONFIG_DIR = join(homedir(), '.aiko-code')
+    const { getLocalaikoPath } = await importFreshLocalInstaller()
 
-    expect(getLocalClaudePath()).toBe(
-      join(homedir(), '.openclaude', 'local', 'openclaude'),
+    expect(getLocalaikoPath()).toBe(
+      join(homedir(), '.aiko-code', 'local', 'aiko-code'),
     )
   })
 
-  test('local installation detection matches .openclaude path', async () => {
+  test('local installation detection matches .aiko-code path', async () => {
     const { isManagedLocalInstallationPath } =
       await importFreshLocalInstaller()
 
     expect(
       isManagedLocalInstallationPath(
-        `${join(homedir(), '.openclaude', 'local')}/node_modules/.bin/openclaude`,
+        `${join(homedir(), '.aiko-code', 'local')}/node_modules/.bin/aiko-code`,
       ),
     ).toBe(true)
   })
 
-  test('local installation detection still matches legacy .claude path', async () => {
+  test('local installation detection still matches legacy .aiko path', async () => {
     const { isManagedLocalInstallationPath } =
       await importFreshLocalInstaller()
 
     expect(
       isManagedLocalInstallationPath(
-        `${join(homedir(), '.claude', 'local')}/node_modules/.bin/openclaude`,
+        `${join(homedir(), '.aiko', 'local')}/node_modules/.bin/aiko-code`,
       ),
     ).toBe(true)
   })
 
-  test('candidate local install dirs include both openclaude and legacy claude paths', async () => {
+  test('candidate local install dirs include both aiko-code and legacy aiko paths', async () => {
     const { getCandidateLocalInstallDirs } = await importFreshLocalInstaller()
 
     expect(
       getCandidateLocalInstallDirs({
-        configHomeDir: join(homedir(), '.openclaude'),
+        configHomeDir: join(homedir(), '.aiko-code'),
         homeDir: homedir(),
       }),
     ).toEqual([
-      join(homedir(), '.openclaude', 'local'),
-      join(homedir(), '.claude', 'local'),
+      join(homedir(), '.aiko-code', 'local'),
+      join(homedir(), '.aiko', 'local'),
     ])
   })
 
-  test('legacy local installs are detected when they still expose the claude binary', async () => {
+  test('legacy local installs are detected when they still expose the aiko binary', async () => {
     mock.module('fs/promises', () => ({
       ...fsPromises,
       access: async (path: string) => {
         if (
-          path === join(homedir(), '.claude', 'local', 'node_modules', '.bin', 'claude')
+          path === join(homedir(), '.aiko', 'local', 'node_modules', '.bin', 'aiko')
         ) {
           return
         }
@@ -140,7 +140,7 @@ describe('OpenClaude paths', () => {
 
     expect(await localInstallationExists()).toBe(true)
     expect(await getDetectedLocalInstallDir()).toBe(
-      join(homedir(), '.claude', 'local'),
+      join(homedir(), '.aiko', 'local'),
     )
   })
 })

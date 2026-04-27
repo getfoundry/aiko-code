@@ -238,7 +238,7 @@ function createPluginCommand(
         isSkill ? 'Plugin skill' : 'Plugin command',
       )
 
-    // Substitute ${CLAUDE_PLUGIN_ROOT} in allowed-tools before parsing
+    // Substitute ${aiko_PLUGIN_ROOT} in allowed-tools before parsing
     const rawAllowedTools = frontmatter['allowed-tools']
     const substitutedAllowedTools =
       typeof rawAllowedTools === 'string'
@@ -336,7 +336,7 @@ function createPluginCommand(
           argumentNames,
         )
 
-        // Replace ${CLAUDE_PLUGIN_ROOT} and ${CLAUDE_PLUGIN_DATA} with their paths
+        // Replace ${aiko_PLUGIN_ROOT} and ${aiko_PLUGIN_DATA} with their paths
         finalContent = substitutePluginVariables(finalContent, {
           path: pluginPath,
           source: sourceName,
@@ -353,10 +353,10 @@ function createPluginCommand(
           )
         }
 
-        // Replace ${CLAUDE_SKILL_DIR} with this specific skill's directory.
-        // Distinct from ${CLAUDE_PLUGIN_ROOT}: a plugin can contain multiple
-        // skills, so CLAUDE_PLUGIN_ROOT points to the plugin root while
-        // CLAUDE_SKILL_DIR points to the individual skill's subdirectory.
+        // Replace ${aiko_SKILL_DIR} with this specific skill's directory.
+        // Distinct from ${aiko_PLUGIN_ROOT}: a plugin can contain multiple
+        // skills, so aiko_PLUGIN_ROOT points to the plugin root while
+        // aiko_SKILL_DIR points to the individual skill's subdirectory.
         if (config.isSkillMode) {
           const rawSkillDir = dirname(file.filePath)
           const skillDir =
@@ -364,14 +364,14 @@ function createPluginCommand(
               ? rawSkillDir.replace(/\\/g, '/')
               : rawSkillDir
           finalContent = finalContent.replace(
-            /\$\{CLAUDE_SKILL_DIR\}/g,
+            /\$\{aiko_SKILL_DIR\}/g,
             skillDir,
           )
         }
 
-        // Replace ${CLAUDE_SESSION_ID} with the current session ID
+        // Replace ${aiko_SESSION_ID} with the current session ID
         finalContent = finalContent.replace(
-          /\$\{CLAUDE_SESSION_ID\}/g,
+          /\$\{aiko_SESSION_ID\}/g,
           getSessionId(),
         )
 

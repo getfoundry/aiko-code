@@ -15,7 +15,7 @@
 import { z } from 'zod/v4'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { logEvent } from '../services/analytics/index.js'
-import { queryHaiku } from '../services/api/claude.js'
+import { queryHaiku } from '../services/api/aiko.js'
 import type { Message } from '../types/message.js'
 import { logForDebugging } from './debug.js'
 import { safeParseJSON } from './json.js'
@@ -127,7 +127,7 @@ export async function generateSessionTitle(
 
     // Fallback: When using 3P providers without a compatible schema,
     // default to the application name.
-    return 'OpenClaude'
+    return 'aiko-code'
   }
 }
 

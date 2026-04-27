@@ -14,7 +14,7 @@ const tempDirs: string[] = []
 const originalEnv = {
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
   OPENAI_API_BASE: process.env.OPENAI_API_BASE,
-  CLAUDE_CODE_USE_GITHUB: process.env.CLAUDE_CODE_USE_GITHUB,
+  aiko_CODE_USE_GITHUB: process.env.aiko_CODE_USE_GITHUB,
   OPENAI_MODEL: process.env.OPENAI_MODEL,
 }
 
@@ -25,8 +25,8 @@ afterEach(() => {
   if (originalEnv.OPENAI_API_BASE === undefined) delete process.env.OPENAI_API_BASE
   else process.env.OPENAI_API_BASE = originalEnv.OPENAI_API_BASE
 
-  if (originalEnv.CLAUDE_CODE_USE_GITHUB === undefined) delete process.env.CLAUDE_CODE_USE_GITHUB
-  else process.env.CLAUDE_CODE_USE_GITHUB = originalEnv.CLAUDE_CODE_USE_GITHUB
+  if (originalEnv.aiko_CODE_USE_GITHUB === undefined) delete process.env.aiko_CODE_USE_GITHUB
+  else process.env.aiko_CODE_USE_GITHUB = originalEnv.aiko_CODE_USE_GITHUB
 
   if (originalEnv.OPENAI_MODEL === undefined) delete process.env.OPENAI_MODEL
   else process.env.OPENAI_MODEL = originalEnv.OPENAI_MODEL
@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 function createTempAuthJson(payload: Record<string, unknown>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'openclaude-codex-'))
+  const dir = mkdtempSync(join(tmpdir(), 'aiko-code-codex-'))
   tempDirs.push(dir)
   const authPath = join(dir, 'auth.json')
   writeFileSync(authPath, JSON.stringify(payload), 'utf8')
@@ -84,7 +84,7 @@ describe('Codex provider config', () => {
     const { resolveProviderRequest } = await importFreshProviderConfigModule()
     delete process.env.OPENAI_BASE_URL
     delete process.env.OPENAI_API_BASE
-    delete process.env.CLAUDE_CODE_USE_GITHUB
+    delete process.env.aiko_CODE_USE_GITHUB
 
     const resolved = resolveProviderRequest({ model: 'codexplan' })
     expect(resolved.transport).toBe('codex_responses')
@@ -97,7 +97,7 @@ describe('Codex provider config', () => {
     const { resolveProviderRequest } = await importFreshProviderConfigModule()
     delete process.env.OPENAI_BASE_URL
     delete process.env.OPENAI_API_BASE
-    delete process.env.CLAUDE_CODE_USE_GITHUB
+    delete process.env.aiko_CODE_USE_GITHUB
 
     const resolved = resolveProviderRequest({ model: 'codexspark' })
     expect(resolved.transport).toBe('codex_responses')
@@ -144,7 +144,7 @@ describe('Codex provider config', () => {
   test('default gpt-4o uses OpenAI base URL (no regression)', async () => {
     const { resolveProviderRequest } = await importFreshProviderConfigModule()
     delete process.env.OPENAI_BASE_URL
-    delete process.env.CLAUDE_CODE_USE_GITHUB
+    delete process.env.aiko_CODE_USE_GITHUB
 
     const resolved = resolveProviderRequest({ model: 'gpt-4o' })
     expect(resolved.transport).toBe('chat_completions')
@@ -156,7 +156,7 @@ describe('Codex provider config', () => {
     const { resolveProviderRequest } = await importFreshProviderConfigModule()
     process.env.OPENAI_MODEL = 'codexplan'
     delete process.env.OPENAI_BASE_URL
-    delete process.env.CLAUDE_CODE_USE_GITHUB
+    delete process.env.aiko_CODE_USE_GITHUB
 
     const resolved = resolveProviderRequest()
     expect(resolved.transport).toBe('codex_responses')
@@ -168,7 +168,7 @@ describe('Codex provider config', () => {
     const { resolveProviderRequest } = await importFreshProviderConfigModule()
     process.env.OPENAI_MODEL = 'codexplan'
     process.env.OPENAI_BASE_URL = 'http://localhost:11434/v1'
-    delete process.env.CLAUDE_CODE_USE_GITHUB
+    delete process.env.aiko_CODE_USE_GITHUB
 
     const resolved = resolveProviderRequest()
     expect(resolved.transport).toBe('chat_completions')
@@ -618,8 +618,8 @@ describe('Codex request translation', () => {
             type: 'web_search_call',
             sources: [
               {
-                title: 'OpenClaude repo',
-                url: 'https://github.com/example/openclaude',
+                title: 'aiko-code repo',
+                url: 'https://github.com/example/aiko-code',
               },
             ],
           },
@@ -629,11 +629,11 @@ describe('Codex request translation', () => {
             content: [
               {
                 type: 'text',
-                text: 'OpenClaude is available on GitHub.',
+                text: 'Aiko Code is available on GitHub.',
                 sources: [
                   {
                     title: 'Docs',
-                    url: 'https://docs.example.com/openclaude',
+                    url: 'https://docs.example.com/aiko-code',
                   },
                 ],
               },
@@ -641,22 +641,22 @@ describe('Codex request translation', () => {
           },
         ],
       },
-      'OpenClaude GitHub 2026',
+      'aiko-code GitHub 2026',
       0.42,
     )
 
     expect(output.results).toEqual([
-      'OpenClaude is available on GitHub.',
+      'Aiko Code is available on GitHub.',
       {
         tool_use_id: 'codex-web-search',
         content: [
           {
-            title: 'OpenClaude repo',
-            url: 'https://github.com/example/openclaude',
+            title: 'aiko-code repo',
+            url: 'https://github.com/example/aiko-code',
           },
           {
             title: 'Docs',
-            url: 'https://docs.example.com/openclaude',
+            url: 'https://docs.example.com/aiko-code',
           },
         ],
       },
@@ -666,7 +666,7 @@ describe('Codex request translation', () => {
   test('falls back to a non-empty Codex web search result message', () => {
     const output = webSearchToolTest.makeOutputFromCodexWebSearchResponse(
       { output: [] },
-      'OpenClaude GitHub 2026',
+      'aiko-code GitHub 2026',
       0.11,
     )
 
@@ -684,7 +684,7 @@ describe('Codex request translation', () => {
           },
         ],
       },
-      'OpenClaude GitHub 2026',
+      'aiko-code GitHub 2026',
       0.05,
     )
 
@@ -704,7 +704,7 @@ describe('Codex request translation', () => {
           },
         ],
       },
-      'OpenClaude GitHub 2026',
+      'aiko-code GitHub 2026',
       0.05,
     )
 
@@ -721,7 +721,7 @@ describe('Codex request translation', () => {
           },
         ],
       },
-      'OpenClaude GitHub 2026',
+      'aiko-code GitHub 2026',
       0.05,
     )
 
@@ -745,14 +745,14 @@ describe('Codex request translation', () => {
                 type: 'output_text',
                 text: 'Partial results below.',
                 sources: [
-                  { title: 'Docs', url: 'https://docs.example.com/openclaude' },
+                  { title: 'Docs', url: 'https://docs.example.com/aiko-code' },
                 ],
               },
             ],
           },
         ],
       },
-      'OpenClaude GitHub 2026',
+      'aiko-code GitHub 2026',
       0.05,
     )
 
@@ -762,7 +762,7 @@ describe('Codex request translation', () => {
       {
         tool_use_id: 'codex-web-search',
         content: [
-          { title: 'Docs', url: 'https://docs.example.com/openclaude' },
+          { title: 'Docs', url: 'https://docs.example.com/aiko-code' },
         ],
       },
     ])

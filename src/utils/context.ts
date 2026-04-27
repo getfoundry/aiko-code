@@ -12,10 +12,10 @@ export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
 // Fallback context window for unknown 3P models. Must be large enough that
 // the effective context (this minus output token reservation) stays positive,
 // otherwise auto-compact fires on every message (issue #635).
-// Override via CLAUDE_CODE_OPENAI_FALLBACK_CONTEXT_WINDOW env var to avoid
+// Override via aiko_CODE_OPENAI_FALLBACK_CONTEXT_WINDOW env var to avoid
 // hardcoding when deploying models not yet in openaiContextWindows.ts.
 export const OPENAI_FALLBACK_CONTEXT_WINDOW = (() => {
-  const v = parseInt(process.env.CLAUDE_CODE_OPENAI_FALLBACK_CONTEXT_WINDOW ?? '', 10)
+  const v = parseInt(process.env.aiko_CODE_OPENAI_FALLBACK_CONTEXT_WINDOW ?? '', 10)
   return !isNaN(v) && v > 0 ? v : 128_000
 })()
 
@@ -30,7 +30,7 @@ const MAX_OUTPUT_TOKENS_UPPER_LIMIT = 64_000
 // tokens, so 32k/64k defaults over-reserve 8-16× slot capacity. With the cap
 // enabled, <1% of requests hit the limit; those get one clean retry at 64k
 // (see query.ts max_output_tokens_escalate). Cap is applied in
-// claude.ts:getMaxOutputTokensForModel to avoid the growthbook→betas→context
+// aiko.ts:getMaxOutputTokensForModel to avoid the growthbook→betas→context
 // import cycle.
 export const CAPPED_DEFAULT_MAX_TOKENS = 8_000
 export const ESCALATED_MAX_TOKENS = 64_000
@@ -40,7 +40,7 @@ export const ESCALATED_MAX_TOKENS = 64_000
  * Used by C4E admins to disable 1M context for HIPAA compliance.
  */
 export function is1mContextDisabled(): boolean {
-  return isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_1M_CONTEXT)
+  return isEnvTruthy(process.env.aiko_CODE_DISABLE_1M_CONTEXT)
 }
 
 export function has1mContext(model: string): boolean {
@@ -56,7 +56,7 @@ export function modelSupports1M(model: string): boolean {
     return false
   }
   const canonical = getCanonicalName(model)
-  return canonical.includes('claude-sonnet-4') || canonical.includes('opus-4-6')
+  return canonical.includes('aiko-sonnet-4') || canonical.includes('opus-4-6')
 }
 
 export function getContextWindowForModel(
@@ -69,9 +69,9 @@ export function getContextWindowForModel(
   // while still using a 1M-capable endpoint.
   if (
     process.env.USER_TYPE === 'ant' &&
-    process.env.CLAUDE_CODE_MAX_CONTEXT_TOKENS
+    process.env.aiko_CODE_MAX_CONTEXT_TOKENS
   ) {
-    const override = parseInt(process.env.CLAUDE_CODE_MAX_CONTEXT_TOKENS, 10)
+    const override = parseInt(process.env.aiko_CODE_MAX_CONTEXT_TOKENS, 10)
     if (!isNaN(override) && override > 0) {
       return override
     }
@@ -87,10 +87,10 @@ export function getContextWindowForModel(
   // but that caused auto-compact to fire on every turn because the effective
   // context (8k minus output reservation) became negative (issue #635).
   const isOpenAIProvider =
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
+    isEnvTruthy(process.env.aiko_CODE_USE_OPENAI) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_GEMINI) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_GITHUB) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL)
   if (isOpenAIProvider) {
     const openaiWindow = getOpenAIContextWindow(model)
     if (openaiWindow !== undefined) {
@@ -196,10 +196,10 @@ export function getModelMaxOutputTokens(model: string): {
 
   // OpenAI-compatible provider — use known output limits to avoid 400 errors
   if (
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
+    isEnvTruthy(process.env.aiko_CODE_USE_OPENAI) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_GEMINI) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_GITHUB) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL)
   ) {
     const openaiMax = getOpenAIMaxOutputTokens(model)
     if (openaiMax !== undefined) {
@@ -225,13 +225,13 @@ export function getModelMaxOutputTokens(model: string): {
   } else if (m.includes('opus-4-1') || m.includes('opus-4')) {
     defaultTokens = 32_000
     upperLimit = 32_000
-  } else if (m.includes('claude-3-opus')) {
+  } else if (m.includes('aiko-3-opus')) {
     defaultTokens = 4_096
     upperLimit = 4_096
-  } else if (m.includes('claude-3-sonnet')) {
+  } else if (m.includes('aiko-3-sonnet')) {
     defaultTokens = 8_192
     upperLimit = 8_192
-  } else if (m.includes('claude-3-haiku')) {
+  } else if (m.includes('aiko-3-haiku')) {
     defaultTokens = 4_096
     upperLimit = 4_096
   } else if (m.includes('3-5-sonnet') || m.includes('3-5-haiku')) {

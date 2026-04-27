@@ -1,5 +1,5 @@
 /**
- * Tests for Bug Fixes applied to openclaude.
+ * Tests for Bug Fixes applied to aiko-code.
  *
  * Covers:
  * 1. Gemini `store: false` rejection fix

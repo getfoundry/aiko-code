@@ -1,5 +1,5 @@
 /**
- * No-Telemetry Build Plugin for OpenClaude
+ * No-Telemetry Build Plugin for Aiko Code
  *
  * Replaces all analytics, telemetry, and phone-home modules with no-op stubs
  * at compile time. Zero runtime cost, zero network calls to Anthropic.
@@ -11,7 +11,7 @@
  *   - GrowthBook remote feature flags (api.anthropic.com)
  *   - Datadog event intake
  *   - 1P event logging (api.anthropic.com/api/event_logging/batch)
- *   - BigQuery metrics exporter (api.anthropic.com/api/claude_code/metrics)
+ *   - BigQuery metrics exporter (api.anthropic.com/api/aiko_code/metrics)
  *   - Perfetto / OpenTelemetry session tracing
  *   - Auto-updater (storage.googleapis.com, npm registry)
  *   - Plugin fetch telemetry
@@ -45,9 +45,9 @@ let _flags = undefined;
 // features. Only keys that DIFFER from upstream belong here — the
 // catalog below is pure documentation and does NOT affect resolution.
 //
-// Priority: ~/.claude/feature-flags.json > _openBuildDefaults > defaultValue
+// Priority: ~/.aiko/feature-flags.json > _openBuildDefaults > defaultValue
 //
-// To override at runtime, create ~/.claude/feature-flags.json:
+// To override at runtime, create ~/.aiko/feature-flags.json:
 //   { "tengu_some_flag": true }
 const _openBuildDefaults = {
   'tengu_sedge_lantern': true,  // AWAY_SUMMARY — "while you were away" recap (upstream: false)
@@ -65,7 +65,7 @@ const _openBuildDefaults = {
  * Some keys have different defaults at different call sites — this is
  * intentional upstream (the server unifies the value at runtime).
  *
- * To activate any of these, add them to ~/.claude/feature-flags.json
+ * To activate any of these, add them to ~/.aiko/feature-flags.json
  * or to _openBuildDefaults above.
  *
  * ── Reasoning & thinking ──────────────────────────────────────────────
@@ -77,7 +77,7 @@ const _openBuildDefaults = {
  *   tengu_amber_stoat              = true       Built-in agent availability (Explore, Plan, etc.)
  *   tengu_agent_list_attach        = true       Attach file context to agent list
  *   tengu_auto_background_agents   = false      Auto-spawn background agents
- *   tengu_slim_subagent_claudemd   = true       Lighter ClaudeMD for subagents
+ *   tengu_slim_subagent_aikomd   = true       Lighter aikoMD for subagents
  *   tengu_hive_evidence            = false      Verification agent / evidence tracking (4 call sites)
  *   tengu_ultraplan_model          = model cfg  ULTRAPLAN model selection (dynamic config)
  *
@@ -147,7 +147,7 @@ const _openBuildDefaults = {
  *   tengu_jade_anvil_4             = false      Rate limit options UI ordering
  *   tengu_collage_kaleidoscope     = true       Native clipboard image paste (macOS)
  *   tengu_lapis_finch              = false      Plugin/hint recommendation
- *   tengu_lodestone_enabled        = false      Deep links claude-cli:// protocol
+ *   tengu_lodestone_enabled        = false      Deep links aiko-cli:// protocol
  *   tengu_copper_panda             = false      Skill improvement suggestions
  *   tengu_desktop_upsell           = {}         Desktop app upsell config (dynamic)
  *   tengu-top-of-feed-tip          = {}         Emergency tip of feed (dynamic; uses dash)
@@ -168,7 +168,7 @@ const _openBuildDefaults = {
  *
  * ── VSCode / IDE ──────────────────────────────────────────────────────
  *   tengu_quiet_fern               = false      VSCode browser support
- *   tengu_vscode_cc_auth           = false      VSCode in-band OAuth via claude_authenticate
+ *   tengu_vscode_cc_auth           = false      VSCode in-band OAuth via aiko_authenticate
  *   tengu_vscode_review_upsell     = gate       VSCode review upsell
  *   tengu_vscode_onboarding        = gate       VSCode onboarding experience
  *
@@ -188,8 +188,8 @@ const _openBuildDefaults = {
 function _loadFlags() {
   if (_flags !== undefined) return;
   try {
-    const flagsPath = process.env.CLAUDE_FEATURE_FLAGS_FILE
-      || _path.join(_os.homedir(), '.claude', 'feature-flags.json');
+    const flagsPath = process.env.aiko_FEATURE_FLAGS_FILE
+      || _path.join(_os.homedir(), '.aiko', 'feature-flags.json');
     const parsed = JSON.parse(_fs.readFileSync(flagsPath, 'utf-8'));
     _flags = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null;
   } catch {
@@ -348,7 +348,7 @@ export async function assertMinVersion() {}
 export async function getMaxVersion() { return undefined; }
 export async function getMaxVersionMessage() { return undefined; }
 export function shouldSkipVersion() { return true; }
-export function getLockFilePath() { return '/tmp/openclaude-update.lock'; }
+export function getLockFilePath() { return '/tmp/aiko-update.lock'; }
 export async function checkGlobalInstallPermissions() { return { hasPermissions: false, npmPrefix: null }; }
 export async function getLatestVersion() { return null; }
 export async function getNpmDistTags() { return { latest: null, stable: null }; }
@@ -396,8 +396,8 @@ export function getUndercoverInstructions() { return ''; }
 export function shouldShowUndercoverAutoNotice() { return false; }
 `,
 
-	'types/generated/events_mono/claude_code/v1/claude_code_internal_event': `
-export const ClaudeCodeInternalEvent = {
+	'types/generated/events_mono/aiko_code/v1/aiko_code_internal_event': `
+export const aikoCodeInternalEvent = {
   fromJSON: value => value,
   toJSON: value => value,
   create: value => value ?? {},

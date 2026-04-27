@@ -6,7 +6,7 @@ describe('getAgentModel provider-aware fallback', () => {
     mock.restore()
   })
 
-  describe('Claude-native providers', () => {
+  describe('aiko-native providers', () => {
     test('haiku alias resolves to haiku model for official Anthropic API', async () => {
       // Mock providers to return firstParty with official URL
       mock.module('./providers.js', () => ({
@@ -16,11 +16,11 @@ describe('getAgentModel provider-aware fallback', () => {
 
       // Import after mock is set up
       const { getAgentModel } = await import('./agent.js')
-      const result = getAgentModel('haiku', 'claude-sonnet-4-6', undefined, 'default')
+      const result = getAgentModel('haiku', 'aiko-sonnet-4-6', undefined, 'default')
 
       // Should resolve haiku alias, not inherit parent
       expect(result).toContain('haiku')
-      expect(result).not.toBe('claude-sonnet-4-6')
+      expect(result).not.toBe('aiko-sonnet-4-6')
     })
 
     test('haiku alias resolves for Bedrock provider', async () => {
@@ -30,7 +30,7 @@ describe('getAgentModel provider-aware fallback', () => {
       }))
 
       const { getAgentModel } = await import('./agent.js')
-      const result = getAgentModel('haiku', 'claude-sonnet-4-6', undefined, 'default')
+      const result = getAgentModel('haiku', 'aiko-sonnet-4-6', undefined, 'default')
 
       // Should resolve haiku alias for Bedrock
       expect(result).toContain('haiku')
@@ -43,7 +43,7 @@ describe('getAgentModel provider-aware fallback', () => {
       }))
 
       const { getAgentModel } = await import('./agent.js')
-      const result = getAgentModel('haiku', 'claude-sonnet-4-6', undefined, 'default')
+      const result = getAgentModel('haiku', 'aiko-sonnet-4-6', undefined, 'default')
 
       // Should resolve haiku alias for Vertex
       expect(result).toContain('haiku')
@@ -56,14 +56,14 @@ describe('getAgentModel provider-aware fallback', () => {
       }))
 
       const { getAgentModel } = await import('./agent.js')
-      const result = getAgentModel('haiku', 'claude-sonnet-4-6', undefined, 'default')
+      const result = getAgentModel('haiku', 'aiko-sonnet-4-6', undefined, 'default')
 
       // Should resolve haiku alias for Foundry
       expect(result).toContain('haiku')
     })
   })
 
-  describe('Non-Claude-native providers', () => {
+  describe('Non-aiko-native providers', () => {
     test('haiku alias inherits parent model for OpenAI provider', async () => {
       mock.module('./providers.js', () => ({
         getAPIProvider: () => 'openai',
@@ -98,10 +98,10 @@ describe('getAgentModel provider-aware fallback', () => {
       }))
 
       const { getAgentModel } = await import('./agent.js')
-      const result = getAgentModel('haiku', 'claude-sonnet-4-6', undefined, 'default')
+      const result = getAgentModel('haiku', 'aiko-sonnet-4-6', undefined, 'default')
 
       // Should inherit parent for custom Anthropic-compatible URL
-      expect(result).toBe('claude-sonnet-4-6')
+      expect(result).toBe('aiko-sonnet-4-6')
     })
 
     test('sonnet alias inherits parent model for OpenAI provider', async () => {
@@ -197,15 +197,15 @@ describe('getAgentModel provider-aware fallback', () => {
     })
   })
 
-  describe('checkIsClaudeNativeProvider helper', () => {
+  describe('checkIsaikoNativeProvider helper', () => {
     test('returns true for official Anthropic API', async () => {
       mock.module('./providers.js', () => ({
         getAPIProvider: () => 'firstParty',
         isFirstPartyAnthropicBaseUrl: () => true,
       }))
 
-      const { checkIsClaudeNativeProvider } = await import('./agent.js')
-      expect(checkIsClaudeNativeProvider()).toBe(true)
+      const { checkIsaikoNativeProvider } = await import('./agent.js')
+      expect(checkIsaikoNativeProvider()).toBe(true)
     })
 
     test('returns true for Bedrock provider', async () => {
@@ -214,8 +214,8 @@ describe('getAgentModel provider-aware fallback', () => {
         isFirstPartyAnthropicBaseUrl: () => false,
       }))
 
-      const { checkIsClaudeNativeProvider } = await import('./agent.js')
-      expect(checkIsClaudeNativeProvider()).toBe(true)
+      const { checkIsaikoNativeProvider } = await import('./agent.js')
+      expect(checkIsaikoNativeProvider()).toBe(true)
     })
 
     test('returns true for Vertex provider', async () => {
@@ -224,8 +224,8 @@ describe('getAgentModel provider-aware fallback', () => {
         isFirstPartyAnthropicBaseUrl: () => false,
       }))
 
-      const { checkIsClaudeNativeProvider } = await import('./agent.js')
-      expect(checkIsClaudeNativeProvider()).toBe(true)
+      const { checkIsaikoNativeProvider } = await import('./agent.js')
+      expect(checkIsaikoNativeProvider()).toBe(true)
     })
 
     test('returns true for Foundry provider', async () => {
@@ -234,8 +234,8 @@ describe('getAgentModel provider-aware fallback', () => {
         isFirstPartyAnthropicBaseUrl: () => false,
       }))
 
-      const { checkIsClaudeNativeProvider } = await import('./agent.js')
-      expect(checkIsClaudeNativeProvider()).toBe(true)
+      const { checkIsaikoNativeProvider } = await import('./agent.js')
+      expect(checkIsaikoNativeProvider()).toBe(true)
     })
 
     test('returns false for OpenAI provider', async () => {
@@ -244,8 +244,8 @@ describe('getAgentModel provider-aware fallback', () => {
         isFirstPartyAnthropicBaseUrl: () => false,
       }))
 
-      const { checkIsClaudeNativeProvider } = await import('./agent.js')
-      expect(checkIsClaudeNativeProvider()).toBe(false)
+      const { checkIsaikoNativeProvider } = await import('./agent.js')
+      expect(checkIsaikoNativeProvider()).toBe(false)
     })
 
     test('returns false for custom Anthropic URL', async () => {
@@ -254,8 +254,8 @@ describe('getAgentModel provider-aware fallback', () => {
         isFirstPartyAnthropicBaseUrl: () => false,
       }))
 
-      const { checkIsClaudeNativeProvider } = await import('./agent.js')
-      expect(checkIsClaudeNativeProvider()).toBe(false)
+      const { checkIsaikoNativeProvider } = await import('./agent.js')
+      expect(checkIsaikoNativeProvider()).toBe(false)
     })
   })
 })

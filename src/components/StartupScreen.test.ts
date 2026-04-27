@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { detectProvider } from './StartupScreen.js'
 
 const ENV_KEYS = [
-  'CLAUDE_CODE_USE_OPENAI',
-  'CLAUDE_CODE_USE_GEMINI',
-  'CLAUDE_CODE_USE_GITHUB',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CODE_USE_MISTRAL',
+  'aiko_CODE_USE_OPENAI',
+  'aiko_CODE_USE_GEMINI',
+  'aiko_CODE_USE_GITHUB',
+  'aiko_CODE_USE_BEDROCK',
+  'aiko_CODE_USE_VERTEX',
+  'aiko_CODE_USE_MISTRAL',
   'OPENAI_BASE_URL',
   'OPENAI_API_KEY',
   'OPENAI_MODEL',
   'GEMINI_MODEL',
   'MISTRAL_MODEL',
   'ANTHROPIC_MODEL',
-  'CLAUDE_MODEL',
+  'aiko_MODEL',
   'NVIDIA_NIM',
   'MINIMAX_API_KEY',
 ]
@@ -39,7 +39,7 @@ afterEach(() => {
 })
 
 function setupOpenAIMode(baseUrl: string, model: string): void {
-  process.env.CLAUDE_CODE_USE_OPENAI = '1'
+  process.env.aiko_CODE_USE_OPENAI = '1'
   process.env.OPENAI_BASE_URL = baseUrl
   process.env.OPENAI_MODEL = model
   process.env.OPENAI_API_KEY = 'test-key'
@@ -192,7 +192,7 @@ describe('detectProvider — explicit dedicated-provider env flags', () => {
 
 describe('detectProvider — modelOverride from --model flag', () => {
   test('modelOverride overrides default Anthropic model', () => {
-    const result = detectProvider('claude-opus-4-6')
+    const result = detectProvider('aiko-opus-4-6')
     expect(result.name).toBe('Anthropic')
     expect(result.model).toContain('opus')
   })
@@ -204,21 +204,21 @@ describe('detectProvider — modelOverride from --model flag', () => {
   })
 
   test('modelOverride takes priority over ANTHROPIC_MODEL env var', () => {
-    process.env.ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
-    const result = detectProvider('claude-opus-4-6')
+    process.env.ANTHROPIC_MODEL = 'aiko-haiku-4-5-20251001'
+    const result = detectProvider('aiko-opus-4-6')
     expect(result.name).toBe('Anthropic')
     expect(result.model).toContain('opus')
   })
 
-  test('modelOverride takes priority over CLAUDE_MODEL env var', () => {
-    process.env.CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
-    const result = detectProvider('claude-opus-4-6')
+  test('modelOverride takes priority over aiko_MODEL env var', () => {
+    process.env.aiko_MODEL = 'aiko-haiku-4-5-20251001'
+    const result = detectProvider('aiko-opus-4-6')
     expect(result.name).toBe('Anthropic')
     expect(result.model).toContain('opus')
   })
 
   test('modelOverride works for OpenAI provider', () => {
-    process.env.CLAUDE_CODE_USE_OPENAI = '1'
+    process.env.aiko_CODE_USE_OPENAI = '1'
     process.env.OPENAI_API_KEY = 'test-key'
     process.env.OPENAI_MODEL = 'gpt-4o'
     const result = detectProvider('gpt-4-turbo')
@@ -226,19 +226,19 @@ describe('detectProvider — modelOverride from --model flag', () => {
   })
 
   test('modelOverride works for Gemini provider', () => {
-    process.env.CLAUDE_CODE_USE_GEMINI = '1'
+    process.env.aiko_CODE_USE_GEMINI = '1'
     const result = detectProvider('gemini-2.5-pro')
     expect(result.model).toBe('gemini-2.5-pro')
   })
 
   test('modelOverride works for Mistral provider', () => {
-    process.env.CLAUDE_CODE_USE_MISTRAL = '1'
+    process.env.aiko_CODE_USE_MISTRAL = '1'
     const result = detectProvider('mistral-large-latest')
     expect(result.model).toBe('mistral-large-latest')
   })
 
   test('modelOverride works for GitHub provider', () => {
-    process.env.CLAUDE_CODE_USE_GITHUB = '1'
+    process.env.aiko_CODE_USE_GITHUB = '1'
     const result = detectProvider('gpt-4o')
     expect(result.model).toContain('gpt-4o')
   })

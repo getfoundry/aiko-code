@@ -47,7 +47,7 @@ async function importFreshProviderProfileModule() {
   return import(`./providerProfile.ts?ts=${nonce}`)
 }
 
-const missingCodexAuthPath = join(tmpdir(), 'openclaude-missing-codex-auth.json')
+const missingCodexAuthPath = join(tmpdir(), 'aiko-code-missing-codex-auth.json')
 
 test('matching persisted ollama env is reused for ollama launch', async () => {
   const env = await buildLaunchEnv({
@@ -216,8 +216,8 @@ test('matching persisted gemini env is reused for gemini launch', async () => {
     processEnv: {},
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
+  assert.equal(env.aiko_CODE_USE_GEMINI, '1')
+  assert.equal(env.aiko_CODE_USE_OPENAI, undefined)
   assert.equal(env.GEMINI_MODEL, 'gemini-2.5-flash')
   assert.equal(env.GEMINI_API_KEY, 'gem-persisted')
   assert.equal(env.GEMINI_BASE_URL, 'https://example.test/v1beta/openai')
@@ -240,12 +240,12 @@ test('openai env variables take precedence over gemini', async () => {
       OPENAI_MODEL: 'gpt-4o-mini',
       CODEX_API_KEY: 'codex-live',
       CHATGPT_ACCOUNT_ID: 'acct_live',
-      CLAUDE_CODE_USE_OPENAI: '1',
+      aiko_CODE_USE_OPENAI: '1',
     },
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, undefined) 
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, '1')
+  assert.equal(env.aiko_CODE_USE_GEMINI, undefined) 
+  assert.equal(env.aiko_CODE_USE_OPENAI, '1')
   assert.equal(env.GEMINI_MODEL, undefined)
   assert.equal(env.GEMINI_API_KEY, undefined)
   assert.equal(
@@ -343,7 +343,7 @@ test('codex launch ignores placeholder codex env keys', async () => {
 })
 
 test('codex launch prefers auth account id over stale persisted value', async () => {
-  const codexHome = mkdtempSync(join(tmpdir(), 'openclaude-codex-'))
+  const codexHome = mkdtempSync(join(tmpdir(), 'aiko-code-codex-'))
   try {
     writeFileSync(
       join(codexHome, 'auth.json'),
@@ -505,7 +505,7 @@ test('gemini profiles require a key', () => {
 })
 
 test('saveProfileFile writes a profile that loadProfileFile can read back', () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'openclaude-profile-file-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'aiko-code-profile-file-'))
 
   try {
     const persisted = createProfileFile('openai', {
@@ -552,7 +552,7 @@ test('buildCodexProfileEnv tags OAuth-saved profiles so logout can remove them s
 })
 
 test('clearPersistedCodexOAuthProfile removes only persisted Codex OAuth profiles', async () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'openclaude-codex-oauth-profile-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'aiko-code-codex-oauth-profile-'))
 
   try {
     const providerProfileModule = await import(
@@ -606,8 +606,8 @@ test('buildStartupEnvFromProfile applies persisted gemini settings when no provi
     processEnv: {},
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
+  assert.equal(env.aiko_CODE_USE_GEMINI, '1')
+  assert.equal(env.aiko_CODE_USE_OPENAI, undefined)
   assert.equal(env.GEMINI_API_KEY, 'gem-test')
   assert.equal(env.GEMINI_MODEL, 'gemini-2.5-flash')
 })
@@ -622,7 +622,7 @@ test('buildStartupEnvFromProfile rehydrates stored Gemini access token for acces
     readGeminiAccessToken: () => 'token-live',
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
+  assert.equal(env.aiko_CODE_USE_GEMINI, '1')
   assert.equal(env.GEMINI_AUTH_MODE, 'access-token')
   assert.equal(env.GEMINI_ACCESS_TOKEN, 'token-live')
   assert.equal(env.GEMINI_API_KEY, undefined)
@@ -639,7 +639,7 @@ test('buildStartupEnvFromProfile does not inject stored access token for adc pro
     readGeminiAccessToken: () => 'token-live',
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
+  assert.equal(env.aiko_CODE_USE_GEMINI, '1')
   assert.equal(env.GEMINI_AUTH_MODE, 'adc')
   assert.equal(env.GEMINI_ACCESS_TOKEN, undefined)
   assert.equal(env.GEMINI_API_KEY, undefined)
@@ -647,7 +647,7 @@ test('buildStartupEnvFromProfile does not inject stored access token for adc pro
 
 test('buildStartupEnvFromProfile leaves explicit provider selections untouched', async () => {
   const processEnv = {
-    CLAUDE_CODE_USE_GEMINI: '1',
+    aiko_CODE_USE_GEMINI: '1',
     GEMINI_API_KEY: 'gem-live',
     GEMINI_MODEL: 'gemini-2.0-flash',
   }
@@ -661,7 +661,7 @@ test('buildStartupEnvFromProfile leaves explicit provider selections untouched',
   })
 
   // Remove the strict object equality check: assert.equal(env, processEnv)
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
+  assert.equal(env.aiko_CODE_USE_GEMINI, '1')
   assert.equal(env.GEMINI_API_KEY, 'gem-live')
   assert.equal(env.GEMINI_MODEL, 'gemini-2.0-flash')
   // Add the new default fields injected by the function
@@ -672,7 +672,7 @@ test('buildStartupEnvFromProfile leaves explicit provider selections untouched',
 
 test('buildStartupEnvFromProfile preserves explicit GitHub provider settings when the legacy file is stale', async () => {
   const processEnv = {
-    CLAUDE_CODE_USE_GITHUB: '1',
+    aiko_CODE_USE_GITHUB: '1',
     OPENAI_MODEL: 'github:copilot',
   }
 
@@ -686,9 +686,9 @@ test('buildStartupEnvFromProfile preserves explicit GitHub provider settings whe
   })
 
   assert.equal(env, processEnv)
-  assert.equal(env.CLAUDE_CODE_USE_GITHUB, '1')
+  assert.equal(env.aiko_CODE_USE_GITHUB, '1')
   assert.equal(env.OPENAI_MODEL, 'github:copilot')
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
+  assert.equal(env.aiko_CODE_USE_OPENAI, undefined)
   assert.equal(env.OPENAI_API_KEY, undefined)
   assert.equal(env.OPENAI_BASE_URL, undefined)
 })
@@ -696,7 +696,7 @@ test('buildStartupEnvFromProfile preserves explicit GitHub provider settings whe
 test('applySavedProfileToCurrentSession can switch away from GitHub provider env', async () => {
   const { applySavedProfileToCurrentSession } = await importFreshProviderProfileModule()
   const processEnv = {
-    CLAUDE_CODE_USE_GITHUB: '1',
+    aiko_CODE_USE_GITHUB: '1',
     OPENAI_MODEL: 'github:copilot',
   }
 
@@ -709,8 +709,8 @@ test('applySavedProfileToCurrentSession can switch away from GitHub provider env
   })
 
   assert.equal(error, null)
-  assert.equal(processEnv.CLAUDE_CODE_USE_GITHUB, undefined)
-  assert.equal(processEnv.CLAUDE_CODE_USE_OPENAI, '1')
+  assert.equal(processEnv.aiko_CODE_USE_GITHUB, undefined)
+  assert.equal(processEnv.aiko_CODE_USE_OPENAI, '1')
   assert.equal(processEnv.OPENAI_BASE_URL, 'http://localhost:11434/v1')
   assert.equal(processEnv.OPENAI_MODEL, 'llama3.1:8b')
   assert.equal(Object.hasOwn(processEnv, 'OPENAI_API_KEY'), false)
@@ -718,17 +718,17 @@ test('applySavedProfileToCurrentSession can switch away from GitHub provider env
 
 test('buildStartupEnvFromProfile preserves plural-profile env when the legacy file is stale', async () => {
   // Regression: a user saves a provider via /provider (plural system).
-  // addProviderProfile does NOT sync the legacy .openclaude-profile.json,
+  // addProviderProfile does NOT sync the legacy .aiko-profile.json,
   // so the legacy file retains whatever it had from an earlier setup (e.g.
   // OpenAI defaults). At startup, applyActiveProviderProfileFromConfig()
   // correctly applies the active plural profile (Moonshot) first, marking
-  // env with CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED=1. The legacy-file
+  // env with aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED=1. The legacy-file
   // load must NOT overwrite that env — it previously did, surfacing as
   // "banner shows the wrong provider / model".
   const processEnv = {
-    CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED: '1',
-    CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID: 'saved_moonshot',
-    CLAUDE_CODE_USE_OPENAI: '1',
+    aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED: '1',
+    aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID: 'saved_moonshot',
+    aiko_CODE_USE_OPENAI: '1',
     OPENAI_BASE_URL: 'https://api.moonshot.ai/v1',
     OPENAI_MODEL: 'kimi-k2.6',
   }
@@ -749,8 +749,8 @@ test('buildStartupEnvFromProfile preserves plural-profile env when the legacy fi
   assert.equal(env.OPENAI_MODEL, 'kimi-k2.6')
   // Plural markers are retained — downstream code uses them to verify the
   // env still belongs to the profile it was applied from.
-  assert.equal(env.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED, '1')
-  assert.equal(env.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID, 'saved_moonshot')
+  assert.equal(env.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED, '1')
+  assert.equal(env.aiko_CODE_PROVIDER_PROFILE_ENV_APPLIED_ID, 'saved_moonshot')
 })
 
 test('buildStartupEnvFromProfile falls back to legacy file when plural system has not applied', async () => {
@@ -758,7 +758,7 @@ test('buildStartupEnvFromProfile falls back to legacy file when plural system ha
   // active profile yet). The legacy file is the correct source, so the
   // load must proceed as before.
   const processEnv = {
-    CLAUDE_CODE_USE_OPENAI: '1',
+    aiko_CODE_USE_OPENAI: '1',
   }
 
   const env = await buildStartupEnvFromProfile({
@@ -778,7 +778,7 @@ test('buildStartupEnvFromProfile falls back to legacy file when plural system ha
 
 test('buildStartupEnvFromProfile treats explicit falsey provider flags as user intent', async () => {
   const processEnv = {
-    CLAUDE_CODE_USE_OPENAI: '0',
+    aiko_CODE_USE_OPENAI: '0',
   }
 
   const env = await buildStartupEnvFromProfile({
@@ -789,8 +789,8 @@ test('buildStartupEnvFromProfile treats explicit falsey provider flags as user i
     processEnv,
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
-  assert.equal(env.CLAUDE_CODE_USE_GEMINI, '1')
+  assert.equal(env.aiko_CODE_USE_OPENAI, undefined)
+  assert.equal(env.aiko_CODE_USE_GEMINI, '1')
   assert.equal(env.GEMINI_API_KEY, 'gem-persisted')
   assert.equal(env.GEMINI_MODEL, 'gemini-2.5-flash')
   assert.equal(env.GEMINI_BASE_URL, 'https://generativelanguage.googleapis.com/v1beta/openai')
@@ -928,7 +928,7 @@ test('startup env ignores poisoned persisted openai model and base url', async (
     processEnv: {},
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, '1')
+  assert.equal(env.aiko_CODE_USE_OPENAI, '1')
   assert.equal(env.OPENAI_API_KEY, 'sk-live')
   assert.equal(env.OPENAI_MODEL, 'gpt-4o')
   assert.equal(env.OPENAI_BASE_URL, 'https://api.openai.com/v1')
@@ -944,7 +944,7 @@ test('startup env normalizes a semicolon-separated persisted openai model list',
     processEnv: {},
   })
 
-  assert.equal(env.CLAUDE_CODE_USE_OPENAI, '1')
+  assert.equal(env.aiko_CODE_USE_OPENAI, '1')
   assert.equal(env.OPENAI_API_KEY, 'sk-live')
   assert.equal(env.OPENAI_MODEL, 'gpt-5.4')
   assert.equal(env.OPENAI_BASE_URL, 'https://api.openai.com/v1')

@@ -9,9 +9,9 @@ import {
 
 describe('Model Tokenizers', () => {
   describe('getTokenizerConfig', () => {
-    it('returns config for claude models', () => {
-      const config = getTokenizerConfig('claude-sonnet-4-5-20250514')
-      expect(config.modelFamily).toBe('claude')
+    it('returns config for aiko models', () => {
+      const config = getTokenizerConfig('aiko-sonnet-4-5-20250514')
+      expect(config.modelFamily).toBe('aiko')
       expect(config.bytesPerToken).toBe(3.5)
     })
 
@@ -30,7 +30,7 @@ describe('Model Tokenizers', () => {
 
   describe('getBytesPerTokenForModel', () => {
     it('returns bytes per token for model', () => {
-      expect(getBytesPerTokenForModel('claude-opus-3-5-20250214')).toBe(3.5)
+      expect(getBytesPerTokenForModel('aiko-opus-3-5-20250214')).toBe(3.5)
       expect(getBytesPerTokenForModel('gpt-4o')).toBe(4)
       expect(getBytesPerTokenForModel('deepseek-chat')).toBe(3.5)
       expect(getBytesPerTokenForModel('minimax-M2.7')).toBe(3.2)

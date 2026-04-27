@@ -342,7 +342,7 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // Additional validation for Claude settings files
+    // Additional validation for aiko settings files
     const settingsValidationResult = validateInputForSettingsFileEdit(
       fullFilePath,
       file,
@@ -404,7 +404,7 @@ export const FileEditTool = buildTool({
     // Discover skills from this file's path (fire-and-forget, non-blocking)
     // Skip in simple mode - no skills available
     const cwd = getCwd()
-    if (!isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
+    if (!isEnvTruthy(process.env.aiko_CODE_SIMPLE)) {
       const newSkillDirs = await discoverSkillDirsForPaths(
         [absoluteFilePath],
         cwd,
@@ -527,9 +527,9 @@ export const FileEditTool = buildTool({
     // 7. Log events
     if (
       absoluteFilePath.endsWith(`${sep}AGENTS.md`) ||
-      absoluteFilePath.endsWith(`${sep}CLAUDE.md`)
+      absoluteFilePath.endsWith(`${sep}aiko.md`)
     ) {
-      logEvent('tengu_write_claudemd', {})
+      logEvent('tengu_write_aikomd', {})
     }
     countLinesChanged(patch)
 
@@ -547,7 +547,7 @@ export const FileEditTool = buildTool({
 
     let gitDiff: ToolUseDiff | undefined
     if (
-      isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
+      isEnvTruthy(process.env.aiko_CODE_REMOTE) &&
       getFeatureValue_CACHED_MAY_BE_STALE('tengu_quartz_lantern', false)
     ) {
       const startTime = Date.now()

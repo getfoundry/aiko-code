@@ -28,7 +28,7 @@ async function importFreshModule() {
 
 beforeEach(() => {
   process.env = { ...originalEnv }
-  delete process.env.CLAUDE_CODE_SIMPLE
+  delete process.env.aiko_CODE_SIMPLE
   process.argv = originalArgv.filter(arg => arg !== '--bare')
   storageState = {}
 })

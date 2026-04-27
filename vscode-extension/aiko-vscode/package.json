@@ -1,7 +1,7 @@
 {
-  "name": "openclaude-vscode",
-  "displayName": "OpenClaude",
-  "description": "Practical VS Code companion for OpenClaude with project-aware launch behavior and a real Control Center.",
+  "name": "aiko-code-vscode",
+  "displayName": "aiko-code",
+  "description": "Practical VS Code companion for Aiko Code with project-aware launch behavior and a real Control Center.",
   "version": "0.2.0",
   "publisher": "devnull-bootloader",
   "engines": {
@@ -13,18 +13,18 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:openclaude.start",
-    "onCommand:openclaude.startInWorkspaceRoot",
-    "onCommand:openclaude.openDocs",
-    "onCommand:openclaude.openSetupDocs",
-    "onCommand:openclaude.openWorkspaceProfile",
-    "onCommand:openclaude.openControlCenter",
-    "onCommand:openclaude.newChat",
-    "onCommand:openclaude.openChat",
-    "onCommand:openclaude.resumeSession",
-    "onCommand:openclaude.abortChat",
-    "onView:openclaude.controlCenter",
-    "onView:openclaude.chat"
+    "onCommand:aiko-code.start",
+    "onCommand:aiko-code.startInWorkspaceRoot",
+    "onCommand:aiko-code.openDocs",
+    "onCommand:aiko-code.openSetupDocs",
+    "onCommand:aiko-code.openWorkspaceProfile",
+    "onCommand:aiko-code.openControlCenter",
+    "onCommand:aiko-code.newChat",
+    "onCommand:aiko-code.openChat",
+    "onCommand:aiko-code.resumeSession",
+    "onCommand:aiko-code.abortChat",
+    "onView:aiko-code.controlCenter",
+    "onView:aiko-code.chat"
   ],
   "main": "./src/extension.js",
   "files": [
@@ -39,74 +39,74 @@
   "contributes": {
     "commands": [
       {
-        "command": "openclaude.start",
-        "title": "OpenClaude: Launch in Terminal",
-        "category": "OpenClaude"
+        "command": "aiko-code.start",
+        "title": "aiko-code: Launch in Terminal",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.startInWorkspaceRoot",
-        "title": "OpenClaude: Launch in Workspace Root",
-        "category": "OpenClaude"
+        "command": "aiko-code.startInWorkspaceRoot",
+        "title": "aiko-code: Launch in Workspace Root",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.openDocs",
-        "title": "OpenClaude: Open Repository",
-        "category": "OpenClaude"
+        "command": "aiko-code.openDocs",
+        "title": "aiko-code: Open Repository",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.openSetupDocs",
-        "title": "OpenClaude: Open Setup Guide",
-        "category": "OpenClaude"
+        "command": "aiko-code.openSetupDocs",
+        "title": "aiko-code: Open Setup Guide",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.openWorkspaceProfile",
-        "title": "OpenClaude: Open Workspace Profile",
-        "category": "OpenClaude"
+        "command": "aiko-code.openWorkspaceProfile",
+        "title": "aiko-code: Open Workspace Profile",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.openControlCenter",
-        "title": "OpenClaude: Open Control Center",
-        "category": "OpenClaude"
+        "command": "aiko-code.openControlCenter",
+        "title": "aiko-code: Open Control Center",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.newChat",
-        "title": "OpenClaude: New Chat",
-        "category": "OpenClaude"
+        "command": "aiko-code.newChat",
+        "title": "aiko-code: New Chat",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.openChat",
-        "title": "OpenClaude: Open Chat Panel",
-        "category": "OpenClaude"
+        "command": "aiko-code.openChat",
+        "title": "aiko-code: Open Chat Panel",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.resumeSession",
-        "title": "OpenClaude: Resume Session",
-        "category": "OpenClaude"
+        "command": "aiko-code.resumeSession",
+        "title": "aiko-code: Resume Session",
+        "category": "aiko-code"
       },
       {
-        "command": "openclaude.abortChat",
-        "title": "OpenClaude: Abort Generation",
-        "category": "OpenClaude"
+        "command": "aiko-code.abortChat",
+        "title": "aiko-code: Abort Generation",
+        "category": "aiko-code"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "openclaude",
-          "title": "OpenClaude",
-          "icon": "media/openclaude.svg"
+          "id": "aiko-code",
+          "title": "aiko-code",
+          "icon": "media/aiko-code.svg"
         }
       ]
     },
     "views": {
-      "openclaude": [
+      "aiko-code": [
         {
-          "id": "openclaude.chat",
+          "id": "aiko-code.chat",
           "name": "Chat",
           "type": "webview"
         },
         {
-          "id": "openclaude.controlCenter",
+          "id": "aiko-code.controlCenter",
           "name": "Control Center",
           "type": "webview"
         }
@@ -114,30 +114,30 @@
     },
     "keybindings": [
       {
-        "command": "openclaude.openChat",
+        "command": "aiko-code.openChat",
         "key": "ctrl+shift+l",
         "mac": "cmd+shift+l"
       }
     ],
     "configuration": {
-      "title": "OpenClaude",
+      "title": "aiko-code",
       "properties": {
-        "openclaude.launchCommand": {
+        "aiko-code.launchCommand": {
           "type": "string",
-          "default": "openclaude",
-          "description": "Command run in the integrated terminal when launching OpenClaude."
+          "default": "aiko-code",
+          "description": "Command run in the integrated terminal when launching aiko-code."
         },
-        "openclaude.terminalName": {
+        "aiko-code.terminalName": {
           "type": "string",
-          "default": "OpenClaude",
-          "description": "Integrated terminal tab name for OpenClaude sessions."
+          "default": "aiko-code",
+          "description": "Integrated terminal tab name for Aiko Code sessions."
         },
-        "openclaude.useOpenAIShim": {
+        "aiko-code.useOpenAIShim": {
           "type": "boolean",
           "default": false,
-          "description": "Optionally set CLAUDE_CODE_USE_OPENAI=1 in launched OpenClaude terminals."
+          "description": "Optionally set aiko_CODE_USE_OPENAI=1 in launched Aiko Code terminals."
         },
-        "openclaude.permissionMode": {
+        "aiko-code.permissionMode": {
           "type": "string",
           "default": "acceptEdits",
           "enum": ["default", "acceptEdits", "bypassPermissions", "plan"],
@@ -153,9 +153,9 @@
     },
     "themes": [
       {
-        "label": "OpenClaude Terminal Black",
+        "label": "Aiko Code Terminal Black",
         "uiTheme": "vs-dark",
-        "path": "./themes/OpenClaude-Terminal-Black.json"
+        "path": "./themes/aiko-code-Terminal-Black.json"
       }
     ]
   },
@@ -165,7 +165,7 @@
     "package": "npx @vscode/vsce package --no-dependencies"
   },
   "keywords": [
-    "openclaude",
+    "aiko-code",
     "terminal",
     "theme",
     "cli",
@@ -173,7 +173,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gitlawb/openclaude"
+    "url": "https://github.com/getfoundry/aiko-code"
   },
   "license": "MIT"
 }

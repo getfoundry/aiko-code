@@ -44,11 +44,11 @@ export function getInstallationPath(): string {
   const homeDir = homedir();
   if (isWindows) {
     // Convert to Windows-style path
-    const windowsPath = join(homeDir, '.local', 'bin', 'openclaude.exe');
+    const windowsPath = join(homeDir, '.local', 'bin', 'aiko-code.exe');
     // Replace forward slashes with backslashes for Windows display
     return windowsPath.replace(/\//g, '\\');
   }
-  return '~/.local/bin/openclaude';
+  return '~/.local/bin/aiko-code';
 }
 function SetupNotes(t0) {
   const $ = _c(5);
@@ -113,7 +113,7 @@ function Install({
 
         // Check specifically for lock failure
         if (result.lockFailed) {
-          throw new Error('Could not install - another process is currently installing Claude. Please try again in a moment.');
+          throw new Error('Could not install - another process is currently installing aiko. Please try again in a moment.');
         }
 
         // If we couldn't get the version, there might be an issue
@@ -158,7 +158,7 @@ function Install({
         }
 
         // Log success event
-        logEvent('tengu_claude_install_command', {
+        logEvent('tengu_aiko_install_command', {
           has_version: result.latestVersion ? 1 : 0,
           forced: force ? 1 : 0
         });
@@ -210,26 +210,26 @@ function Install({
   useEffect(() => {
     if (state.type === 'success') {
       // Give success message time to render before exiting
-      setTimeout(onDone, 2000, 'OpenClaude installation completed successfully', {
+      setTimeout(onDone, 2000, 'aiko-code installation completed successfully', {
         display: 'system' as const
       });
     } else if (state.type === 'error') {
       // Give error message time to render before exiting
-      setTimeout(onDone, 3000, 'OpenClaude installation failed', {
+      setTimeout(onDone, 3000, 'aiko-code installation failed', {
         display: 'system' as const
       });
     }
   }, [state, onDone]);
   return <Box flexDirection="column" marginTop={1}>
-      {state.type === 'checking' && <Text color="claude">Checking installation status...</Text>}
+      {state.type === 'checking' && <Text color="aiko">Checking installation status...</Text>}
 
       {state.type === 'cleaning-npm' && <Text color="warning">Cleaning up old npm installations...</Text>}
 
-      {state.type === 'installing' && <Text color="claude">
-          Installing OpenClaude native build {state.version}...
+      {state.type === 'installing' && <Text color="aiko">
+          Installing aiko-code native build {state.version}...
         </Text>}
 
-      {state.type === 'setting-up' && <Text color="claude">Setting up launcher and shell integration...</Text>}
+      {state.type === 'setting-up' && <Text color="aiko">Setting up launcher and shell integration...</Text>}
 
       {state.type === 'set-up' && <SetupNotes messages={state.messages} />}
 
@@ -237,13 +237,13 @@ function Install({
           <Box>
             <StatusIcon status="success" withSpace />
             <Text color="success" bold>
-              OpenClaude successfully installed!
+              aiko-code successfully installed!
             </Text>
           </Box>
           <Box marginLeft={2} flexDirection="column" gap={1}>
             {state.version !== 'current' && <Box>
                 <Text dimColor>Version: </Text>
-                <Text color="claude">{state.version}</Text>
+                <Text color="aiko">{state.version}</Text>
               </Box>}
             <Box>
               <Text dimColor>Location: </Text>
@@ -253,8 +253,8 @@ function Install({
           <Box marginLeft={2} flexDirection="column" gap={1}>
             <Box marginTop={1}>
               <Text dimColor>Next: Run </Text>
-              <Text color="claude" bold>
-                openclaude --help
+              <Text color="aiko" bold>
+                aiko-code --help
               </Text>
               <Text dimColor> to get started</Text>
             </Box>
@@ -279,7 +279,7 @@ function Install({
 export const install = {
   type: 'local-jsx' as const,
   name: 'install',
-  description: 'Install OpenClaude native build',
+  description: 'Install aiko-code native build',
   argumentHint: '[options]',
   async call(onDone: (result: string, options?: {
     display?: CommandResultDisplay;

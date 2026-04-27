@@ -1,5 +1,5 @@
 /**
- * OpenAI-compatible API shim for Claude Code.
+ * OpenAI-compatible API shim for aiko Code.
  *
  * Translates Anthropic SDK calls (anthropic.beta.messages.create) into
  * OpenAI-compatible chat completion requests and streams back events
@@ -9,7 +9,7 @@
  * Together, Groq, Fireworks, DeepSeek, Mistral, and any OpenAI-compatible API.
  *
  * Environment variables:
- *   CLAUDE_CODE_USE_OPENAI=1          — enable this provider
+ *   aiko_CODE_USE_OPENAI=1          — enable this provider
  *   OPENAI_API_KEY=sk-...             — API key (optional for local models)
  *   OPENAI_AUTH_HEADER=api-key        — optional custom auth header name
  *   OPENAI_AUTH_HEADER_VALUE=...      — optional custom auth header value
@@ -20,7 +20,7 @@
  *   CODEX_API_KEY / ~/.codex/auth.json — Codex auth for codexplan/codexspark
  *
  * GitHub Copilot API (api.githubcopilot.com), OpenAI-compatible:
- *   CLAUDE_CODE_USE_GITHUB=1         — enable GitHub inference (no need for USE_OPENAI)
+ *   aiko_CODE_USE_GITHUB=1         — enable GitHub inference (no need for USE_OPENAI)
  *   GITHUB_TOKEN or GH_TOKEN         — Copilot API token (mapped to Bearer auth)
  *   OPENAI_MODEL                     — optional; use github:copilot or openai/gpt-4.1 style IDs
  */
@@ -120,11 +120,11 @@ const SENSITIVE_URL_QUERY_PARAM_NAMES = [
 ]
 
 function isGithubModelsMode(): boolean {
-  return isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB)
+  return isEnvTruthy(process.env.aiko_CODE_USE_GITHUB)
 }
 
 function isMistralMode(): boolean {
-  return isEnvTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)
+  return isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL)
 }
 
 function filterAnthropicHeaders(
@@ -138,7 +138,7 @@ function filterAnthropicHeaders(
     if (
       lower.startsWith('x-anthropic') ||
       lower.startsWith('anthropic-') ||
-      lower.startsWith('x-claude') ||
+      lower.startsWith('x-aiko') ||
       lower === 'x-app' ||
       lower === 'x-client-app' ||
       lower === 'authorization' ||
@@ -412,7 +412,7 @@ function convertContentBlocks(
 
 function isGeminiMode(): boolean {
   return (
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
+    isEnvTruthy(process.env.aiko_CODE_USE_GEMINI) ||
     hasGeminiApiHost(process.env.OPENAI_BASE_URL)
   )
 }
@@ -457,7 +457,7 @@ function convertMessages(
     const msg = messages[i]
     const isLastInHistory = i === messages.length - 1
 
-    // Claude Code wraps messages in { role, message: { role, content } }
+    // aiko Code wraps messages in { role, message: { role, content } }
     const inner = msg.message ?? msg
     const role = (inner as { role?: string }).role ?? msg.role
     const content = (inner as { content?: unknown }).content
@@ -802,7 +802,7 @@ function convertTools(
           description: t.description ?? '',
           parameters: normalizeSchemaForOpenAI(
             schema,
-            !isGemini && !isEnvTruthy(process.env.OPENCLAUDE_DISABLE_STRICT_TOOLS),
+            !isGemini && !isEnvTruthy(process.env.AIKO_DISABLE_STRICT_TOOLS),
           ),
         },
       }
@@ -1316,7 +1316,7 @@ async function* openaiStreamToAnthropic(
 
 class OpenAIShimStream {
   private generator: AsyncGenerator<AnthropicStreamEvent>
-  // The controller property is checked by claude.ts to distinguish streams from error messages
+  // The controller property is checked by aiko.ts to distinguish streams from error messages
   controller = new AbortController()
 
   constructor(generator: AsyncGenerator<AnthropicStreamEvent>) {
@@ -2264,7 +2264,7 @@ export function createOpenAIShimClient(options: {
 
   // When Gemini provider is active, map Gemini env vars to OpenAI-compatible ones
   // so the existing providerConfig.ts infrastructure picks them up correctly.
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
+  if (isEnvTruthy(process.env.aiko_CODE_USE_GEMINI)) {
     process.env.OPENAI_BASE_URL ??=
       process.env.GEMINI_BASE_URL ??
       'https://generativelanguage.googleapis.com/v1beta/openai'
@@ -2276,14 +2276,14 @@ export function createOpenAIShimClient(options: {
     if (process.env.GEMINI_MODEL && !process.env.OPENAI_MODEL) {
       process.env.OPENAI_MODEL = process.env.GEMINI_MODEL
     }
-  } else if (isEnvTruthy(process.env.CLAUDE_CODE_USE_MISTRAL)) {
+  } else if (isEnvTruthy(process.env.aiko_CODE_USE_MISTRAL)) {
     process.env.OPENAI_BASE_URL =
       process.env.MISTRAL_BASE_URL ?? 'https://api.mistral.ai/v1'
     process.env.OPENAI_API_KEY = process.env.MISTRAL_API_KEY
     if (process.env.MISTRAL_MODEL) {
       process.env.OPENAI_MODEL = process.env.MISTRAL_MODEL
     }
-  } else if (isEnvTruthy(process.env.CLAUDE_CODE_USE_GITHUB)) {
+  } else if (isEnvTruthy(process.env.aiko_CODE_USE_GITHUB)) {
     process.env.OPENAI_BASE_URL ??= GITHUB_COPILOT_BASE
     process.env.OPENAI_API_KEY ??=
       process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? ''

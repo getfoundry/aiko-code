@@ -7,8 +7,8 @@ async function importFreshModule() {
 
 describe('refreshGithubModelsTokenIfNeeded', () => {
   const orig = {
-    CLAUDE_CODE_USE_GITHUB: process.env.CLAUDE_CODE_USE_GITHUB,
-    CLAUDE_CODE_SIMPLE: process.env.CLAUDE_CODE_SIMPLE,
+    aiko_CODE_USE_GITHUB: process.env.aiko_CODE_USE_GITHUB,
+    aiko_CODE_SIMPLE: process.env.aiko_CODE_SIMPLE,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     GH_TOKEN: process.env.GH_TOKEN,
   }
@@ -28,8 +28,8 @@ describe('refreshGithubModelsTokenIfNeeded', () => {
   })
 
   test('refreshes expired Copilot token using stored OAuth token', async () => {
-    process.env.CLAUDE_CODE_USE_GITHUB = '1'
-    delete process.env.CLAUDE_CODE_SIMPLE
+    process.env.aiko_CODE_USE_GITHUB = '1'
+    delete process.env.aiko_CODE_SIMPLE
     delete process.env.GITHUB_TOKEN
     delete process.env.GH_TOKEN
 
@@ -76,8 +76,8 @@ describe('refreshGithubModelsTokenIfNeeded', () => {
   })
 
   test('does not refresh when current Copilot token is valid', async () => {
-    process.env.CLAUDE_CODE_USE_GITHUB = '1'
-    delete process.env.CLAUDE_CODE_SIMPLE
+    process.env.aiko_CODE_USE_GITHUB = '1'
+    delete process.env.aiko_CODE_SIMPLE
     delete process.env.GITHUB_TOKEN
     delete process.env.GH_TOKEN
 

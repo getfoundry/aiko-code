@@ -2,7 +2,7 @@ import axios from 'axios'
 import isEqual from 'lodash-es/isEqual.js'
 import {
   getAnthropicApiKey,
-  getClaudeAIOAuthTokens,
+  getaikoAIOAuthTokens,
   hasProfileScope,
 } from 'src/utils/auth.js'
 import { z } from 'zod'
@@ -19,7 +19,7 @@ import {
   getLocalOpenAICompatibleProviderLabel,
   listOpenAICompatibleModels,
 } from '../../utils/providerDiscovery.js'
-import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getaikoCodeUserAgent } from '../../utils/userAgent.js'
 import {
   getAdditionalModelOptionsCacheScope,
   resolveProviderRequest,
@@ -69,20 +69,20 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
   // lack it and would 403). Fall back to API key auth for console users.
   const apiKey = getAnthropicApiKey()
   const hasUsableOAuth =
-    getClaudeAIOAuthTokens()?.accessToken && hasProfileScope()
+    getaikoAIOAuthTokens()?.accessToken && hasProfileScope()
   if (!hasUsableOAuth && !apiKey) {
     logForDebugging('[Bootstrap] Skipped: no usable OAuth or API key')
     return null
   }
 
-  const endpoint = `${getOauthConfig().BASE_API_URL}/api/claude_cli/bootstrap`
+  const endpoint = `${getOauthConfig().BASE_API_URL}/api/aiko_cli/bootstrap`
 
   // withOAuth401Retry handles the refresh-and-retry. API key users fail
   // through on 401 (no refresh mechanism — no OAuth token to pass).
   try {
     return await withOAuth401Retry(async () => {
       // Re-read OAuth each call so the retry picks up the refreshed token.
-      const token = getClaudeAIOAuthTokens()?.accessToken
+      const token = getaikoAIOAuthTokens()?.accessToken
       let authHeaders: Record<string, string>
       if (token && hasProfileScope()) {
         authHeaders = {
@@ -100,7 +100,7 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
       const response = await axios.get<unknown>(endpoint, {
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': getClaudeCodeUserAgent(),
+          'User-Agent': getaikoCodeUserAgent(),
           ...authHeaders,
         },
         timeout: 5000,

@@ -257,7 +257,7 @@ export function buildCurrentProviderSummary(options?: {
   const persisted = options?.persisted ?? loadProfileFile()
   const savedProfileLabel = persisted?.profile ?? 'none'
 
-  if (isEnvTruthy(processEnv.CLAUDE_CODE_USE_GEMINI)) {
+  if (isEnvTruthy(processEnv.aiko_CODE_USE_GEMINI)) {
     return {
       providerLabel: 'Google Gemini',
       modelLabel: getSafeDisplayValue(
@@ -272,7 +272,7 @@ export function buildCurrentProviderSummary(options?: {
     }
   }
 
-  if (isEnvTruthy(processEnv.CLAUDE_CODE_USE_MISTRAL)) {
+  if (isEnvTruthy(processEnv.aiko_CODE_USE_MISTRAL)) {
     return {
       providerLabel: 'Mistral',
       modelLabel: getSafeDisplayValue(
@@ -287,7 +287,7 @@ export function buildCurrentProviderSummary(options?: {
     }
   }
 
-  if (isEnvTruthy(processEnv.CLAUDE_CODE_USE_GITHUB)) {
+  if (isEnvTruthy(processEnv.aiko_CODE_USE_GITHUB)) {
     return {
       providerLabel: 'GitHub Models',
       modelLabel: getSafeDisplayValue(
@@ -304,7 +304,7 @@ export function buildCurrentProviderSummary(options?: {
     }
   }
 
-  if (isEnvTruthy(processEnv.CLAUDE_CODE_USE_OPENAI)) {
+  if (isEnvTruthy(processEnv.aiko_CODE_USE_OPENAI)) {
     const request = resolveProviderRequest({
       model: processEnv.OPENAI_MODEL,
       baseUrl: processEnv.OPENAI_BASE_URL,
@@ -329,8 +329,8 @@ export function buildCurrentProviderSummary(options?: {
     providerLabel: 'Anthropic',
     modelLabel: getSafeDisplayValue(
       processEnv.ANTHROPIC_MODEL ??
-        processEnv.CLAUDE_MODEL ??
-        'claude-sonnet-4-6',
+        processEnv.aiko_MODEL ??
+        'aiko-sonnet-4-6',
       secretSource,
     ),
     endpointLabel: getSafeDisplayValue(
@@ -467,13 +467,13 @@ export function buildProfileSaveMessage(
 
   lines.push(`Profile: ${filePath}`)
   if (options?.activatedInSession) {
-    lines.push('OpenClaude switched to it for this session.')
+    lines.push('aiko-code switched to it for this session.')
   } else if (options?.activationWarning) {
     lines.push(
       `Saved for next startup. Warning: could not activate it in this session (${options.activationWarning}).`,
     )
   } else {
-    lines.push('Restart OpenClaude to use it.')
+    lines.push('Restart Aiko Code to use it.')
   }
 
   return lines.join('\n')
@@ -627,7 +627,7 @@ function ProviderChooser({
   const summary = buildCurrentProviderSummary()
   const canUseCodexOAuth = !isBareMode()
   const helperText = canUseCodexOAuth
-    ? 'Save a provider profile without editing environment variables first. Codex profiles backed by env, auth.json, or OpenClaude secure storage can switch this session immediately when validation succeeds.'
+    ? 'Save a provider profile without editing environment variables first. Codex profiles backed by env, auth.json, or Aiko Code secure storage can switch this session immediately when validation succeeds.'
     : 'Save a provider profile without editing environment variables first. Codex profiles backed by env or auth.json can switch this session immediately.'
   const options: OptionWithDescription<ProviderChoice>[] = [
     {
@@ -678,7 +678,7 @@ function ProviderChooser({
     options.push({
       label: 'Clear saved profile',
       value: 'clear',
-      description: 'Remove .openclaude-profile.json and return to normal startup',
+      description: 'Remove .aiko-profile.json and return to normal startup',
     })
   }
 
@@ -1051,7 +1051,7 @@ function CodexOAuthStep({
     const env = buildCodexOAuthProfileEnv(tokens)
     if (!env) {
       throw new Error(
-        'Codex OAuth succeeded, but OpenClaude could not build a Codex profile from the stored credentials.',
+        'Codex OAuth succeeded, but aiko-code could not build a Codex profile from the stored credentials.',
       )
     }
 
@@ -1091,7 +1091,7 @@ function CodexOAuthStep({
     <Dialog title="Codex OAuth" onCancel={onBack}>
       <Box flexDirection="column" gap={1}>
         <Text>
-          Finish signing in with ChatGPT in your browser. OpenClaude will store
+          Finish signing in with ChatGPT in your browser. aiko-code will store
           the resulting Codex credentials securely for future sessions.
         </Text>
         {status.browserOpened === false ? (
@@ -1100,7 +1100,7 @@ function CodexOAuthStep({
           </Text>
         ) : status.browserOpened === true ? (
           <Text dimColor>
-            Browser opened. Complete the sign-in there, then OpenClaude will
+            Browser opened. Complete the sign-in there, then aiko-code will
             finish setup automatically.
           </Text>
         ) : (
@@ -1225,7 +1225,7 @@ function resolveCodexCredentials(processEnv: NodeJS.ProcessEnv):
       credentials.source === 'env'
         ? 'the current shell environment'
         : credentials.source === 'secure-storage'
-          ? 'OpenClaude secure storage'
+          ? 'Aiko Code secure storage'
         : credentials.authPath ?? DEFAULT_CODEX_BASE_URL,
   }
 }
@@ -1263,7 +1263,7 @@ export function ProviderWizard({
               setStep({ name: 'codex-oauth' })
             } else if (value === 'clear') {
               const filePath = deleteProfileFile()
-              onDone(`Removed saved provider profile at ${filePath}. Restart OpenClaude to go back to normal startup.`, {
+              onDone(`Removed saved provider profile at ${filePath}. Restart Aiko Code to go back to normal startup.`, {
                 display: 'system',
               })
             } else {

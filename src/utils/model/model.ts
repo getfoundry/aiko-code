@@ -8,7 +8,7 @@
 import { getMainLoopModelOverride } from '../../bootstrap/state.js'
 import {
   getSubscriptionType,
-  isClaudeAISubscriber,
+  isaikoAISubscriber,
   isMaxSubscriber,
   isProSubscriber,
   isTeamPremiumSubscriber,
@@ -112,7 +112,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
     // cross-provider leaks (e.g. ANTHROPIC_MODEL sent to the OpenAI API).
     //
     // All OpenAI-shim providers (openai, codex, github, nvidia-nim, minimax)
-    // set CLAUDE_CODE_USE_OPENAI=1 + OPENAI_MODEL via
+    // set aiko_CODE_USE_OPENAI=1 + OPENAI_MODEL via
     // applyProviderProfileToProcessEnv. Earlier this check only included
     // openai/github — codex/nvidia-nim/minimax fell through to the stale
     // settings.model, so switching from (say) Moonshot to Codex kept firing
@@ -400,58 +400,58 @@ export function getDefaultMainLoopModel(): ModelName {
 // @[MODEL LAUNCH]: Add a canonical name mapping for the new model below.
 /**
  * Pure string-match that strips date/provider suffixes from a first-party model
- * name. Input must already be a 1P-format ID (e.g. 'claude-3-7-sonnet-20250219',
- * 'us.anthropic.claude-opus-4-6-v1:0'). Does not touch settings, so safe at
+ * name. Input must already be a 1P-format ID (e.g. 'aiko-3-7-sonnet-20250219',
+ * 'us.anthropic.aiko-opus-4-6-v1:0'). Does not touch settings, so safe at
  * module top-level (see MODEL_COSTS in modelCost.ts).
  */
 export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
   name = name.toLowerCase()
-  // Special cases for Claude 4+ models to differentiate versions
+  // Special cases for aiko 4+ models to differentiate versions
   // Order matters: check more specific versions first (4-5 before 4)
-  if (name.includes('claude-opus-4-6')) {
-    return 'claude-opus-4-6'
+  if (name.includes('aiko-opus-4-6')) {
+    return 'aiko-opus-4-6'
   }
-  if (name.includes('claude-opus-4-5')) {
-    return 'claude-opus-4-5'
+  if (name.includes('aiko-opus-4-5')) {
+    return 'aiko-opus-4-5'
   }
-  if (name.includes('claude-opus-4-1')) {
-    return 'claude-opus-4-1'
+  if (name.includes('aiko-opus-4-1')) {
+    return 'aiko-opus-4-1'
   }
-  if (name.includes('claude-opus-4')) {
-    return 'claude-opus-4'
+  if (name.includes('aiko-opus-4')) {
+    return 'aiko-opus-4'
   }
-  if (name.includes('claude-sonnet-4-6')) {
-    return 'claude-sonnet-4-6'
+  if (name.includes('aiko-sonnet-4-6')) {
+    return 'aiko-sonnet-4-6'
   }
-  if (name.includes('claude-sonnet-4-5')) {
-    return 'claude-sonnet-4-5'
+  if (name.includes('aiko-sonnet-4-5')) {
+    return 'aiko-sonnet-4-5'
   }
-  if (name.includes('claude-sonnet-4')) {
-    return 'claude-sonnet-4'
+  if (name.includes('aiko-sonnet-4')) {
+    return 'aiko-sonnet-4'
   }
-  if (name.includes('claude-haiku-4-5')) {
-    return 'claude-haiku-4-5'
+  if (name.includes('aiko-haiku-4-5')) {
+    return 'aiko-haiku-4-5'
   }
-  // Claude 3.x models use a different naming scheme (claude-3-{family})
-  if (name.includes('claude-3-7-sonnet')) {
-    return 'claude-3-7-sonnet'
+  // aiko 3.x models use a different naming scheme (aiko-3-{family})
+  if (name.includes('aiko-3-7-sonnet')) {
+    return 'aiko-3-7-sonnet'
   }
-  if (name.includes('claude-3-5-sonnet')) {
-    return 'claude-3-5-sonnet'
+  if (name.includes('aiko-3-5-sonnet')) {
+    return 'aiko-3-5-sonnet'
   }
-  if (name.includes('claude-3-5-haiku')) {
-    return 'claude-3-5-haiku'
+  if (name.includes('aiko-3-5-haiku')) {
+    return 'aiko-3-5-haiku'
   }
-  if (name.includes('claude-3-opus')) {
-    return 'claude-3-opus'
+  if (name.includes('aiko-3-opus')) {
+    return 'aiko-3-opus'
   }
-  if (name.includes('claude-3-sonnet')) {
-    return 'claude-3-sonnet'
+  if (name.includes('aiko-3-sonnet')) {
+    return 'aiko-3-sonnet'
   }
-  if (name.includes('claude-3-haiku')) {
-    return 'claude-3-haiku'
+  if (name.includes('aiko-3-haiku')) {
+    return 'aiko-3-haiku'
   }
-  const match = name.match(/(claude-(\d+-\d+-)?\w+)/)
+  const match = name.match(/(aiko-(\d+-\d+-)?\w+)/)
   if (match && match[1]) {
     return match[1]
   }
@@ -461,10 +461,10 @@ export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
 
 /**
  * Maps a full model string to a shorter canonical version that's unified across 1P and 3P providers.
- * For example, 'claude-3-5-haiku-20241022' and 'us.anthropic.claude-3-5-haiku-20241022-v1:0'
- * would both be mapped to 'claude-3-5-haiku'.
- * @param fullModelName The full model name (e.g., 'claude-3-5-haiku-20241022')
- * @returns The short name (e.g., 'claude-3-5-haiku') if found, or the original name if no mapping exists
+ * For example, 'aiko-3-5-haiku-20241022' and 'us.anthropic.aiko-3-5-haiku-20241022-v1:0'
+ * would both be mapped to 'aiko-3-5-haiku'.
+ * @param fullModelName The full model name (e.g., 'aiko-3-5-haiku-20241022')
+ * @returns The short name (e.g., 'aiko-3-5-haiku') if found, or the original name if no mapping exists
  */
 export function getCanonicalName(fullModelName: ModelName): ModelShortName {
   // Resolve overridden model IDs (e.g. Bedrock ARNs) back to canonical names.
@@ -473,7 +473,7 @@ export function getCanonicalName(fullModelName: ModelName): ModelShortName {
 }
 
 // @[MODEL LAUNCH]: Update the default model description strings shown to users.
-export function getClaudeAiUserDefaultModelDescription(
+export function getaikoAiUserDefaultModelDescription(
   fastMode = false,
 ): string {
   if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
@@ -515,7 +515,7 @@ export function isOpus1mMergeEnabled(): boolean {
   // isProSubscriber() returns false for such users and the merge leaks
   // opus[1m] into the model dropdown — the API then rejects it with a
   // misleading "rate limit reached" error.
-  if (isClaudeAISubscriber() && getSubscriptionType() === null) {
+  if (isaikoAISubscriber() && getSubscriptionType() === null) {
     return false
   }
   return true
@@ -544,7 +544,7 @@ export function renderModelSetting(setting: ModelName | ModelAlias): string {
  * if the model is not recognized as a public model.
  */
 export function getPublicModelDisplayName(model: ModelName): string | null {
-  // For OpenAI/Gemini/Codex/GitHub providers, show the actual model name not a Claude alias
+  // For OpenAI/Gemini/Codex/GitHub providers, show the actual model name not a aiko alias
   if (getAPIProvider() === 'openai' || getAPIProvider() === 'gemini' || getAPIProvider() === 'codex' || getAPIProvider() === 'github' || getAPIProvider() === 'xai') {
     // Return display names for known GitHub Copilot models
     const copilotModelNames: Record<string, string> = {
@@ -560,11 +560,11 @@ export function getPublicModelDisplayName(model: ModelName): string | null {
       'gpt-5.1-codex-mini': 'GPT-5.1 Codex mini',
       'gpt-4o': 'GPT-4o',
       'gpt-4.1': 'GPT-4.1',
-      'claude-opus-4.6': 'Claude Opus 4.6',
-      'claude-opus-4.5': 'Claude Opus 4.5',
-      'claude-sonnet-4.6': 'Claude Sonnet 4.6',
-      'claude-sonnet-4.5': 'Claude Sonnet 4.5',
-      'claude-haiku-4.5': 'Claude Haiku 4.5',
+      'aiko-opus-4.6': 'aiko Opus 4.6',
+      'aiko-opus-4.5': 'aiko Opus 4.5',
+      'aiko-sonnet-4.6': 'aiko Sonnet 4.6',
+      'aiko-sonnet-4.5': 'aiko Sonnet 4.5',
+      'aiko-haiku-4.5': 'aiko Haiku 4.5',
       'gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
       'gemini-3-flash-preview': 'Gemini 3 Flash',
       'gemini-2.5-pro': 'Gemini 2.5 Pro',
@@ -654,18 +654,18 @@ export function renderModelName(model: ModelName): string {
 
 /**
  * Returns a safe author name for public display (e.g., in git commit trailers).
- * Returns "Claude {ModelName}" for publicly known models, or "Claude ({model})"
+ * Returns "aiko {ModelName}" for publicly known models, or "aiko ({model})"
  * for unknown/internal models so the exact model name is preserved.
  *
  * @param model The full model name
- * @returns "Claude {ModelName}" for public models, or "Claude ({model})" for non-public models
+ * @returns "aiko {ModelName}" for public models, or "aiko ({model})" for non-public models
  */
 export function getPublicModelName(model: ModelName): string {
   const publicName = getPublicModelDisplayName(model)
   if (publicName) {
-    return `Claude ${publicName}`
+    return `aiko ${publicName}`
   }
-  return `Claude (${model})`
+  return `aiko (${model})`
 }
 
 /**
@@ -719,7 +719,7 @@ export function parseUserSpecifiedModel(
   }
 
   // Opus 4/4.1 are no longer available on the first-party API (same as
-  // Claude.ai) — silently remap to the current Opus default. The 'opus'
+  // aiko.ai) — silently remap to the current Opus default. The 'opus'
   // alias already resolves to 4.6, so the only users on these explicit
   // strings pinned them in settings/env/--model/SDK before 4.5 launched.
   // 3P providers may not yet have 4.6 capacity, so pass through unchanged.
@@ -776,7 +776,7 @@ export function resolveSkillModelOverride(
   if (has1mContext(skillModel) || !has1mContext(currentModel)) {
     return skillModel
   }
-  // modelSupports1M matches on canonical IDs ('claude-opus-4-6', 'claude-sonnet-4');
+  // modelSupports1M matches on canonical IDs ('aiko-opus-4-6', 'aiko-sonnet-4');
   // a bare 'opus' alias falls through getCanonicalName unmatched. Resolve first.
   if (modelSupports1M(parseUserSpecifiedModel(skillModel))) {
     return skillModel + '[1m]'
@@ -785,10 +785,10 @@ export function resolveSkillModelOverride(
 }
 
 const LEGACY_OPUS_FIRSTPARTY = [
-  'claude-opus-4-20250514',
-  'claude-opus-4-1-20250805',
-  'claude-opus-4-0',
-  'claude-opus-4-1',
+  'aiko-opus-4-20250514',
+  'aiko-opus-4-1-20250805',
+  'aiko-opus-4-0',
+  'aiko-opus-4-1',
 ]
 
 function isLegacyOpusFirstParty(model: string): boolean {
@@ -799,15 +799,15 @@ function isLegacyOpusFirstParty(model: string): boolean {
  * Opt-out for the legacy Opus 4.0/4.1 → current Opus remap.
  */
 export function isLegacyModelRemapEnabled(): boolean {
-  return !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_LEGACY_MODEL_REMAP)
+  return !isEnvTruthy(process.env.aiko_CODE_DISABLE_LEGACY_MODEL_REMAP)
 }
 
 export function modelDisplayString(model: ModelSetting): string {
   if (model === null) {
     if (process.env.USER_TYPE === 'ant') {
       return `Default for Ants (${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})`
-    } else if (isClaudeAISubscriber()) {
-      return `Default (${getClaudeAiUserDefaultModelDescription()})`
+    } else if (isaikoAISubscriber()) {
+      return `Default (${getaikoAiUserDefaultModelDescription()})`
     }
     return `Default (${getDefaultMainLoopModel()})`
   }
@@ -825,38 +825,38 @@ export function getMarketingNameForModel(modelId: string): string | undefined {
   const has1m = modelId.toLowerCase().includes('[1m]')
   const canonical = getCanonicalName(modelId)
 
-  if (canonical.includes('claude-opus-4-6')) {
+  if (canonical.includes('aiko-opus-4-6')) {
     return has1m ? 'Opus 4.6 (with 1M context)' : 'Opus 4.6'
   }
-  if (canonical.includes('claude-opus-4-5')) {
+  if (canonical.includes('aiko-opus-4-5')) {
     return 'Opus 4.5'
   }
-  if (canonical.includes('claude-opus-4-1')) {
+  if (canonical.includes('aiko-opus-4-1')) {
     return 'Opus 4.1'
   }
-  if (canonical.includes('claude-opus-4')) {
+  if (canonical.includes('aiko-opus-4')) {
     return 'Opus 4'
   }
-  if (canonical.includes('claude-sonnet-4-6')) {
+  if (canonical.includes('aiko-sonnet-4-6')) {
     return has1m ? 'Sonnet 4.6 (with 1M context)' : 'Sonnet 4.6'
   }
-  if (canonical.includes('claude-sonnet-4-5')) {
+  if (canonical.includes('aiko-sonnet-4-5')) {
     return has1m ? 'Sonnet 4.5 (with 1M context)' : 'Sonnet 4.5'
   }
-  if (canonical.includes('claude-sonnet-4')) {
+  if (canonical.includes('aiko-sonnet-4')) {
     return has1m ? 'Sonnet 4 (with 1M context)' : 'Sonnet 4'
   }
-  if (canonical.includes('claude-3-7-sonnet')) {
-    return 'Claude 3.7 Sonnet'
+  if (canonical.includes('aiko-3-7-sonnet')) {
+    return 'aiko 3.7 Sonnet'
   }
-  if (canonical.includes('claude-3-5-sonnet')) {
-    return 'Claude 3.5 Sonnet'
+  if (canonical.includes('aiko-3-5-sonnet')) {
+    return 'aiko 3.5 Sonnet'
   }
-  if (canonical.includes('claude-haiku-4-5')) {
+  if (canonical.includes('aiko-haiku-4-5')) {
     return 'Haiku 4.5'
   }
-  if (canonical.includes('claude-3-5-haiku')) {
-    return 'Claude 3.5 Haiku'
+  if (canonical.includes('aiko-3-5-haiku')) {
+    return 'aiko 3.5 Haiku'
   }
 
   return undefined

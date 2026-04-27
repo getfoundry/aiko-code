@@ -5,7 +5,7 @@ export function isNewInitEnabled(): boolean {
   if (feature('NEW_INIT')) {
     return (
       process.env.USER_TYPE === 'ant' ||
-      isEnvTruthy(process.env.CLAUDE_CODE_NEW_INIT)
+      isEnvTruthy(process.env.aiko_CODE_NEW_INIT)
     )
   }
 

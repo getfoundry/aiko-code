@@ -16,8 +16,8 @@ import { lt } from '../utils/semver.js'
 /**
  * Runtime check for bridge mode entitlement.
  *
- * Remote Control requires a claude.ai subscription (the bridge auths to CCR
- * with the claude.ai OAuth token). isClaudeAISubscriber() excludes
+ * Remote Control requires a aiko.ai subscription (the bridge auths to CCR
+ * with the aiko.ai OAuth token). isaikoAISubscriber() excludes
  * Bedrock/Vertex/Foundry, apiKeyHelper/gateway deployments, env-var API keys,
  * and Console API logins — none of which have the OAuth token CCR needs.
  * See github.com/deshaw/anthropic-issues/issues/24.
@@ -30,7 +30,7 @@ export function isBridgeEnabled(): boolean {
   // Negative pattern (if (!feature(...)) return) does not eliminate
   // inline string literals from external builds.
   return feature('BRIDGE_MODE')
-    ? isClaudeAISubscriber() &&
+    ? isaikoAISubscriber() &&
         getFeatureValue_CACHED_MAY_BE_STALE('tengu_ccr_bridge', false)
     : false
 }
@@ -49,7 +49,7 @@ export function isBridgeEnabled(): boolean {
  */
 export async function isBridgeEnabledBlocking(): Promise<boolean> {
   return feature('BRIDGE_MODE')
-    ? isClaudeAISubscriber() &&
+    ? isaikoAISubscriber() &&
         (await checkGate_CACHED_OR_BLOCKING('tengu_ccr_bridge'))
     : false
 }
@@ -62,21 +62,21 @@ export async function isBridgeEnabledBlocking(): Promise<boolean> {
  * The GrowthBook gate targets on organizationUUID, which comes from
  * config.oauthAccount — populated by /api/oauth/profile during login.
  * That endpoint requires the user:profile scope. Tokens without it
- * (setup-token, CLAUDE_CODE_OAUTH_TOKEN env var, or pre-scope-expansion
+ * (setup-token, aiko_CODE_OAUTH_TOKEN env var, or pre-scope-expansion
  * logins) leave oauthAccount unpopulated, so the gate falls back to
  * false and users see a dead-end "not enabled" message with no hint
  * that re-login would fix it. See CC-1165 / gh-33105.
  */
 export async function getBridgeDisabledReason(): Promise<string | null> {
   if (feature('BRIDGE_MODE')) {
-    if (!isClaudeAISubscriber()) {
-      return 'Remote Control requires a claude.ai subscription. Run `openclaude auth login` to sign in with your claude.ai account.'
+    if (!isaikoAISubscriber()) {
+      return 'Remote Control requires a aiko.ai subscription. Run `aiko-code auth login` to sign in with your aiko.ai account.'
     }
     if (!hasProfileScope()) {
-      return 'Remote Control requires a full-scope login token. Long-lived tokens (from `openclaude setup-token` or CLAUDE_CODE_OAUTH_TOKEN) are limited to inference-only for security reasons. Run `openclaude auth login` to use Remote Control.'
+      return 'Remote Control requires a full-scope login token. Long-lived tokens (from `aiko-code setup-token` or aiko_CODE_OAUTH_TOKEN) are limited to inference-only for security reasons. Run `aiko-code auth login` to use Remote Control.'
     }
     if (!getOauthAccountInfo()?.organizationUuid) {
-      return 'Unable to determine your organization for Remote Control eligibility. Run `openclaude auth login` to refresh your account information.'
+      return 'Unable to determine your organization for Remote Control eligibility. Run `aiko-code auth login` to refresh your account information.'
     }
     if (!(await checkGate_CACHED_OR_BLOCKING('tengu_ccr_bridge'))) {
       return 'Remote Control is not yet enabled for your account.'
@@ -87,13 +87,13 @@ export async function getBridgeDisabledReason(): Promise<string | null> {
 }
 
 // try/catch: main.tsx:5698 calls isBridgeEnabled() while defining the Commander
-// program, before enableConfigs() runs. isClaudeAISubscriber() → getGlobalConfig()
+// program, before enableConfigs() runs. isaikoAISubscriber() → getGlobalConfig()
 // throws "Config accessed before allowed" there. Pre-config, no OAuth token can
 // exist anyway — false is correct. Same swallow getFeatureValue_CACHED_MAY_BE_STALE
 // already does at growthbook.ts:775-780.
-function isClaudeAISubscriber(): boolean {
+function isaikoAISubscriber(): boolean {
   try {
-    return authModule.isClaudeAISubscriber()
+    return authModule.isaikoAISubscriber()
   } catch {
     return false
   }
@@ -133,7 +133,7 @@ export function isEnvLessBridgeEnabled(): boolean {
  * Kill-switch for the `cse_*` → `session_*` client-side retag shim.
  *
  * The shim exists because compat/convert.go:27 validates TagSession and the
- * claude.ai frontend routes on `session_*`, while v2 worker endpoints hand out
+ * aiko.ai frontend routes on `session_*`, while v2 worker endpoints hand out
  * `cse_*`. Once the server tags by environment_kind and the frontend accepts
  * `cse_*` directly, flip this to false to make toCompatSessionId a no-op.
  * Defaults to true — the shim stays active until explicitly disabled.
@@ -166,7 +166,7 @@ export function checkBridgeMinVersion(): string | null {
       minVersion: string
     }>('tengu_bridge_min_version', { minVersion: '0.0.0' })
     if (config.minVersion && lt(MACRO.VERSION, config.minVersion)) {
-      return `Your version of OpenClaude (${MACRO.VERSION}) is too old for Remote Control.\nVersion ${config.minVersion} or higher is required. Run \`openclaude update\` to update.`
+      return `Your version of Aiko Code (${MACRO.VERSION}) is too old for Remote Control.\nVersion ${config.minVersion} or higher is required. Run \`aiko-code update\` to update.`
     }
   }
   return null
@@ -196,7 +196,7 @@ export function getCcrAutoConnectDefault(): boolean {
  */
 export function isCcrMirrorEnabled(): boolean {
   return feature('CCR_MIRROR')
-    ? isEnvTruthy(process.env.CLAUDE_CODE_CCR_MIRROR) ||
+    ? isEnvTruthy(process.env.aiko_CODE_CCR_MIRROR) ||
         getFeatureValue_CACHED_MAY_BE_STALE('tengu_ccr_mirror', false)
     : false
 }

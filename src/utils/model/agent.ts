@@ -40,8 +40,8 @@ export function getAgentModel(
   toolSpecifiedModel?: ModelAlias,
   permissionMode?: PermissionMode,
 ): string {
-  if (process.env.CLAUDE_CODE_SUBAGENT_MODEL) {
-    return parseUserSpecifiedModel(process.env.CLAUDE_CODE_SUBAGENT_MODEL)
+  if (process.env.aiko_CODE_SUBAGENT_MODEL) {
+    return parseUserSpecifiedModel(process.env.aiko_CODE_SUBAGENT_MODEL)
   }
 
   // Extract Bedrock region prefix from parent model to inherit for subagents.
@@ -78,18 +78,18 @@ export function getAgentModel(
   const agentModelWithExp = agentModel ?? getDefaultSubagentModel()
 
   // Provider-aware model alias fallback for agents.
-  // Claude-native providers (Bedrock, Vertex, Foundry, official Anthropic API)
+  // aiko-native providers (Bedrock, Vertex, Foundry, official Anthropic API)
   // have guaranteed haiku/sonnet model availability. Custom Anthropic-compatible
   // endpoints, OpenAI-shim, Gemini, Mistral, and other providers may not have
   // equivalent models, causing "model not found" errors when resolving aliases.
-  // For haiku/sonnet aliases on non-Claude-native providers, inherit parent model.
+  // For haiku/sonnet aliases on non-aiko-native providers, inherit parent model.
   // Note: 'opus' is NOT included here because it's handled separately by
   // aliasMatchesParentTier() which checks if parent's tier matches the alias.
   if (
     (agentModelWithExp === 'haiku' || agentModelWithExp === 'sonnet') &&
-    !checkIsClaudeNativeProvider()
+    !checkIsaikoNativeProvider()
   ) {
-    // Non-Claude-native provider → inherit parent model
+    // Non-aiko-native provider → inherit parent model
     return getRuntimeMainLoopModel({
       permissionMode: permissionMode ?? 'default',
       mainLoopModel: parentModel,
@@ -122,7 +122,7 @@ export function getAgentModel(
  * Prevents surprising downgrades: a Vertex user on Opus 4.6 (via /model) who
  * spawns a subagent with `model: opus` should get Opus 4.6, not whatever
  * getDefaultOpusModel() returns for 3P.
- * See https://github.com/anthropics/claude-code/issues/30815.
+ * See https://github.com/anthropics/aiko-code/issues/30815.
  *
  * Only bare family aliases match. `opus[1m]`, `best`, `opusplan` fall through
  * since they carry semantics beyond "same tier as parent".
@@ -142,12 +142,12 @@ function aliasMatchesParentTier(alias: string, parentModel: string): boolean {
 }
 
 /**
- * Check if the current provider is Claude-native (has guaranteed haiku/sonnet models).
- * Claude-native providers: Bedrock, Vertex, Foundry, official Anthropic API.
- * Non-Claude-native: OpenAI, Gemini, Mistral, GitHub, NVIDIA NIM, MiniMax,
+ * Check if the current provider is aiko-native (has guaranteed haiku/sonnet models).
+ * aiko-native providers: Bedrock, Vertex, Foundry, official Anthropic API.
+ * Non-aiko-native: OpenAI, Gemini, Mistral, GitHub, NVIDIA NIM, MiniMax,
  * and custom Anthropic-compatible endpoints (proxies, self-hosted).
  */
-export function checkIsClaudeNativeProvider(): boolean {
+export function checkIsaikoNativeProvider(): boolean {
   const provider = getAPIProvider()
   return (
     provider === 'bedrock' ||

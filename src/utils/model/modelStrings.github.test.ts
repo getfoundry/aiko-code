@@ -5,36 +5,36 @@ import { parseUserSpecifiedModel } from './model.js'
 import { getModelStrings } from './modelStrings.js'
 
 const originalEnv = {
-  CLAUDE_CODE_USE_GITHUB: process.env.CLAUDE_CODE_USE_GITHUB,
-  CLAUDE_CODE_USE_OPENAI: process.env.CLAUDE_CODE_USE_OPENAI,
-  CLAUDE_CODE_USE_GEMINI: process.env.CLAUDE_CODE_USE_GEMINI,
-  CLAUDE_CODE_USE_BEDROCK: process.env.CLAUDE_CODE_USE_BEDROCK,
-  CLAUDE_CODE_USE_VERTEX: process.env.CLAUDE_CODE_USE_VERTEX,
-  CLAUDE_CODE_USE_FOUNDRY: process.env.CLAUDE_CODE_USE_FOUNDRY,
+  aiko_CODE_USE_GITHUB: process.env.aiko_CODE_USE_GITHUB,
+  aiko_CODE_USE_OPENAI: process.env.aiko_CODE_USE_OPENAI,
+  aiko_CODE_USE_GEMINI: process.env.aiko_CODE_USE_GEMINI,
+  aiko_CODE_USE_BEDROCK: process.env.aiko_CODE_USE_BEDROCK,
+  aiko_CODE_USE_VERTEX: process.env.aiko_CODE_USE_VERTEX,
+  aiko_CODE_USE_FOUNDRY: process.env.aiko_CODE_USE_FOUNDRY,
 }
 
 function clearProviderFlags(): void {
-  delete process.env.CLAUDE_CODE_USE_GITHUB
-  delete process.env.CLAUDE_CODE_USE_OPENAI
-  delete process.env.CLAUDE_CODE_USE_GEMINI
-  delete process.env.CLAUDE_CODE_USE_BEDROCK
-  delete process.env.CLAUDE_CODE_USE_VERTEX
-  delete process.env.CLAUDE_CODE_USE_FOUNDRY
+  delete process.env.aiko_CODE_USE_GITHUB
+  delete process.env.aiko_CODE_USE_OPENAI
+  delete process.env.aiko_CODE_USE_GEMINI
+  delete process.env.aiko_CODE_USE_BEDROCK
+  delete process.env.aiko_CODE_USE_VERTEX
+  delete process.env.aiko_CODE_USE_FOUNDRY
 }
 
 afterEach(() => {
-  process.env.CLAUDE_CODE_USE_GITHUB = originalEnv.CLAUDE_CODE_USE_GITHUB
-  process.env.CLAUDE_CODE_USE_OPENAI = originalEnv.CLAUDE_CODE_USE_OPENAI
-  process.env.CLAUDE_CODE_USE_GEMINI = originalEnv.CLAUDE_CODE_USE_GEMINI
-  process.env.CLAUDE_CODE_USE_BEDROCK = originalEnv.CLAUDE_CODE_USE_BEDROCK
-  process.env.CLAUDE_CODE_USE_VERTEX = originalEnv.CLAUDE_CODE_USE_VERTEX
-  process.env.CLAUDE_CODE_USE_FOUNDRY = originalEnv.CLAUDE_CODE_USE_FOUNDRY
+  process.env.aiko_CODE_USE_GITHUB = originalEnv.aiko_CODE_USE_GITHUB
+  process.env.aiko_CODE_USE_OPENAI = originalEnv.aiko_CODE_USE_OPENAI
+  process.env.aiko_CODE_USE_GEMINI = originalEnv.aiko_CODE_USE_GEMINI
+  process.env.aiko_CODE_USE_BEDROCK = originalEnv.aiko_CODE_USE_BEDROCK
+  process.env.aiko_CODE_USE_VERTEX = originalEnv.aiko_CODE_USE_VERTEX
+  process.env.aiko_CODE_USE_FOUNDRY = originalEnv.aiko_CODE_USE_FOUNDRY
   resetModelStringsForTestingOnly()
 })
 
 test('GitHub provider model strings are concrete IDs', () => {
   clearProviderFlags()
-  process.env.CLAUDE_CODE_USE_GITHUB = '1'
+  process.env.aiko_CODE_USE_GITHUB = '1'
 
   const modelStrings = getModelStrings()
 
@@ -46,7 +46,7 @@ test('GitHub provider model strings are concrete IDs', () => {
 
 test('GitHub provider model strings are safe to parse', () => {
   clearProviderFlags()
-  process.env.CLAUDE_CODE_USE_GITHUB = '1'
+  process.env.aiko_CODE_USE_GITHUB = '1'
 
   const modelStrings = getModelStrings()
 

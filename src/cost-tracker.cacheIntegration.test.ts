@@ -56,7 +56,7 @@ describe('addToTotalSessionCost → cacheStatsTracker wiring', () => {
         cacheRead: 800,
         cacheCreation: 100,
       }),
-      'claude-sonnet-4',
+      'aiko-sonnet-4',
     )
 
     const turn = getCurrentTurnCacheMetrics()
@@ -73,12 +73,12 @@ describe('addToTotalSessionCost → cacheStatsTracker wiring', () => {
     addToTotalSessionCost(
       0.01,
       anthropicUsage({ input: 100, cacheRead: 400 }),
-      'claude-sonnet-4',
+      'aiko-sonnet-4',
     )
     addToTotalSessionCost(
       0.02,
       anthropicUsage({ input: 200, cacheRead: 600 }),
-      'claude-sonnet-4',
+      'aiko-sonnet-4',
     )
 
     const session = getSessionCacheMetrics()
@@ -92,7 +92,7 @@ describe('addToTotalSessionCost → cacheStatsTracker wiring', () => {
     addToTotalSessionCost(
       0.005,
       anthropicUsage({ input: 500, output: 100 }),
-      'claude-sonnet-4',
+      'aiko-sonnet-4',
     )
 
     const turn = getCurrentTurnCacheMetrics()
@@ -112,7 +112,7 @@ describe('resetCostState wrapper also clears cache tracker', () => {
     addToTotalSessionCost(
       0.01,
       anthropicUsage({ input: 100, cacheRead: 500 }),
-      'claude-sonnet-4',
+      'aiko-sonnet-4',
     )
     expect(getSessionCacheMetrics().read).toBe(500)
 

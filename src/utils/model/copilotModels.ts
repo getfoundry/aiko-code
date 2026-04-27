@@ -224,10 +224,10 @@ export const COPILOT_MODELS: Record<string, CopilotModel> = {
     cost: { input: 0, output: 0 },
     limit: { context: 128000, output: 32768 },
   },
-  'claude-opus-4.6': {
-    id: 'claude-opus-4.6',
-    name: 'Claude Opus 4.6',
-    family: 'claude-opus',
+  'aiko-opus-4.6': {
+    id: 'aiko-opus-4.6',
+    name: 'aiko Opus 4.6',
+    family: 'aiko-opus',
     attachment: true,
     reasoning: true,
     tool_call: true,
@@ -240,10 +240,10 @@ export const COPILOT_MODELS: Record<string, CopilotModel> = {
     cost: { input: 0, output: 0 },
     limit: { context: 144000, output: 32768 },
   },
-  'claude-opus-4.5': {
-    id: 'claude-opus-4.5',
-    name: 'Claude Opus 4.5',
-    family: 'claude-opus',
+  'aiko-opus-4.5': {
+    id: 'aiko-opus-4.5',
+    name: 'aiko Opus 4.5',
+    family: 'aiko-opus',
     attachment: true,
     reasoning: true,
     tool_call: true,
@@ -256,10 +256,10 @@ export const COPILOT_MODELS: Record<string, CopilotModel> = {
     cost: { input: 0, output: 0 },
     limit: { context: 160000, output: 32768 },
   },
-  'claude-sonnet-4.6': {
-    id: 'claude-sonnet-4.6',
-    name: 'Claude Sonnet 4.6',
-    family: 'claude-sonnet',
+  'aiko-sonnet-4.6': {
+    id: 'aiko-sonnet-4.6',
+    name: 'aiko Sonnet 4.6',
+    family: 'aiko-sonnet',
     attachment: true,
     reasoning: true,
     tool_call: true,
@@ -272,10 +272,10 @@ export const COPILOT_MODELS: Record<string, CopilotModel> = {
     cost: { input: 0, output: 0 },
     limit: { context: 200000, output: 32768 },
   },
-  'claude-sonnet-4.5': {
-    id: 'claude-sonnet-4.5',
-    name: 'Claude Sonnet 4.5',
-    family: 'claude-sonnet',
+  'aiko-sonnet-4.5': {
+    id: 'aiko-sonnet-4.5',
+    name: 'aiko Sonnet 4.5',
+    family: 'aiko-sonnet',
     attachment: true,
     reasoning: true,
     tool_call: true,
@@ -288,10 +288,10 @@ export const COPILOT_MODELS: Record<string, CopilotModel> = {
     cost: { input: 0, output: 0 },
     limit: { context: 144000, output: 32768 },
   },
-  'claude-haiku-4.5': {
-    id: 'claude-haiku-4.5',
-    name: 'Claude Haiku 4.5',
-    family: 'claude-haiku',
+  'aiko-haiku-4.5': {
+    id: 'aiko-haiku-4.5',
+    name: 'aiko Haiku 4.5',
+    family: 'aiko-haiku',
     attachment: true,
     reasoning: true,
     tool_call: true,

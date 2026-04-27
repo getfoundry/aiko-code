@@ -2,7 +2,7 @@ import { statSync } from 'fs'
 import ignore from 'ignore'
 import * as path from 'path'
 import {
-  CLAUDE_CONFIG_DIRECTORIES,
+  aiko_CONFIG_DIRECTORIES,
   loadMarkdownFilesForSubdir,
 } from 'src/utils/markdownConfigLoader.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
@@ -440,11 +440,11 @@ function collectDirectoryNames(
 }
 
 /**
- * Gets additional files from Claude config directories
+ * Gets additional files from aiko config directories
  */
-async function getClaudeConfigFiles(cwd: string): Promise<string[]> {
+async function getaikoConfigFiles(cwd: string): Promise<string[]> {
   const markdownFileArrays = await Promise.all(
-    CLAUDE_CONFIG_DIRECTORIES.map(subdir =>
+    aiko_CONFIG_DIRECTORIES.map(subdir =>
       loadMarkdownFilesForSubdir(subdir, cwd),
     ),
   )
@@ -534,7 +534,7 @@ export async function getPathsForSuggestions(): Promise<FileIndex> {
     const cwd = getCwd()
     const [projectFiles, configFiles] = await Promise.all([
       getProjectFiles(signal, respectGitignore),
-      getClaudeConfigFiles(cwd),
+      getaikoConfigFiles(cwd),
     ])
 
     // Cache for mergeUntrackedIntoNormalizedCache

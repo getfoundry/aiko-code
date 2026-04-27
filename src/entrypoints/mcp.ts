@@ -1,9 +1,9 @@
-// OpenClaude: disable experimental API betas by default.
+// aiko-code: disable experimental API betas by default.
 // Tool search (defer_loading), global cache scope, and context management
 // require internal API support not available to external accounts → 500.
-// Users can opt-in with CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=false.
+// Users can opt-in with aiko_CODE_DISABLE_EXPERIMENTAL_BETAS=false.
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
-process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
+process.env.aiko_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
@@ -83,7 +83,7 @@ export async function startMCPServer(
   setCwd(cwd)
   const server = new Server(
     {
-      name: 'claude/tengu',
+      name: 'aiko/tengu',
       version: MACRO.VERSION,
     },
     {
@@ -108,7 +108,7 @@ export async function startMCPServer(
               const convertedSchema = zodToJsonSchema(tool.outputSchema)
               // MCP SDK requires outputSchema to have type: "object" at root level
               // Skip schemas with anyOf/oneOf at root (from z.union, z.discriminatedUnion, etc.)
-              // See: https://github.com/anthropics/claude-code/issues/8014
+              // See: https://github.com/anthropics/aiko-code/issues/8014
               if (
                 typeof convertedSchema === 'object' &&
                 convertedSchema !== null &&

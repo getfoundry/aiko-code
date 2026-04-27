@@ -3,21 +3,21 @@ import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNotifications } from 'src/context/notifications.js';
 import { Text } from 'src/ink.js';
-import { getRateLimitWarning, getUsingOverageText } from 'src/services/claudeAiLimits.js';
-import { useClaudeAiLimits } from 'src/services/claudeAiLimitsHook.js';
+import { getRateLimitWarning, getUsingOverageText } from 'src/services/aikoAiLimits.js';
+import { useaikoAiLimits } from 'src/services/aikoAiLimitsHook.js';
 import { getSubscriptionType } from 'src/utils/auth.js';
-import { hasClaudeAiBillingAccess } from 'src/utils/billing.js';
+import { hasaikoAiBillingAccess } from 'src/utils/billing.js';
 import { getIsRemoteMode } from '../../bootstrap/state.js';
 export function useRateLimitWarningNotification(model) {
   const $ = _c(17);
   const {
     addNotification
   } = useNotifications();
-  const claudeAiLimits = useClaudeAiLimits();
+  const aikoAiLimits = useaikoAiLimits();
   let t0;
-  if ($[0] !== claudeAiLimits || $[1] !== model) {
-    t0 = getRateLimitWarning(claudeAiLimits, model);
-    $[0] = claudeAiLimits;
+  if ($[0] !== aikoAiLimits || $[1] !== model) {
+    t0 = getRateLimitWarning(aikoAiLimits, model);
+    $[0] = aikoAiLimits;
     $[1] = model;
     $[2] = t0;
   } else {
@@ -25,9 +25,9 @@ export function useRateLimitWarningNotification(model) {
   }
   const rateLimitWarning = t0;
   let t1;
-  if ($[3] !== claudeAiLimits) {
-    t1 = getUsingOverageText(claudeAiLimits);
-    $[3] = claudeAiLimits;
+  if ($[3] !== aikoAiLimits) {
+    t1 = getUsingOverageText(aikoAiLimits);
+    $[3] = aikoAiLimits;
     $[4] = t1;
   } else {
     t1 = $[4];
@@ -44,7 +44,7 @@ export function useRateLimitWarningNotification(model) {
   const subscriptionType = t2;
   let t3;
   if ($[6] === Symbol.for("react.memo_cache_sentinel")) {
-    t3 = hasClaudeAiBillingAccess();
+    t3 = hasaikoAiBillingAccess();
     $[6] = t3;
   } else {
     t3 = $[6];
@@ -54,12 +54,12 @@ export function useRateLimitWarningNotification(model) {
   const [hasShownOverageNotification, setHasShownOverageNotification] = useState(false);
   let t4;
   let t5;
-  if ($[7] !== addNotification || $[8] !== claudeAiLimits.isUsingOverage || $[9] !== hasShownOverageNotification || $[10] !== usingOverageText) {
+  if ($[7] !== addNotification || $[8] !== aikoAiLimits.isUsingOverage || $[9] !== hasShownOverageNotification || $[10] !== usingOverageText) {
     t4 = () => {
       if (getIsRemoteMode()) {
         return;
       }
-      if (claudeAiLimits.isUsingOverage && !hasShownOverageNotification && (!isTeamOrEnterprise || hasBillingAccess)) {
+      if (aikoAiLimits.isUsingOverage && !hasShownOverageNotification && (!isTeamOrEnterprise || hasBillingAccess)) {
         addNotification({
           key: "limit-reached",
           text: usingOverageText,
@@ -67,14 +67,14 @@ export function useRateLimitWarningNotification(model) {
         });
         setHasShownOverageNotification(true);
       } else {
-        if (!claudeAiLimits.isUsingOverage && hasShownOverageNotification) {
+        if (!aikoAiLimits.isUsingOverage && hasShownOverageNotification) {
           setHasShownOverageNotification(false);
         }
       }
     };
-    t5 = [claudeAiLimits.isUsingOverage, usingOverageText, hasShownOverageNotification, addNotification, hasBillingAccess, isTeamOrEnterprise];
+    t5 = [aikoAiLimits.isUsingOverage, usingOverageText, hasShownOverageNotification, addNotification, hasBillingAccess, isTeamOrEnterprise];
     $[7] = addNotification;
-    $[8] = claudeAiLimits.isUsingOverage;
+    $[8] = aikoAiLimits.isUsingOverage;
     $[9] = hasShownOverageNotification;
     $[10] = usingOverageText;
     $[11] = t4;

@@ -3,7 +3,7 @@
  * Context window sizes for OpenAI-compatible models used via the shim.
  * Fixes: auto-compact and warnings using wrong 200k default for OpenAI models.
  *
- * When CLAUDE_CODE_USE_OPENAI=1, getContextWindowForModel() falls through to
+ * When aiko_CODE_USE_OPENAI=1, getContextWindowForModel() falls through to
  * MODEL_CONTEXT_WINDOW_DEFAULT (200k). This causes the warning and blocking
  * thresholds to be set at 200k even for models like gpt-4o (128k) or llama3 (8k),
  * meaning users get no warning before hitting a hard API error.
@@ -15,14 +15,14 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   // GitHub Copilot — values from https://api.githubcopilot.com/models (2026-04-09)
   // Namespaced so they don't collide with bare model names from other providers.
   'github:copilot':                           128_000,
-  // Claude
-  'github:copilot:claude-sonnet-4':           216_000,
-  'github:copilot:claude-haiku-4':            200_000,
-  'github:copilot:claude-haiku-4.5':          144_000,
-  'github:copilot:claude-sonnet-4.5':         200_000,
-  'github:copilot:claude-sonnet-4.6':         200_000,
-  'github:copilot:claude-opus-4':             200_000,
-  'github:copilot:claude-opus-4.6':           200_000,
+  // aiko
+  'github:copilot:aiko-sonnet-4':           216_000,
+  'github:copilot:aiko-haiku-4':            200_000,
+  'github:copilot:aiko-haiku-4.5':          144_000,
+  'github:copilot:aiko-sonnet-4.5':         200_000,
+  'github:copilot:aiko-sonnet-4.6':         200_000,
+  'github:copilot:aiko-opus-4':             200_000,
+  'github:copilot:aiko-opus-4.6':           200_000,
   // GPT
   'github:copilot:gpt-3.5-turbo':             16_384,
   'github:copilot:gpt-4':                     32_768,
@@ -49,16 +49,16 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   // Grok
   'github:copilot:grok-code-fast-1':         256_000,
 
-  // LiteLLM format — when OpenClaude talks to a LiteLLM proxy, Copilot models
+  // LiteLLM format — when aiko-code talks to a LiteLLM proxy, Copilot models
   // keep their "<provider>/<model>" naming convention (standard LiteLLM routing)
   // instead of the "github:copilot:<model>" namespaced form used by /onboard-github.
   // Entries below cover the aliases currently exposed by LiteLLM's github_copilot
   // provider — this is a curated subset, not an exhaustive mirror of the
   // namespaced entries above. Values are sourced from copilotModels.ts to stay
   // consistent with the /onboard-github path.
-  'github_copilot/claude-sonnet-4.6':        200_000,
-  'github_copilot/claude-opus-4.6':          200_000,
-  'github_copilot/claude-haiku-4.5':         144_000,
+  'github_copilot/aiko-sonnet-4.6':        200_000,
+  'github_copilot/aiko-opus-4.6':          200_000,
+  'github_copilot/aiko-haiku-4.5':         144_000,
   'github_copilot/gpt-4.1':                  128_000,
   'github_copilot/gpt-4o':                   128_000,
   'github_copilot/gpt-5-mini':               264_000,
@@ -70,7 +70,7 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   'github_copilot/gemini-3-flash':           128_000,
   'github_copilot/grok-code-fast-1':         256_000,
 
-  // NOTE: bare Claude model names (e.g. 'claude-sonnet-4') are intentionally
+  // NOTE: bare aiko model names (e.g. 'aiko-sonnet-4') are intentionally
   // omitted. Different OpenAI-compatible providers may impose different context
   // limits for the same model name, so we cannot safely hardcode values here.
 
@@ -193,7 +193,7 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
   'google/gemini-2.0-flash':1_048_576,
   'google/gemini-2.5-pro':  1_048_576,
 
-  // Google (native via CLAUDE_CODE_USE_GEMINI)
+  // Google (native via aiko_CODE_USE_GEMINI)
   'gemini-2.0-flash':              1_048_576,
   'gemini-2.5-pro':                1_048_576,
   'gemini-2.5-flash':              1_048_576,
@@ -267,14 +267,14 @@ const OPENAI_CONTEXT_WINDOWS: Record<string, number> = {
 const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   // GitHub Copilot — values from https://api.githubcopilot.com/models (2026-04-09)
   'github:copilot':                            16_384,
-  // Claude
-  'github:copilot:claude-sonnet-4':            16_000,
-  'github:copilot:claude-haiku-4':             64_000,
-  'github:copilot:claude-haiku-4.5':           32_768,
-  'github:copilot:claude-sonnet-4.5':          32_000,
-  'github:copilot:claude-sonnet-4.6':          32_000,
-  'github:copilot:claude-opus-4':              32_000,
-  'github:copilot:claude-opus-4.6':            32_000,
+  // aiko
+  'github:copilot:aiko-sonnet-4':            16_000,
+  'github:copilot:aiko-haiku-4':             64_000,
+  'github:copilot:aiko-haiku-4.5':           32_768,
+  'github:copilot:aiko-sonnet-4.5':          32_000,
+  'github:copilot:aiko-sonnet-4.6':          32_000,
+  'github:copilot:aiko-opus-4':              32_000,
+  'github:copilot:aiko-opus-4.6':            32_000,
   // GPT
   'github:copilot:gpt-3.5-turbo':              4_096,
   'github:copilot:gpt-4':                      4_096,
@@ -300,9 +300,9 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'github:copilot:grok-code-fast-1':          64_000,
 
   // LiteLLM format — see note on context windows above.
-  'github_copilot/claude-sonnet-4.6':         32_000,
-  'github_copilot/claude-opus-4.6':           32_000,
-  'github_copilot/claude-haiku-4.5':          32_768,
+  'github_copilot/aiko-sonnet-4.6':         32_000,
+  'github_copilot/aiko-opus-4.6':           32_000,
+  'github_copilot/aiko-haiku-4.5':          32_768,
   'github_copilot/gpt-4.1':                   16_384,
   'github_copilot/gpt-4o':                     4_096,
   'github_copilot/gpt-5-mini':                64_000,
@@ -312,7 +312,7 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'github_copilot/gemini-3-flash':            64_000,
   'github_copilot/grok-code-fast-1':          64_000,
 
-  // NOTE: bare Claude model names omitted — see context windows comment above.
+  // NOTE: bare aiko model names omitted — see context windows comment above.
 
   // OpenAI
   'gpt-5.5':                 128_000,
@@ -376,7 +376,7 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'google/gemini-2.0-flash':   8_192,
   'google/gemini-2.5-pro':    65_536,
 
-  // Google (native via CLAUDE_CODE_USE_GEMINI)
+  // Google (native via aiko_CODE_USE_GEMINI)
   'gemini-2.0-flash':              8_192,
   'gemini-2.5-pro':                65_536,
   'gemini-2.5-flash':              65_536,
@@ -462,13 +462,13 @@ const OPENAI_MAX_OUTPUT_TOKENS: Record<string, number> = {
 }
 
 // External context-window overrides loaded once at startup.
-// Set CLAUDE_CODE_OPENAI_CONTEXT_WINDOWS to a JSON object mapping model name
+// Set aiko_CODE_OPENAI_CONTEXT_WINDOWS to a JSON object mapping model name
 // → context-window token count to add or override entries without editing
 // this file.  Example:
-//   CLAUDE_CODE_OPENAI_CONTEXT_WINDOWS='{"my-corp/llm-v2":200000}'
+//   aiko_CODE_OPENAI_CONTEXT_WINDOWS='{"my-corp/llm-v2":200000}'
 const OPENAI_EXTERNAL_CONTEXT_WINDOWS: Record<string, number> = (() => {
   try {
-    const raw = process.env.CLAUDE_CODE_OPENAI_CONTEXT_WINDOWS
+    const raw = process.env.aiko_CODE_OPENAI_CONTEXT_WINDOWS
     if (raw) {
       const parsed = JSON.parse(raw)
       if (typeof parsed === 'object' && parsed !== null) return parsed as Record<string, number>
@@ -478,11 +478,11 @@ const OPENAI_EXTERNAL_CONTEXT_WINDOWS: Record<string, number> = (() => {
 })()
 
 // External max-output-token overrides.
-// Set CLAUDE_CODE_OPENAI_MAX_OUTPUT_TOKENS to a JSON object mapping model name
+// Set aiko_CODE_OPENAI_MAX_OUTPUT_TOKENS to a JSON object mapping model name
 // → max output token count.
 const OPENAI_EXTERNAL_MAX_OUTPUT_TOKENS: Record<string, number> = (() => {
   try {
-    const raw = process.env.CLAUDE_CODE_OPENAI_MAX_OUTPUT_TOKENS
+    const raw = process.env.aiko_CODE_OPENAI_MAX_OUTPUT_TOKENS
     if (raw) {
       const parsed = JSON.parse(raw)
       if (typeof parsed === 'object' && parsed !== null) return parsed as Record<string, number>
@@ -493,8 +493,8 @@ const OPENAI_EXTERNAL_MAX_OUTPUT_TOKENS: Record<string, number> = (() => {
 
 function lookupByModel<T>(table: Record<string, T>, externalTable: Record<string, T>, model: string): T | undefined {
   // Try provider-qualified key first: "{OPENAI_MODEL}:{model}" so that
-  // e.g. "github:copilot:claude-haiku-4.5" can have different limits than
-  // a bare "claude-haiku-4.5" served by another provider.
+  // e.g. "github:copilot:aiko-haiku-4.5" can have different limits than
+  // a bare "aiko-haiku-4.5" served by another provider.
   const providerModel = process.env.OPENAI_MODEL?.trim()
   if (providerModel && providerModel !== model) {
     const qualified = `${providerModel}:${model}`

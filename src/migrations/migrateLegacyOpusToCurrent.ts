@@ -37,10 +37,10 @@ export function migrateLegacyOpusToCurrent(): void {
 
   const model = getSettingsForSource('userSettings')?.model
   if (
-    model !== 'claude-opus-4-20250514' &&
-    model !== 'claude-opus-4-1-20250805' &&
-    model !== 'claude-opus-4-0' &&
-    model !== 'claude-opus-4-1'
+    model !== 'aiko-opus-4-20250514' &&
+    model !== 'aiko-opus-4-1-20250805' &&
+    model !== 'aiko-opus-4-0' &&
+    model !== 'aiko-opus-4-1'
   ) {
     return
   }

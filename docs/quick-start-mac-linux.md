@@ -1,4 +1,4 @@
-# OpenClaude Quick Start for macOS and Linux
+# Aiko Code Quick Start for macOS and Linux
 
 This guide uses a standard shell such as Terminal, iTerm, bash, or zsh.
 
@@ -15,10 +15,10 @@ node --version
 npm --version
 ```
 
-## 2. Install OpenClaude
+## 2. Install aiko-code
 
 ```bash
-npm install -g @gitlawb/openclaude
+npm install -g @getfoundry/aiko
 ```
 
 ## 3. Pick One Provider
@@ -28,22 +28,22 @@ npm install -g @gitlawb/openclaude
 Replace `sk-your-key-here` with your real key.
 
 ```bash
-export CLAUDE_CODE_USE_OPENAI=1
+export aiko_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=sk-your-key-here
 export OPENAI_MODEL=gpt-4o
 
-openclaude
+aiko-code
 ```
 
 ### Option B: DeepSeek
 
 ```bash
-export CLAUDE_CODE_USE_OPENAI=1
+export aiko_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=sk-your-key-here
 export OPENAI_BASE_URL=https://api.deepseek.com/v1
 export OPENAI_MODEL=deepseek-v4-flash
 
-openclaude
+aiko-code
 ```
 
 Use `deepseek-v4-pro` when you want the stronger model. `deepseek-chat` and `deepseek-reasoner` still work as DeepSeek's legacy API aliases.
@@ -59,11 +59,11 @@ Then run:
 ```bash
 ollama pull llama3.1:8b
 
-export CLAUDE_CODE_USE_OPENAI=1
+export aiko_CODE_USE_OPENAI=1
 export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_MODEL=llama3.1:8b
 
-openclaude
+aiko-code
 ```
 
 No API key is needed for Ollama local models.
@@ -83,24 +83,24 @@ Then in LM Studio:
 Then run:
 
 ```bash
-export CLAUDE_CODE_USE_OPENAI=1
+export aiko_CODE_USE_OPENAI=1
 export OPENAI_BASE_URL=http://localhost:1234/v1
 export OPENAI_MODEL=your-model-name
 # export OPENAI_API_KEY=lmstudio  # optional: some users need a dummy key
 
-openclaude
+aiko-code
 ```
 
 Replace `your-model-name` with the model name shown in LM Studio.
 
 No API key is needed for LM Studio local models (but uncomment the `OPENAI_API_KEY` line if you hit auth errors).
 
-## 4. If `openclaude` Is Not Found
+## 4. If `aiko-code` Is Not Found
 
 Close the terminal, open a new one, and try again:
 
 ```bash
-openclaude
+aiko-code
 ```
 
 ## 5. If Your Provider Fails
@@ -126,16 +126,16 @@ Check the basics:
 - make sure a model is loaded in LM Studio
 - make sure the model name matches what you set in `OPENAI_MODEL`
 
-## 6. Updating OpenClaude
+## 6. Updating aiko-code
 
 ```bash
-npm install -g @gitlawb/openclaude@latest
+npm install -g @getfoundry/aiko@latest
 ```
 
-## 7. Uninstalling OpenClaude
+## 7. Uninstalling aiko-code
 
 ```bash
-npm uninstall -g @gitlawb/openclaude
+npm uninstall -g @getfoundry/aiko
 ```
 
 ## Need Advanced Setup?
