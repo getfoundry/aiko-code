@@ -965,12 +965,17 @@ export const getSkillDirCommands = memoize(
 
     // Debug log: skill counts by source
     const counts: Record<string, number> = {}
-    for (const skill of allSkillsWithPaths) {
-      const src = skill.source
+    for (const entry of allSkillsWithPaths) {
+      const src = entry.skill.source
       counts[src] = (counts[src] || 0) + 1
     }
-    console.error(
-      `Skills: ${allSkillsWithPaths.length} total, sources: ${JSON.stringify(counts)} (first skill: ${allSkillsWithPaths[0]?.skill?.source})`,
+    if (process.env.AIKO_DEBUG_SKILLS) {
+      console.error(
+        `Skills loaded: ${allSkillsWithPaths.length} total (sources: ${JSON.stringify(counts)})`,
+      )
+    }
+    logForDebugging(
+      `Skills loaded: ${allSkillsWithPaths.length} total (sources: ${JSON.stringify(counts)})`,
     )
 
     return unconditionalSkills
