@@ -137,14 +137,16 @@ export function registerAikoHarness(): void {
     'Read',
     `Bash(${resolve(root, 'scripts', 'fib-harness')}:*)`,
     `Bash(bash ${resolve(root, 'scripts', 'fib-harness')}:*)`,
+    `Bash(${resolve(root, 'scripts', 'break-harness.sh')}:*)`,
+    `Bash(bash ${resolve(root, 'scripts', 'break-harness.sh')}:*)`,
   ]
 
-  // /guide — fractal subagent harness entry point.
+  // /guide — 9-step Stop-driven harness entry point.
   registerBundledSkill({
     name: 'guide',
     description:
-      'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents). Three modes: --mode restructure (default; OT/law — judge dimensions, recurse on blocking failures until verdict=promote), --mode experiment (NT/grace — spawn divergent variants, keep what bears fruit, hand off to restructure when stuck), and --mode break (sabbath — pause the loop, remind you to step away from the screen and enjoy what you have already built).',
-    argumentHint: 'TASK [--mode restructure|experiment|break] [--session NAME] [--north-star "<text>"]',
+      'Launch the aiko-code 9-step harness. Stop-driven: each assistant Stop fires core/loop.sh which reads the session state, advances the step, and injects step N\'s playbook (principle, problem map, fibonacci parallelism budget, work). Steps 1-6 build (survey, boundaries, skeleton, signals, edges, integration), 7 verdict, 8 audit, 9 ship. Per-step parallelism budget 1,1,2,3,5,8,1,13,21. If a step cannot close in one pass, break-harness.sh spawns a fib-harness child scoped to the stuck sub-problem.',
+    argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
     allowedTools: harnessAllowedTools,
     async getPromptForCommand(args) {
@@ -154,11 +156,10 @@ export function registerAikoHarness(): void {
     },
   })
 
-
   registerBundledSkill({
     name: 'cancel',
     description:
-      'Cancel a running Aiko Code loop session (or all). Teachings logs are preserved.',
+      'Cancel a running aiko-code harness session (or all). Teachings logs are preserved.',
     argumentHint: '[--session NAME | --all]',
     userInvocable: true,
     async getPromptForCommand(args) {
@@ -171,7 +172,7 @@ export function registerAikoHarness(): void {
   registerBundledSkill({
     name: 'log',
     description:
-      'Read back the teachings log from one or all Aiko Code loop sessions.',
+      'Read back the teachings log from one or all aiko-code harness sessions.',
     argumentHint: '[--session NAME | --all]',
     userInvocable: true,
     async getPromptForCommand(args) {
@@ -184,7 +185,7 @@ export function registerAikoHarness(): void {
   registerBundledSkill({
     name: 'steer',
     description:
-      'Re-aim the north star of a running Aiko Code loop session without restarting it.',
+      'Re-aim the north star of a running aiko-code harness session without restarting it.',
     argumentHint: '[--session NAME] "<new north star>"',
     userInvocable: true,
     async getPromptForCommand(args) {
@@ -194,7 +195,6 @@ export function registerAikoHarness(): void {
     },
   })
 }
-
 /**
  * Register the design-taste SessionStart hook.
  *

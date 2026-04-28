@@ -1,9 +1,11 @@
 #!/bin/bash
-# aiko-code — fractal harness driver.
-# Initializes a fib-harness workspace for the task and emits a self-driving
-# playbook. The agent runs the full harness cycle (init -> dimensions -> 20
-# agents fan-out -> judge -> spawn-child on fail -> verdict) within one
-# conversation, recursively, until verdict=promote.
+# aiko-code — 9-step harness driver.
+#
+# Same architecture as jstack: writes a state file with step=0, then the
+# native Stop hook (core/loop.sh) reads the state, advances the step, and
+# injects step N's playbook on every assistant Stop until step 9 emits the
+# completion promise. Per-step Fibonacci parallelism budget. Optional
+# fib-harness break for stuck steps.
 #
 # Multi-session aware: pass --session NAME to run multiple loops in one repo.
 set -euo pipefail
@@ -13,114 +15,68 @@ COMPLETION_PROMISE="SHIPPED"
 SESSION="default"
 NORTH_STAR=""
 STATE_DIR=".aiko"
-MODE="restructure"
 PLUGIN_ROOT="${aiko_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     -h|--help)
       cat <<'HELP_EOF'
-aiko-code — fractal subagent harness.
+aiko-code — 9-step harness with multi-session and live steering.
 
 USAGE:
   /guide [TASK...] [OPTIONS]
 
 OPTIONS:
-  --session NAME                       Session id (default: "default").
-  --mode restructure|experiment|break  Harness mode (default: restructure).
-                                   - restructure: judge dimensions, recurse on
-                                     blocking failures (Old Testament — law).
-                                   - experiment: spawn divergent variants, keep
-                                     what bears fruit, log the rest (New
-                                     Testament — grace). Modes can hand off:
-                                     experiment → restructure to consolidate;
-                                     restructure → experiment when stuck with
-                                     no clear repair.
-                                   - break: sabbath. Stop driving. Remind the
-                                     user to step away, breathe, and enjoy
-                                     what they have already shipped. No fan-out,
-                                     no judging, no next phase.
-  --north-star "<text>"          Optional steering directive.
-  --completion-promise '<text>'  Phrase emitted as <promise>TEXT</promise>
-                                 when fib-harness verdict=promote. Default: SHIPPED.
+  --session NAME                 Session id (default: "default"). Each session
+                                 has its own state file and runs independently.
+  --north-star "<text>"          Initial north star (re-injected each step).
+  --completion-promise '<text>'  Phrase to output as <promise>TEXT</promise>
+                                 when step 9 (Ship) lands.
+                                 Default: SHIPPED.
   --state-dir DIR                Where to write state (default: .aiko).
   -h, --help                     Show this help.
 
+NINE STEPS (Fibonacci parallelism per step):
+  1 Survey       inventory — read, search, enumerate. No building.    (1)
+  2 Boundaries   architecture — layers, contracts, separations.       (1)
+  3 Skeleton     first artifacts — stub, draft, walking skeleton.     (2)
+  4 Signals      tests, types, metrics — three independent axes.      (3)
+  5 Edges        adversarial, concurrency, partial failure.           (5)
+  6 Integration  end-to-end flows.                                    (8)
+  7 Verdict      single-threaded promote / hold / reject.             (1)
+  8 Audit        adversarial cold review by 13 independent slices.   (13)
+  9 Ship         publish, tag, hand off; emit <promise>.             (21)
+
+If a step cannot close in one pass, break into a fib-harness child:
+  bash <PLUGIN_ROOT>/scripts/break-harness.sh --step <N> --session <S> --scope "<stuck>"
+
 EXAMPLES:
   /guide Build a markdown blog generator
-  /guide --mode experiment "Try three caching strategies for the API client"
-  /guide --mode break
   /guide --session refactor "Pull auth out of routes" --north-star "no behavior change"
 HELP_EOF
       exit 0;;
     --completion-promise) COMPLETION_PROMISE="$2"; shift 2;;
     --session)            SESSION="$2"; shift 2;;
-    --mode)               MODE="$2"; shift 2;;
     --north-star)         NORTH_STAR="$2"; shift 2;;
     --state-dir)          STATE_DIR="$2"; shift 2;;
     *) PROMPT_PARTS+=("$1"); shift;;
   esac
 done
 
-case "$MODE" in
-  restructure|experiment|break) ;;
-  *) echo "Error: --mode must be 'restructure', 'experiment', or 'break' (got: $MODE)" >&2; exit 1;;
-esac
-
 PROMPT="${PROMPT_PARTS[*]}"
-if [[ "$MODE" != "break" ]]; then
-  [[ -n "$PROMPT" ]] || { echo "Error: no task provided." >&2; exit 1; }
-fi
-
-if [[ "$MODE" == "break" ]]; then
-  cat <<BREAK_EOF
-aiko-code [session: $SESSION] — sabbath mode.
-
-═══════════════════════════════════════════════════════════════════
-TAKE A BREAK
-═══════════════════════════════════════════════════════════════════
-
-The loop is paused. No fan-out, no judging, no next phase.
-
-You have been building. The work will still be here when you come
-back. Right now, the most useful thing you can do is step away from
-the screen — even for ten minutes. Make tea. Stretch. Look at
-something further than your monitor. Notice that you have shipped
-real things this session.
-
-Self-driving instructions for the agent:
-  - Do NOT spawn subagents.
-  - Do NOT continue any prior /guide loop.
-  - Reply once, briefly, in a warm tone. Remind the user of one or
-    two concrete things they have already built or fixed in this
-    session (read $TEACHINGS_FILE if it exists for material).
-  - Suggest a single small restful action (walk, water, window,
-    breath) — pick one, do not list a menu.
-  - End with: "I'll be here when you're back. Enjoy it."
-  - Then stop. Do not propose next steps. Do not ask follow-ups.
-
-Resume work later with:  /guide "<your task>"
-BREAK_EOF
-  exit 0
-fi
-
+[[ -n "$PROMPT" ]] || { echo "Error: no task provided." >&2; exit 1; }
 
 mkdir -p "$STATE_DIR"
 STATE_FILE="$STATE_DIR/aiko-code.$SESSION.local.md"
 TEACHINGS_FILE="$STATE_DIR/aiko-code.$SESSION.teachings.local.md"
 
-# Init fib-harness workspace for the project root.
-WS_JSON=$("$PLUGIN_ROOT/scripts/fib-harness" init "$(pwd)")
-WS=$(printf '%s' "$WS_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace'])")
-[[ -n "$WS" ]] || { echo "Error: fib-harness init failed." >&2; exit 1; }
-
 {
   printf -- '---\n'
   printf 'active: true\n'
   printf 'session: "%s"\n' "$SESSION"
-  printf 'workspace: "%s"\n' "$WS"
+  printf 'step: 0\n'
+  printf 'harness_ws:\n'
   printf 'completion_promise: "%s"\n' "$COMPLETION_PROMISE"
-  printf 'mode: "%s"\n' "$MODE"
   [[ -n "$NORTH_STAR" ]] && printf 'north_star: "%s"\n' "$NORTH_STAR"
   printf 'started_at: "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf -- '---\n\n'
@@ -138,218 +94,39 @@ fi
 
 cat <<EOF
 <harness-directive priority="absolute">
-You are inside an active aiko-code fractal harness session. The text below is
-NOT a description for the user — it is your operating contract for the next
-N turns. Do not paraphrase it back. Do not ask the user to confirm. Execute
-it. Do not stop between phases. Spawn subagents in parallel via the Agent
-tool (single message, multiple tool_use blocks) wherever the fib budget at
-that level is greater than 1. Output to the user only at PHASE -1 (taste
-gate verdict) and PHASE 9 (verdict + <promise>).
+You are inside an active aiko-code 9-step harness session. The text below
+is your operating contract — not a description for the user. Do not
+paraphrase. Do not ask for confirmation.
 
-If your next response is anything other than (a) a /taste|/audit|/critique|/craft
-invocation for the taste gate, or (b) writing $WS/state/dims.json followed by
-a fib-harness dimensions+plan call, you are violating the contract.
+This is a STOP-DRIVEN loop. Setup just wrote $STATE_FILE with step=0. At
+the end of every assistant turn, the native Stop hook fires core/loop.sh,
+which reads the state file, advances to step N+1, and injects that step's
+playbook (principle, problem map, fib budget, work). Do the current step's
+work, append a one-line teachings entry, then stop normally — the hook
+delivers the next step. Do not pre-empt. Do not skip ahead.
+
+If a step cannot close in one pass, run:
+  bash $PLUGIN_ROOT/scripts/break-harness.sh --step <N> --session $SESSION --scope "<what is stuck>"
+That populates harness_ws in the state file and the next Stop fires the
+fib-harness child cycle scoped to the stuck sub-problem.
 </harness-directive>
 
-aiko-code [session: $SESSION] — fractal harness ARMED.
+aiko-code [session: $SESSION] — 9-step harness armed.
 
-Task:        $PROMPT
-Workspace:   $WS
-Session:     $SESSION   (state: $STATE_FILE)
-North star:  ${NORTH_STAR:-<unset — set via /steer>}
-Promise:     $COMPLETION_PROMISE  (emit only when verdict=promote)
-Mode:        $MODE  ($([ "$MODE" = "experiment" ] && echo "NT/grace — divergent variants, keep what bears fruit" || echo "OT/law — judge dimensions, recurse on failure"))
+Task:              $PROMPT
+Session:           $SESSION   (state: $STATE_FILE)
+Step:              about to enter 1/9 (Survey)
+Completion phrase: $COMPLETION_PROMISE   (output only at step 9 PROMOTE)
+North star:        ${NORTH_STAR:-<unset — set with /steer>}
+Plugin root:       $PLUGIN_ROOT
 
-═══════════════════════════════════════════════════════════════════
-SELF-DRIVING PLAYBOOK — execute the entire flow in this conversation.
-Do not stop between phases. Spawn subagents in parallel.
-═══════════════════════════════════════════════════════════════════
+Your immediate next action: produce a brief one-paragraph acknowledgement
+and stop. The Stop hook will then inject step 1 (Survey).
 
-PHASE -1 — TASTE GATE (mandatory, before PHASE 0)
-Decide whether this task touches UI, frontend, design, visual output, or
-any user-facing surface. This is a judgement call — not a keyword match.
-Examples that qualify: building a page/component, restyling, redesigning a
-flow, choosing a layout, adding microcopy, picking colors/fonts, even
-auditing existing UI. Examples that do NOT qualify: pure backend logic,
-data pipelines, infra, CLI-only tools without TTY rendering.
-
-If the task qualifies, BEFORE writing dims.json, invoke ONE of:
-  /taste     — apply the senior UI/UX design laws to the work
-  /audit     — review existing UI against the laws (no code changes)
-  /critique  — second-opinion review (Nielsen + AI-slop heuristics)
-  /craft     — start from a hi-fi reference under the design laws
-Pick by intent verb: build/start -> /craft, review/inspect -> /audit,
-critique/feedback -> /critique, otherwise -> /taste. Treat the skill's
-output as a binding constraint when declaring dimensions in PHASE 0.
-
-If the task does NOT qualify, append ONE line to $(pwd)/$TEACHINGS_FILE:
-  "taste-gate: skipped — task is non-UI ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-Use the absolute path above as written. Do NOT write to \$HOME/.aiko or
-any other memory directory — \$HOME/.aiko is personal memory, NOT the
-harness teachings log. The teachings log lives in the working tree under
-.aiko/. Then proceed IMMEDIATELY to PHASE 0 in the same turn (no chat
-reply, no summary, just the next tool call).
-
-PHASE 0 — DECLARE 6 DIMENSIONS (the next two tool calls after the gate)
-Tool call 1: Write file $WS/state/dims.json with this shape:
-  {
-    "domain": "<one of: code, content, sales, fundraising, research,
-                operations, product, ml, growth>",
-    "problem": "<one-line restatement of the task>",
-    "dimensions": [
-      { "name": "<L1 dim>", "phase": "survey",       "question": "...",
-        "primitive_type": "code|skill|hybrid", "primitive_name": "...",
-        "success_criteria": "...", "commands": [...] OR "skill_invocation": {...} },
-      { ..., "phase": "boundaries", ... },
-      { ..., "phase": "skeleton", ... },
-      { ..., "phase": "signals", ... },
-      { ..., "phase": "edges", ... },
-      { ..., "phase": "integration", ... }
-    ]
-  }
-Tool call 2: Bash, run BOTH commands chained with &&:
-  $PLUGIN_ROOT/scripts/fib-harness dimensions $WS @$WS/state/dims.json && $PLUGIN_ROOT/scripts/fib-harness plan $WS
-
-PHASE 1..6 — PARALLEL FAN-OUT (Fibonacci budget: 1,1,2,3,5,8 = 20 agents)
-For each level L in 1..6, spawn fib[L-1] subagents IN PARALLEL via the Agent
-tool (single message, multiple tool_use blocks). Each subagent owns one slice
-of that level's dimension and returns a JSON artifact:
-  {
-    "level": <L>,
-    "agent_id": "L<L>-a<n>",
-    "dimension": "<dim name>",
-    "summary": "<1-2 sentences>",
-    "hypotheses": [
-      { "id": "h1", "claim": "...", "evidence": "...",
-        "status": "pass|fail|unknown",
-        "blocking": true|false,
-        "repair_hint": "<if fail>" }
-    ]
-  }
-Collect each artifact:
-  $PLUGIN_ROOT/scripts/fib-harness collect $WS <L> <agent_id> @<artifact.json>
-After all fib[L-1] agents at level L return, run:
-  $PLUGIN_ROOT/scripts/fib-harness level-check $WS <L>
-Proceed to next level only when level-check shows COMPLETE.
-
-PHASE 7 — JUDGE
-  $PLUGIN_ROOT/scripts/fib-harness judge $WS
-
-  - verdict=pass -> go to PHASE 9.
-  - verdict=needs_repair -> for each blocking_failure, run PHASE 8 (fractal).
-  - verdict=needs_investigation -> spawn investigator subagents to resolve
-    unknowns, then re-judge.
-
-PHASE 8 — FRACTAL CHILD HARNESS (recurse, max depth 3)
-For each blocking failure F:
-  CHILD=\$($PLUGIN_ROOT/scripts/fib-harness spawn-child $WS <F.id> "<F.claim>")
-  # Re-enter PHASE 0 against CHILD workspace, recursively.
-  # When child verdict lands:
-  $PLUGIN_ROOT/scripts/fib-harness link-child $WS \$CHILD
-After all children resolved, re-judge the parent ($WS).
-
-PHASE 9 — VERDICT + SHIP
-  $PLUGIN_ROOT/scripts/fib-harness verdict $WS
-  - verdict=promote -> emit <promise>$COMPLETION_PROMISE</promise> and append a
-    final lesson line to $TEACHINGS_FILE.
-  - verdict=hold     -> re-investigate the unresolved children.
-  - verdict=reject   -> repair blocking failures, re-spawn agents at affected
-    levels (cycle++), re-judge.
-
-RULES
-  - Spawn subagents IN PARALLEL where the budget is >1 (a single message
-    with multiple Agent tool calls).
-  - Do not return to the user between phases. Drive the cycle through to
-    verdict=promote (or genuine reject).
-  - If you hit max depth (3), record the unresolved scope and reject with
-    a precise repair list.
-  - Re-read the north star at the start of every level.
-Stop early:    /cancel --session $SESSION
-Read the log:  /log    --session $SESSION
-Re-aim:        /steer  --session $SESSION "<new north star>"
-
-Statusline:    add this to ~/.claude/settings.json to surface live harness state:
-  "statusLine": { "type": "command",
-                  "command": "$PLUGIN_ROOT/scripts/statusline.sh" }
+Stop early:        /cancel --session $SESSION
+Read the log:      /log    --session $SESSION
+Re-aim mid-flight: /steer  --session $SESSION "<new north star>"
 
 TASK:
 $PROMPT
 EOF
-
-if [[ "$MODE" == "experiment" ]]; then
-cat <<EOF
-
-═══════════════════════════════════════════════════════════════════
-EXPERIMENT MODE OVERRIDE — read AFTER the playbook above.
-The structure of the cycle stays identical (6 dimensions, fib fan-out,
-judge, recurse, verdict). The SEMANTICS of judging shift from law to
-grace. Apply these overrides on top of the base playbook.
-═══════════════════════════════════════════════════════════════════
-
-PHASE 0 (override) — DECLARE 6 DIMENSIONS AS VARIANT-SPACES
-Each dimension is no longer "what must be true" but "what could we try."
-In dims.json, set:
-  - "phase" stays the same (survey..integration)
-  - "success_criteria" expressed as a FRUIT TEST, not a pass/fail gate
-    (e.g. "produces working output under conditions X" not "function
-    returns true")
-  - add "variant_axis": "<what is varied across attempts>"
-    (e.g. "caching strategy", "prompt scaffold", "data layout")
-
-PHASE 1..6 (override) — FAN-OUT AS DIVERGENT VARIANTS
-Each subagent at level L builds ONE genuine variant of its dimension —
-distinct enough to be falsified by the others. Subagent artifact shape
-becomes:
-  {
-    "level": <L>, "agent_id": "L<L>-a<n>",
-    "dimension": "<dim name>",
-    "variant": "<one-line label of what this attempt did>",
-    "observation": "<what happened when it ran>",
-    "fruit": "kept | logged | killed",
-    "fruit_score": 0..1,
-    "why": "<reason for the fruit verdict>"
-  }
-Collect via the same \`fib-harness collect\` command; the harness does not
-distinguish — the fruit field rides in the artifact body.
-
-PHASE 7 (override) — DISCERN, DON'T CONDEMN
-Run \`fib-harness judge\` as usual to get the structural verdict, but
-INTERPRET it through grace:
-  - Variants with fruit=kept compose the keeper set.
-  - Variants with fruit=logged are recorded in $TEACHINGS_FILE for
-    later use, NOT condemned.
-  - Variants with fruit=killed are dropped silently.
-  - "Failure" only fires if NO dimension produced a kept variant.
-
-PHASE 8 (override) — GRAFT, DON'T REPAIR
-Instead of spawn-child on each blocking failure, GRAFT the keeper set:
-  - Compose the kept variants into a single integrated artifact
-    (the "fruit-bearing branch").
-  - If a dimension has no keeper, that is the only signal that demands
-    a child harness. When it does, spawn the child in RESTRUCTURE mode:
-       /guide --mode restructure --session ${SESSION}-graft "<missing dim>"
-    Restructure consolidates; experiment generates. They hand off here.
-
-PHASE 9 (override) — VERDICT THROUGH FRUIT
-  - verdict=promote -> the grafted whole bears fruit; emit
-    <promise>$COMPLETION_PROMISE</promise> and append the kept variants
-    + reasoning to $TEACHINGS_FILE.
-  - verdict=hold -> some dimensions need more variants; re-fan with
-    cycle++ on those dims only.
-  - verdict=reject -> no dimension produced a keeper. Hand off to
-    RESTRUCTURE mode for diagnosis (it asks "what law was violated").
-
-CROSS-MODE HANDOFFS
-  - experiment -> restructure: when a dimension has no keeper after
-    cycle 2, restructure judges the constraints to find what law is
-    blocking fruit.
-  - restructure -> experiment: when judge returns
-    needs_investigation with no clear repair_hint, the next /guide call
-    should switch to --mode experiment to try variants instead of
-    enforcing rules.
-
-The two modes are the same loop seen from two sides:
-  restructure prunes toward a known shape;
-  experiment grows toward an unknown one.
-EOF
-fi
