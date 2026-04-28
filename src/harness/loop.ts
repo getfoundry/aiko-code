@@ -158,7 +158,7 @@ export async function advanceHarness(
   // skip the round-trip on the easy case and still re-run when needed.
   const auditPrelude =
     !onHarness && nextStep === 1
-      ? await runAuditWithTimeout(cwd, 8000)
+      ? await runAuditWithTimeout(cwd, 30000)
       : ''
 
   const directive = buildDirective({

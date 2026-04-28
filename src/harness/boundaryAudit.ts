@@ -243,6 +243,15 @@ async function querySymbols(
     name: string
     location: { uri: string; range: { start: { line: number } } }
   }
+  // Ensure the language server for this file's language is actually running.
+  // The LSP manager loads configured server _definitions_ at CLI startup, but
+  // each server is spun up lazily on first file access. Without this call,
+  // workspace/symbol returns nothing because the server hasn't been started.
+  try {
+    await lsp.ensureServerStarted(sampleFile)
+  } catch {
+    return []
+  }
   let results: WorkspaceSymbol[] | undefined
   try {
     results = await lsp.sendRequest<WorkspaceSymbol[]>(
