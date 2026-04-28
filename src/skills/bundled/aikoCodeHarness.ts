@@ -139,17 +139,38 @@ export function registerAikoHarness(): void {
     },
   })
 
-  // /loop — alias for /auto.
+  // /loop — simple ralph-style "keep iterating" prompt. No fib-harness, no
+  // state file. Stop hook stays inactive for sessions started this way.
   registerBundledSkill({
     name: 'loop',
     description:
-      'Alias for /auto. Launch the fractal subagent harness on a task.',
-    argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
+      'Iterate on a task until shipped — simple ralph-style loop with no harness orchestration.',
+    argumentHint: 'TASK',
     userInvocable: true,
     async getPromptForCommand(args) {
-      const tokens = tokenizeArgs(args)
-      const text = await runScript(root, 'scripts/setup-loop.sh', tokens)
-      return [{ type: 'text', text }]
+      const task = args.trim()
+      if (!task) {
+        return [
+          {
+            type: 'text',
+            text: 'Usage: /loop <task>\nIterate on the task until shipped. No harness, no state file.',
+          },
+        ]
+      }
+      return [
+        {
+          type: 'text',
+          text: [
+            'Iterate on the following task until it is genuinely shipped.',
+            'Pick the smallest next concrete step, do it, verify it, then',
+            'continue. Do not stop after one step — keep going until the',
+            'task is done or you hit a real blocker. No harness, no phases.',
+            '',
+            'TASK:',
+            task,
+          ].join('\n'),
+        },
+      ]
     },
   })
 
