@@ -67,6 +67,25 @@ const BUILTIN_DEFAULT_MCP_SERVERS: Record<string, McpServerConfig> = {
     type: 'http',
     url: 'https://mcp.deepwiki.com/mcp',
   },
+  // Serena — LSP-backed semantic code intelligence by oraios. Spawned via
+  // uvx so users don't have to manage a Python venv. Requires `uv` on PATH
+  // (`brew install uv` / `pipx install uv` / `curl -LsSf https://astral.sh/uv/install.sh | sh`).
+  // Boots from cwd by default; cross-language LSP coverage (tsserver,
+  // pyright, gopls, rust-analyzer, jdtls, clangd, ruby-lsp) via solid-lsp.
+  // Tools surface as mcp__serena__find_symbol /
+  // mcp__serena__find_referencing_symbols / etc., consumed by the harness's
+  // /audit-boundaries skill and any agent in the session.
+  serena: {
+    type: 'stdio',
+    command: 'uvx',
+    args: [
+      '--from',
+      'git+https://github.com/oraios/serena',
+      'serena-mcp-server',
+      '--context',
+      'ide-assistant',
+    ],
+  },
 }
 
 function getBuiltinDefaultMcpServers(): Record<string, ScopedMcpServerConfig> {
