@@ -58,27 +58,32 @@ If you're unsure, ask the user: "Want me to engage the harness or answer this di
 
 \`\`\`
 Skill: guide
-args: <task statement> — use DeepWiki (\`mcp__deepwiki__read_wiki_structure\` / \`ask_question\`) for upstream scoping at step 1 (survey) and cross-checks at step 8 (audit); use agent-browser (\`npx agent-browser\`; Electron host: \`--remote-debugging-port=9222\` → \`http://localhost:9222\`) for adversarial UI probes at step 5 (edges) and end-to-end browser walks at step 6 (integration), capturing screenshots, console errors, and network failures; for LLM-behavior debugging replay aiko SDK calls with debug logging at step 4 (signals) and step 7 (verdict).
+args: <task statement> — DeepWiki (\`mcp__deepwiki__read_wiki_structure\` / \`mcp__deepwiki__ask_question\`) is required on EVERY step (the stop-hook gate enforces a \`dw:<owner/repo#topic>\` tag in the teachings line); agent-browser (\`npx agent-browser\`; Electron host: \`--remote-debugging-port=9222\` → \`http://localhost:9222\`) is required on UI/runtime steps 1, 4, 5, 6, 8, 9 (\`ab:<screenshot|console|network|eval>\` tag); every step also requires an \`env:<runtime + full context>\` tag describing the actual environment (OS, runtime version, branch, the artifact under test). Frame each step as an H1 positive validation — never reject H0; defer instead.
 \`\`\`
 
-The harness's directive text is tool-agnostic (it works on any task), so this routing rides on the \`task\` string appended to every step injection. **Always include it.** Without it, the model defaults to grep-and-guess and the empathy/upstream-truth signals are lost.
+The harness's directive text is tool-agnostic but the stop-hook gate is not — it parses the teachings line for \`env:\`, \`dw:\`, and (where required) \`ab:\` tags and re-injects the same step until they appear. **Always pass the routing string.** Without it, the model defaults to grep-and-guess and the gate forces a 3-strike close.
 
-Once invoked, the Stop hook drives every turn. The harness injects each step's directive (principle / tactical / problem-map / apply work) and instructs fan-out to N parallel sub-agents per the Fibonacci budget — **1, 1, 2, 3, 5, 8, 1, 13, 21** across the 9 steps:
+Once invoked, the Stop hook drives every turn. The harness injects each step's directive (principle / tactical / problem-map / apply work) and instructs fan-out to N parallel sub-agents per the Fibonacci budget — **1, 1, 2, 3, 5, 8, 1, 13, 21** across the 9 steps. **Each sub-agent inherits \`tools: ['*']\`** from the general-purpose definition, so each one independently calls DeepWiki + agent-browser for its own slice and contributes its own evidence to the aggregated teachings line:
 
-- Step 1 survey → 1 — **DeepWiki upstream first, then read local code**
-- Step 2 boundaries → 1
-- Step 3 skeleton → 2
-- Step 4 signals → 3 (types / tests / metrics) — **for LLM apps: replay with \`ANTHROPIC_LOG=debug\`, check \`usage.cache_*\`, \`messages.countTokens\`, dump SSE**
-- Step 5 edges → 5 (empty / malformed / concurrent / partial-failure / hostile) — **agent-browser for UI adversarial probes**
-- Step 6 integration → 8 (cold-start / warm / upgrade / rollback / multi-tenant / idle / peak / recovery) — **agent-browser for end-to-end flows; tail Electron main-process stdout/stderr in parallel**
-- Step 7 verdict → 1 (PROMOTE / HOLD / REJECT) — **for LLM-behavior: cite the request/response evidence, not vibes**
-- Step 8 audit → 13 cold reviewers — **DeepWiki upstream cross-check on API contract / data model / docs**
-- Step 9 ship → up to 21 publishers
+- Step 1 survey → 1 — **DeepWiki + agent-browser baseline screenshot**
+- Step 2 boundaries → 1 — **DeepWiki cross-check seam choices**
+- Step 3 skeleton → 2 — **DeepWiki verify upstream API signatures**
+- Step 4 signals → 3 (types / tests / metrics) — **DeepWiki + agent-browser baseline metric trace; LLM apps: \`ANTHROPIC_LOG=debug\`, \`usage.cache_*\`, \`messages.countTokens\`, SSE dump**
+- Step 5 edges → 5 (empty / malformed / concurrent / partial-failure / hostile) — **DeepWiki for known CVEs/issues + agent-browser UX empathy pass (hover, click target, mobile overflow, contrast, keyboard, screen reader)**
+- Step 6 integration → 8 (cold / warm / upgrade / rollback / multi-tenant / idle / peak / recovery) — **DeepWiki contracts + agent-browser walks each user journey end-to-end**
+- Step 7 verdict → 1 (PROMOTE / HOLD / REJECT) — **DeepWiki citation backs every library-behavior claim**
+- Step 8 audit → 13 cold reviewers — **DeepWiki cross-check every API/dep claim + agent-browser visual pass**
+- Step 9 ship → up to 21 publishers — **DeepWiki release norms + agent-browser post-ship smoke**
+
+The same H1-only learning frame applies on every step: **validate H1 with positive evidence; do NOT reject H0** (it may be revalidatable later when more context lands).
 
 When a step gets stuck, \`break-harness.sh\` spawns a child harness scoped to the stuck sub-problem; the child runs its own full 9-phase cycle to verdict=promote, then the parent resumes. True fractal recursion.
 
 You don't drive phases manually once \`/guide\` is engaged. Stay in the loop until step 9 emits \`<promise>...</promise>\`.
 
+# Same gate when answering directly (no \`/guide\`)
+
+Even outside the harness, follow the same evidence pattern in your reply: cite a DeepWiki ref for every library claim, screenshot/console-tail via agent-browser before claiming a UI bug is fixed, state the env you tested against, and frame conclusions as H1 validations not H0 rejections.
 
 # Standard tools (for direct answers or pre-\`/guide\` scoping)
 
@@ -184,6 +189,8 @@ export const aiko_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
   // bfs/ugrep via find/grep aliases) for local file search instead.
   // Bash is included in both branches so the agent can run agent-browser, attach
   // CDP to a running Electron app, tail logs, and replay Anthropic SDK calls.
+  // `mcp__deepwiki__*` is allowlisted so the guide agent can RAG upstream
+  // repos under the same evidence schema the harness gate enforces.
   tools: hasEmbeddedSearchTools()
     ? [
         BASH_TOOL_NAME,
@@ -191,6 +198,8 @@ export const aiko_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
         WEB_FETCH_TOOL_NAME,
         WEB_SEARCH_TOOL_NAME,
         'Skill',
+        'mcp__deepwiki__read_wiki_structure',
+        'mcp__deepwiki__ask_question',
       ]
     : [
         BASH_TOOL_NAME,
@@ -200,6 +209,8 @@ export const aiko_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
         WEB_FETCH_TOOL_NAME,
         WEB_SEARCH_TOOL_NAME,
         'Skill',
+        'mcp__deepwiki__read_wiki_structure',
+        'mcp__deepwiki__ask_question',
       ],
   source: 'built-in',
   baseDir: 'built-in',
