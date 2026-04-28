@@ -129,8 +129,8 @@ export function registerAikoHarness(): void {
   registerBundledSkill({
     name: 'auto',
     description:
-      'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents) that recursively spawns child harnesses on failure until verdict=promote.',
-    argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
+      'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents). Two modes: --mode restructure (default; OT/law — judge dimensions, recurse on blocking failures until verdict=promote) and --mode experiment (NT/grace — spawn divergent variants, keep what bears fruit, hand off to restructure when stuck).',
+    argumentHint: 'TASK [--mode restructure|experiment] [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
     async getPromptForCommand(args) {
       const tokens = tokenizeArgs(args)
@@ -194,9 +194,14 @@ function registerDesignTaste(): void {
       {
         type: 'callback',
         callback: async () => ({
+          systemMessage: 'aiko-code ◉ taste:on  harness:loaded (/auto, /cancel, /log, /steer)',
           hookSpecificOutput: {
             hookEventName: 'SessionStart',
-            additionalContext: buildDesignTasteContext(detectRegister()),
+            additionalContext:
+              `[aiko-code] design-taste guardrails active for this session. ` +
+              `Frontend/UI work auto-applies the laws below. For deep design tasks invoke ` +
+              `/taste, /audit, /critique, or /craft explicitly.\n\n` +
+              buildDesignTasteContext(detectRegister()),
           },
         }),
         internal: true,
@@ -205,6 +210,11 @@ function registerDesignTaste(): void {
     pluginName: 'aiko-code',
   }
   registerHookCallbacks({ SessionStart: [designMatcher] })
+  // Note: design-taste auto-invocation is NOT done via keyword regex on
+  // UserPromptSubmit. The harness playbook itself instructs the agent to
+  // judge whether the task touches UI and to invoke /taste, /audit,
+  // /critique, or /craft accordingly — agent-based detection, not
+  // heuristic.
 }
 
 // ---------------------------------------------------------------------------

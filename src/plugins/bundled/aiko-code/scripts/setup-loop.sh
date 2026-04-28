@@ -13,6 +13,7 @@ COMPLETION_PROMISE="SHIPPED"
 SESSION="default"
 NORTH_STAR=""
 STATE_DIR=".aiko"
+MODE="restructure"
 PLUGIN_ROOT="${aiko_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 while [[ $# -gt 0 ]]; do
@@ -26,6 +27,15 @@ USAGE:
 
 OPTIONS:
   --session NAME                 Session id (default: "default").
+  --mode restructure|experiment  Harness mode (default: restructure).
+                                  - restructure: judge dimensions, recurse on
+                                    blocking failures (Old Testament — law).
+                                  - experiment: spawn divergent variants, keep
+                                    what bears fruit, log the rest (New
+                                    Testament — grace). Modes can hand off:
+                                    experiment → restructure to consolidate;
+                                    restructure → experiment when stuck with
+                                    no clear repair.
   --north-star "<text>"          Optional steering directive.
   --completion-promise '<text>'  Phrase emitted as <promise>TEXT</promise>
                                  when fib-harness verdict=promote. Default: SHIPPED.
@@ -34,16 +44,23 @@ OPTIONS:
 
 EXAMPLES:
   /auto Build a markdown blog generator
+  /auto --mode experiment "Try three caching strategies for the API client"
   /auto --session refactor "Pull auth out of routes" --north-star "no behavior change"
 HELP_EOF
       exit 0;;
     --completion-promise) COMPLETION_PROMISE="$2"; shift 2;;
     --session)            SESSION="$2"; shift 2;;
+    --mode)               MODE="$2"; shift 2;;
     --north-star)         NORTH_STAR="$2"; shift 2;;
     --state-dir)          STATE_DIR="$2"; shift 2;;
     *) PROMPT_PARTS+=("$1"); shift;;
   esac
 done
+
+case "$MODE" in
+  restructure|experiment) ;;
+  *) echo "Error: --mode must be 'restructure' or 'experiment' (got: $MODE)" >&2; exit 1;;
+esac
 
 PROMPT="${PROMPT_PARTS[*]}"
 [[ -n "$PROMPT" ]] || { echo "Error: no task provided." >&2; exit 1; }
@@ -63,6 +80,7 @@ WS=$(printf '%s' "$WS_JSON" | python3 -c "import sys,json; print(json.load(sys.s
   printf 'session: "%s"\n' "$SESSION"
   printf 'workspace: "%s"\n' "$WS"
   printf 'completion_promise: "%s"\n' "$COMPLETION_PROMISE"
+  printf 'mode: "%s"\n' "$MODE"
   [[ -n "$NORTH_STAR" ]] && printf 'north_star: "%s"\n' "$NORTH_STAR"
   printf 'started_at: "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf -- '---\n\n'
@@ -86,11 +104,33 @@ Workspace:   $WS
 Session:     $SESSION   (state: $STATE_FILE)
 North star:  ${NORTH_STAR:-<unset — set via /steer>}
 Promise:     $COMPLETION_PROMISE  (emit only when verdict=promote)
+Mode:        $MODE  ($([ "$MODE" = "experiment" ] && echo "NT/grace — divergent variants, keep what bears fruit" || echo "OT/law — judge dimensions, recurse on failure"))
 
 ═══════════════════════════════════════════════════════════════════
 SELF-DRIVING PLAYBOOK — run this entire flow now, in one conversation.
 Do not stop between phases. Spawn subagents in parallel.
 ═══════════════════════════════════════════════════════════════════
+
+PHASE -1 — TASTE GATE (mandatory, before PHASE 0)
+Decide whether this task touches UI, frontend, design, visual output, or
+any user-facing surface. This is a judgement call — not a keyword match.
+Examples that qualify: building a page/component, restyling, redesigning a
+flow, choosing a layout, adding microcopy, picking colors/fonts, even
+auditing existing UI. Examples that do NOT qualify: pure backend logic,
+data pipelines, infra, CLI-only tools without TTY rendering.
+
+If the task qualifies, BEFORE writing dims.json, invoke ONE of:
+  /taste     — apply the senior UI/UX design laws to the work
+  /audit     — review existing UI against the laws (no code changes)
+  /critique  — second-opinion review (Nielsen + AI-slop heuristics)
+  /craft     — start from a hi-fi reference under the design laws
+Pick by intent verb: build/start -> /craft, review/inspect -> /audit,
+critique/feedback -> /critique, otherwise -> /taste. Treat the skill's
+output as a binding constraint when declaring dimensions in PHASE 0.
+
+If the task does NOT qualify, write a one-line note in $TEACHINGS_FILE:
+  "taste-gate: skipped — task is non-UI ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+and proceed directly to PHASE 0.
 
 PHASE 0 — DECLARE 6 DIMENSIONS
 Write a JSON file at $WS/state/dims.json with this shape:
@@ -167,11 +207,92 @@ RULES
   - If you hit max depth (3), record the unresolved scope and reject with
     a precise repair list.
   - Re-read the north star at the start of every level.
-
 Stop early:    /cancel --session $SESSION
 Read the log:  /log    --session $SESSION
 Re-aim:        /steer  --session $SESSION "<new north star>"
 
+Statusline:    add this to ~/.claude/settings.json to surface live harness state:
+  "statusLine": { "type": "command",
+                  "command": "$PLUGIN_ROOT/scripts/statusline.sh" }
+
 TASK:
 $PROMPT
 EOF
+
+if [[ "$MODE" == "experiment" ]]; then
+cat <<EOF
+
+═══════════════════════════════════════════════════════════════════
+EXPERIMENT MODE OVERRIDE — read AFTER the playbook above.
+The structure of the cycle stays identical (6 dimensions, fib fan-out,
+judge, recurse, verdict). The SEMANTICS of judging shift from law to
+grace. Apply these overrides on top of the base playbook.
+═══════════════════════════════════════════════════════════════════
+
+PHASE 0 (override) — DECLARE 6 DIMENSIONS AS VARIANT-SPACES
+Each dimension is no longer "what must be true" but "what could we try."
+In dims.json, set:
+  - "phase" stays the same (survey..integration)
+  - "success_criteria" expressed as a FRUIT TEST, not a pass/fail gate
+    (e.g. "produces working output under conditions X" not "function
+    returns true")
+  - add "variant_axis": "<what is varied across attempts>"
+    (e.g. "caching strategy", "prompt scaffold", "data layout")
+
+PHASE 1..6 (override) — FAN-OUT AS DIVERGENT VARIANTS
+Each subagent at level L builds ONE genuine variant of its dimension —
+distinct enough to be falsified by the others. Subagent artifact shape
+becomes:
+  {
+    "level": <L>, "agent_id": "L<L>-a<n>",
+    "dimension": "<dim name>",
+    "variant": "<one-line label of what this attempt did>",
+    "observation": "<what happened when it ran>",
+    "fruit": "kept | logged | killed",
+    "fruit_score": 0..1,
+    "why": "<reason for the fruit verdict>"
+  }
+Collect via the same \`fib-harness collect\` command; the harness does not
+distinguish — the fruit field rides in the artifact body.
+
+PHASE 7 (override) — DISCERN, DON'T CONDEMN
+Run \`fib-harness judge\` as usual to get the structural verdict, but
+INTERPRET it through grace:
+  - Variants with fruit=kept compose the keeper set.
+  - Variants with fruit=logged are recorded in $TEACHINGS_FILE for
+    later use, NOT condemned.
+  - Variants with fruit=killed are dropped silently.
+  - "Failure" only fires if NO dimension produced a kept variant.
+
+PHASE 8 (override) — GRAFT, DON'T REPAIR
+Instead of spawn-child on each blocking failure, GRAFT the keeper set:
+  - Compose the kept variants into a single integrated artifact
+    (the "fruit-bearing branch").
+  - If a dimension has no keeper, that is the only signal that demands
+    a child harness. When it does, spawn the child in RESTRUCTURE mode:
+       /auto --mode restructure --session ${SESSION}-graft "<missing dim>"
+    Restructure consolidates; experiment generates. They hand off here.
+
+PHASE 9 (override) — VERDICT THROUGH FRUIT
+  - verdict=promote -> the grafted whole bears fruit; emit
+    <promise>$COMPLETION_PROMISE</promise> and append the kept variants
+    + reasoning to $TEACHINGS_FILE.
+  - verdict=hold -> some dimensions need more variants; re-fan with
+    cycle++ on those dims only.
+  - verdict=reject -> no dimension produced a keeper. Hand off to
+    RESTRUCTURE mode for diagnosis (it asks "what law was violated").
+
+CROSS-MODE HANDOFFS
+  - experiment -> restructure: when a dimension has no keeper after
+    cycle 2, restructure judges the constraints to find what law is
+    blocking fruit.
+  - restructure -> experiment: when judge returns
+    needs_investigation with no clear repair_hint, the next /auto call
+    should switch to --mode experiment to try variants instead of
+    enforcing rules.
+
+The two modes are the same loop seen from two sides:
+  restructure prunes toward a known shape;
+  experiment grows toward an unknown one.
+EOF
+fi
