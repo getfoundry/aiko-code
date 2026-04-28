@@ -164,6 +164,30 @@ function getMcpInstructionsSection(
   return getMcpInstructions(mcpClients)
 }
 
+/**
+ * Static usage hints for built-in MCP servers shipped with the harness.
+ * Always present so the model knows when to reach for them, even before the
+ * MCP handshake completes (or if a server returns no instructions field).
+ */
+function getBuiltinMcpUsageSection(): string {
+  return `# Built-in MCP servers
+
+The harness ships with these MCP servers always available — use them proactively when relevant, you do not need to ask the user:
+
+## deepwiki (mcp__deepwiki__*)
+DeepWiki indexes public GitHub repositories and exposes them as searchable documentation. Reach for it when:
+- You're using or evaluating an open-source library and need authoritative behavior, API surface, or version-specific details that aren't in the local node_modules / source.
+- The user references a public repo by name (e.g. "vercel/next.js", "facebook/react") and you need context on how it works.
+- You're integrating against a third-party SDK, framework, or tool and want to ground your answer in its actual docs rather than recalled training data.
+
+Tools:
+- read_wiki_structure(repoName: "owner/repo") — list documentation topics for a public GitHub repo.
+- read_wiki_contents(repoName: "owner/repo") — fetch the full wiki content.
+- ask_question(repoName: "owner/repo", question) — ask a natural-language question; returns an AI-grounded answer with citations. Prefer this for specific behavioral or API questions.
+
+Only works for public GitHub repos. For private code, read the local files instead.`
+}
+
 export function prependBullets(items: Array<string | string[]>): string[] {
   return items.flatMap(item =>
     Array.isArray(item)
@@ -518,6 +542,7 @@ ${CYBER_RISK_INSTRUCTION}`,
           : getMcpInstructionsSection(mcpClients),
       'MCP servers connect/disconnect between turns',
     ),
+    systemPromptSection('builtin_mcp_usage', () => getBuiltinMcpUsageSection()),
     systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     systemPromptSection(`frc:${model}`, () => getFunctionResultClearingSection(model)),
     systemPromptSection(

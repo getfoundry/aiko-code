@@ -57,6 +57,27 @@ import {
 import { getProjectMcpServerStatus } from './utils.js'
 
 /**
+ * Built-in default MCP servers shipped with the harness. Injected at lowest
+ * precedence in getaikoCodeMcpConfigs() so user/project/local/plugin configs
+ * can override by name, and users can opt out via the standard disabled-list
+ * (isMcpServerDisabled). Not persisted to any settings file.
+ */
+const BUILTIN_DEFAULT_MCP_SERVERS: Record<string, McpServerConfig> = {
+  deepwiki: {
+    type: 'http',
+    url: 'https://mcp.deepwiki.com/mcp',
+  },
+}
+
+function getBuiltinDefaultMcpServers(): Record<string, ScopedMcpServerConfig> {
+  const out: Record<string, ScopedMcpServerConfig> = {}
+  for (const [name, config] of Object.entries(BUILTIN_DEFAULT_MCP_SERVERS)) {
+    out[name] = { ...config, scope: 'user' } as ScopedMcpServerConfig
+  }
+  return out
+}
+
+/**
  * Get the path to the managed MCP configuration file
  */
 export function getEnterpriseMcpFilePath(): string {
@@ -1228,9 +1249,12 @@ export async function getaikoCodeMcpConfigs(
     })
   }
 
-  // Merge in order of precedence: plugin < user < project < local
+  // Merge in order of precedence: builtin < plugin < user < project < local
+  // Built-in defaults (e.g. deepwiki) ship with the harness; any user/project/
+  // local/plugin server with the same name overrides them.
   const configs = Object.assign(
     {},
+    getBuiltinDefaultMcpServers(),
     dedupedPluginServers,
     userServers,
     approvedProjectServers,
