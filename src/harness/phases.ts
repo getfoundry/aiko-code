@@ -38,6 +38,8 @@ const AGENT_BROWSER_PROBE =
 const TASTE_SKILL_ROUTING =
   'Taste/UX skill routing: enumerate available Skills and invoke whichever match `taste|critique|design-review|ux|frontend-design|ui-ux` for the slice — common candidates installed at the user level: `/design-taste-frontend`, `/ui-ux-pro-max`, `/gpt-taste`, `/running-design-reviews`, `/frontend-design`, `/code-review`, `/stitch-design-taste`, `/minimalist-ui`. Pick by name match against the slice (frontend bug → `/frontend-design` or `/ui-ux-pro-max`; pure visual taste → `/design-taste-frontend` or `/gpt-taste`; structured review framing → `/running-design-reviews`). If no match exists, note `taste-skill:none-installed` in the report and rely on the agent-browser pass alone.'
 
+const HUMAN_PREVIEW =
+  'Human preview: detect the dev script from package.json (bun dev / pnpm dev / npm run dev), run it backgrounded, parse the URL it prints, write that URL to `.aiko/dev-url.local.txt`. On first launch this turn, also `open <url>` (macOS) / `xdg-open <url>` (linux) so the human watching can eyeball the running app while agent-browser probes it programmatically. Subsequent steps reuse the URL — do not re-spawn the dev server if the file already exists and the port responds.'
 export const PHASES: readonly HarnessPhase[] = [
   {
     step: 1,
@@ -125,7 +127,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which end-to-end flows must work? Which user journeys, deploy paths, lifecycle transitions?',
     apply:
-      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${TASTE_SKILL_ROUTING}`,
+      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${HUMAN_PREVIEW}\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 8,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -175,3 +177,63 @@ export const PHASES: readonly HarnessPhase[] = [
     requires: { deepwiki: true, agentBrowser: true },
   },
 ] as const
+
+export type HarnessModeName = 'quick' | 'standard' | 'deep'
+
+/**
+ * Steps included in each mode. `standard` is the canonical 1..9.
+ * `quick` runs survey → edges → ship for one-shot fixes (3 turns vs 9).
+ * `deep` runs the full 9 with multiplied fibBudgets on adversarial steps.
+ */
+const MODE_STEPS: Record<HarnessModeName, readonly number[]> = {
+  quick: [1, 5, 9],
+  standard: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  deep: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+}
+
+/**
+ * Compute the next step number for a session given the current step and the
+ * mode. Returns -1 to indicate the loop has reached the end and should close.
+ * The mode's step list is the source of truth for ordering; `currentStep === 0`
+ * means "before step 1", so we return the first step of the mode.
+ */
+export function nextStepForMode(
+  currentStep: number,
+  mode: HarnessModeName,
+): number {
+  const steps = MODE_STEPS[mode]
+  if (currentStep === 0) return steps[0] ?? -1
+  const idx = steps.indexOf(currentStep)
+  if (idx < 0) {
+    // Current step isn't in the mode list (shouldn't happen, but tolerate it
+    // by returning the first step >= currentStep, or -1 if none).
+    for (const s of steps) if (s > currentStep) return s
+    return -1
+  }
+  return steps[idx + 1] ?? -1
+}
+
+/** Index of the current step within the mode's list (1-based for display). */
+export function stepPositionInMode(
+  step: number,
+  mode: HarnessModeName,
+): { position: number; total: number } {
+  const steps = MODE_STEPS[mode]
+  const idx = steps.indexOf(step)
+  return { position: idx >= 0 ? idx + 1 : 0, total: steps.length }
+}
+
+/**
+ * Apply mode-specific fibBudget multipliers. `deep` mode escalates the
+ * adversarial steps (5 edges, 8 audit, 9 ship) by 1.5x rounded up. `quick`
+ * mode keeps fibBudgets as-is — already minimal. `standard` no-op.
+ */
+export function fibBudgetForMode(
+  step: number,
+  base: number,
+  mode: HarnessModeName,
+): number {
+  if (mode !== 'deep') return base
+  if (step === 5 || step === 8 || step === 9) return Math.ceil(base * 1.5)
+  return base
+}

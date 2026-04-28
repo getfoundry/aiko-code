@@ -20,6 +20,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+export type HarnessMode = 'quick' | 'standard' | 'deep'
+
 export type HarnessState = {
   active: boolean
   session: string
@@ -36,6 +38,13 @@ export type HarnessState = {
    * infinite degenerate loops where each turn is a no-op Write.
    */
   noOpCount: number
+  /**
+   * Phase-set selector. `quick` runs only steps 1, 5, 9 (survey → edges →
+   * ship) for one-shot fixes. `standard` runs the full 9. `deep` runs the
+   * full 9 with multiplied fibBudgets on steps 5, 8, 9. Defaults to standard
+   * when missing from the state file (backward compat).
+   */
+  mode: HarnessMode
 }
 
 const FRONTMATTER_DELIM = '---'
@@ -75,6 +84,9 @@ export function readState(path: string): HarnessState | null {
   const task = lines.slice(endIdx + 1).join('\n').replace(/^\n+/, '').replace(/\n+$/, '')
   const noOpRaw = fm.get('noop_count') ?? '0'
   const noOpCount = /^\d+$/.test(noOpRaw) ? Number.parseInt(noOpRaw, 10) : 0
+  const modeRaw = (fm.get('mode') ?? 'standard').toLowerCase()
+  const mode: HarnessMode =
+    modeRaw === 'quick' || modeRaw === 'deep' ? modeRaw : 'standard'
   return {
     active: (fm.get('active') ?? 'false').toLowerCase() === 'true',
     session: fm.get('session') ?? 'default',
@@ -85,6 +97,7 @@ export function readState(path: string): HarnessState | null {
     startedAt: fm.get('started_at') ?? new Date().toISOString(),
     task,
     noOpCount,
+    mode,
   }
 }
 
@@ -98,6 +111,7 @@ export function writeState(path: string, state: HarnessState): void {
   if (state.northStar) lines.push(`north_star: "${state.northStar}"`)
   lines.push(`started_at: "${state.startedAt}"`)
   lines.push(`noop_count: ${state.noOpCount}`)
+  lines.push(`mode: ${state.mode}`)
   lines.push(FRONTMATTER_DELIM)
   lines.push('')
   lines.push(state.task)

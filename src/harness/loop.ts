@@ -7,7 +7,12 @@ import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 import type { HarnessPhase } from './phases.js'
-import { PHASES } from './phases.js'
+import {
+  fibBudgetForMode,
+  nextStepForMode,
+  PHASES,
+  stepPositionInMode,
+} from './phases.js'
 import {
   type HarnessState,
   pickActiveSession,
@@ -74,20 +79,21 @@ export async function advanceHarness(
   if (state.harnessWs) {
     nextStep = state.step
     onHarness = true
-  } else if (state.step >= 9) {
-    // Step 9 already fired and no <promise> emitted. The model has exhausted
-    // the loop without shipping — close out cleanly instead of re-injecting
-    // step 9 forever. The user can /guide again to start fresh.
-    try {
-      unlinkSync(path)
-    } catch {
-      /* ignore */
-    }
-    return {
-      systemMessage: `◆ [${state.session}] step 9 reached without <promise>${state.completionPromise}</promise>. Loop closed. Run /guide again to restart.`,
-    }
   } else {
-    nextStep = state.step + 1
+    const advance = nextStepForMode(state.step, state.mode)
+    if (advance < 0) {
+      // No more steps in this mode's list; the loop has exhausted without
+      // emitting <promise>. Close out cleanly instead of re-injecting forever.
+      try {
+        unlinkSync(path)
+      } catch {
+        /* ignore */
+      }
+      return {
+        systemMessage: `◆ [${state.session}] mode=${state.mode} reached final step without <promise>${state.completionPromise}</promise>. Loop closed. Run /guide again to restart.`,
+      }
+    }
+    nextStep = advance
     onHarness = false
   }
 
@@ -356,10 +362,21 @@ function buildDirective({
     state.completionPromise,
   )
 
+  const effectiveBudget = onHarness
+    ? phase.fibBudget
+    : fibBudgetForMode(nextStep, phase.fibBudget, state.mode)
+
+  const { position: stepPos, total: stepTotal } = onHarness
+    ? { position: 0, total: 0 }
+    : stepPositionInMode(nextStep, state.mode)
+
+  const isFinalStep =
+    !onHarness && nextStepForMode(nextStep, state.mode) < 0
+
   const fanout =
-    phase.fibBudget <= 1
+    effectiveBudget <= 1
       ? 'Single-threaded. Do this work yourself in this turn.'
-      : `Spawn ${phase.fibBudget} sub-agents in parallel via the Agent tool — single assistant message with ${phase.fibBudget} tool_use blocks (use subagent_type: "general-purpose" for every block; only general-purpose has tools: ['*']). Each sub-agent owns one slice. Aggregate before stopping. Each sub-agent must independently RAG via DeepWiki for its slice; ${phase.requires.agentBrowser ? 'sub-agents touching UI/runtime must also capture agent-browser evidence (screenshot/console/network)' : 'sub-agents inherit DeepWiki requirement only'}.`
+      : `Spawn ${effectiveBudget} sub-agents in parallel via the Agent tool — single assistant message with ${effectiveBudget} tool_use blocks (use subagent_type: "general-purpose" for every block; only general-purpose has tools: ['*']). Each sub-agent owns one slice. Aggregate before stopping. Each sub-agent must independently RAG via DeepWiki for its slice; ${phase.requires.agentBrowser ? 'sub-agents touching UI/runtime must also capture agent-browser evidence (screenshot/console/network)' : 'sub-agents inherit DeepWiki requirement only'}.`
 
   const requiredTags: string[] = ['env:<runtime + full context>']
   if (phase.requires.deepwiki) requiredTags.push('dw:<owner/repo#topic>')
@@ -376,11 +393,11 @@ function buildDirective({
   out.push(
     'tool calls that complete this step, plus a teachings-line append to',
   )
-  out.push(`${teachingsPath}. Stay silent to the user until step 9 PROMOTE.`)
+  out.push(`${teachingsPath}. Stay silent to the user until the final step PROMOTE.`)
   out.push('</harness-directive>')
   out.push('')
   out.push(
-    `aiko-code [session: ${state.session}] — Step ${nextStep} of 9 (${phase.title})`,
+    `aiko-code [session: ${state.session}] — Step ${stepPos || nextStep} of ${stepTotal || 9} (${phase.title}) [mode: ${state.mode}]`,
   )
   out.push('')
   if (state.northStar) {
@@ -436,7 +453,7 @@ function buildDirective({
   out.push(`  3. Do the work: ${apply}`)
   out.push('')
   out.push(
-    `FIB PARALLELISM (step ${nextStep} of 9 → ${phase.fibBudget} worker${phase.fibBudget === 1 ? '' : 's'}):`,
+    `FIB PARALLELISM (step ${stepPos || nextStep} of ${stepTotal || 9} → ${effectiveBudget} worker${effectiveBudget === 1 ? '' : 's'}):`,
   )
   out.push(`  ${fanout}`)
   out.push('')
@@ -451,7 +468,7 @@ function buildDirective({
       `  /cancel --session ${state.session}  (or invoke break-harness.sh under the bundled plugin to spawn a fib-harness child scoped to the stuck sub-problem)`,
     )
   }
-  if (nextStep === 9 && !onHarness) {
+  if (isFinalStep) {
     out.push('')
     out.push('COMPLETION PROMISE:')
     out.push(
@@ -472,13 +489,15 @@ function buildSystemMessage(
   if (onHarness) {
     return `◆ [${state.session}] Step ${state.step} · fib-harness (${state.harnessWs})`
   }
-  if (nextStep === 9) {
-    return `◆ [${state.session}] Step 9/9 Ship · <promise>${state.completionPromise}</promise> when reachable`
+  const { position, total } = stepPositionInMode(nextStep, state.mode)
+  const isFinal = nextStepForMode(nextStep, state.mode) < 0
+  if (isFinal) {
+    return `◆ [${state.session}] Step ${position}/${total} Ship · <promise>${state.completionPromise}</promise> when reachable`
   }
-  if (nextStep === 8) return `◆ [${state.session}] Step 8/9 Audit · cold adversarial review`
-  if (nextStep === 7) return `◆ [${state.session}] Step 7/9 Verdict · promote / hold / reject`
+  if (nextStep === 8) return `◆ [${state.session}] Step ${position}/${total} Audit · cold adversarial review`
+  if (nextStep === 7) return `◆ [${state.session}] Step ${position}/${total} Verdict · promote / hold / reject`
   const phase = PHASES.find(p => p.step === nextStep)
-  return `◆ [${state.session}] Step ${nextStep}/9 · ${phase?.title ?? ''}`
+  return `◆ [${state.session}] Step ${position}/${total} · ${phase?.title ?? ''}`
 }
 
 /**
