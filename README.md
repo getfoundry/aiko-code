@@ -73,7 +73,7 @@ npm install -g .
 aiko-code
 
 # Run a task via the harness
-aiko-code /auto "refactor the auth module to use JWT"
+aiko-code /guide "refactor the auth module to use JWT"
 
 # Run in non-interactive mode
 aiko-code -c "list all files in src/services"
@@ -81,105 +81,135 @@ aiko-code -c "list all files in src/services"
 
 ## Harness Architecture
 
-The harness is a stateful loop registered as bundled skills at startup (`src/skills/bundled/aikoCodeHarness.ts`). The `/auto` command, `/stop` hook, and control commands (`/cancel`, `/log`, `/steer`) are all baked in — no plugin install needed.
+The 9-phase fractal harness is registered as a bundled skill at startup
+(`src/skills/bundled/aikoCodeHarness.ts`). The `/guide` command, the
+native Stop hook callback, and control commands (`/cancel`, `/log`,
+`/steer`) are all baked in — no plugin install needed.
 
-### How `/auto` Works
+### How `/guide` Works
 
-When you type `/auto "refactor auth"` the harness does this:
+When you type `/guide "refactor auth"` the harness does this:
 
-1. **`setup-loop.sh`** writes a YAML frontmatter state file to `.aiko/aiko-code.<session>.local.md` with the task, phase (`step: 1`), north star, completion promise, and a multi-line prompt explaining the 9 phases and the principles to follow.
-2. The agent sees the Phase 1 (Survey) prompt and starts working.
-3. The harness registers a **PreToolUse hook** on `AgentTool` at startup (`src/skills/bundled/aikoCodeHarness.ts`). Every time the agent calls a tool — read, write, bash, or especially AgentTool — the hook fires.
-4. **`stop-hook.sh`** detects the active session file, then calls **`loop.sh`** which:
-   - Reads the current step from the frontmatter
-   - Selects the next phase and picks a principle from `creation-teachings.json`
-   - Checks for `/steer` to rewrite the north star
-   - Generates a new prompt for that phase and injects it into the agent's context
-5. The agent continues with the new phase prompt, and the cycle repeats until `/cancel` or a `SHIPPED` completion promise.
+1. **`setupHarness`** (TS, `src/harness/setup.ts`) writes a YAML
+   frontmatter state file to `.aiko/aiko-code.<session>.local.md` with the
+   task, `step: 0`, `noop_count: 0`, north star, completion promise, and a
+   teachings-log file beside it.
+2. The agent's first turn produces nothing yet — the **Stop hook** fires
+   at end-of-turn and `advanceHarness` (`src/harness/loop.ts`) injects
+   Phase 1's directive (principle / tactical / problem-map / apply work)
+   as the resume prompt.
+3. The agent works the phase, then **must append a teachings line** of the
+   form `- [step N <title>] <one-line lesson>` to the teachings log.
+4. Next turn ends → Stop hook fires → `advanceHarness`:
+   - Reads the current step from frontmatter
+   - **Validates work-product**: scans the teachings file for
+     `[step N ` marker. If absent, increments `noop_count`, re-injects
+     the same step's directive with a `<no-op-warning>` block, and bails
+     after 3 consecutive no-ops with a session-close message.
+   - Otherwise advances to step N+1 and injects that phase's directive.
+5. Cycle repeats until step 9 emits `<promise>{phrase}</promise>` (loop
+   closes cleanly) or `/cancel`.
 
-The harness is session-scoped — you can run `/auto "task A" --session a` and `/auto "task B" --session b` concurrently. `stop-hook.sh` picks the most-recently-modified state file each turn.
+The harness is session-scoped — `/guide "task A" --session a` and
+`/guide "task B" --session b` run concurrently. The Stop hook picks the
+most-recently-modified state file each turn.
 
-### Main Loop (loop.sh)
+### Phases & Fibonacci Parallelism
 
-Runs 9 phases from a single state file (`.aiko/aiko-code.<session>.local.md`):
+Each phase ships a principle, tactical hint, problem-map prompt, and the
+concrete `apply` work text. The directive injected each turn instructs
+the agent to fan out to N parallel sub-agents per the Fibonacci budget —
+**1, 1, 2, 3, 5, 8, 1, 13, 21** across the 9 steps:
 
-| Phase | Focus | When it runs |
-|-------|-------|--------------|
-| 1. Survey | Inventory what exists before building | First pass |
-| 2. Boundaries | Design separations — layers, modules, contracts | First pass |
-| 3. Skeleton | Minimal runnable seed / stub | First pass |
-| 4. Signals | Falsifiable checks — tests, types, assertions | First pass |
-| 5. Edges | Adversarial behavior — edge cases, concurrency | First pass |
-| 6. Integration | End-to-end exercise across the seams | First pass |
-| 7. Verdict | Single-threaded PROMOTE / HOLD / REJECT | After phases 1–6 |
-| 8. Audit | Cold re-read of the record without builder bias | After PROMOTE |
-| 9. Ship | Deliver the artifact — commit, document, hand off | After Audit |
+| Phase | Focus | Parallel sub-agents |
+|-------|-------|---------------------|
+| 1. Survey | Inventory what exists before building | 1 |
+| 2. Boundaries | Layers, modules, contracts | 1 |
+| 3. Skeleton | Minimal runnable seed / stub | 2 |
+| 4. Signals | Tests, types, metrics | 3 |
+| 5. Edges | Empty / malformed / concurrent / partial-failure / hostile | 5 |
+| 6. Integration | Cold-start / warm / upgrade / rollback / multi-tenant / idle / peak / recovery | 8 |
+| 7. Verdict | Single-threaded PROMOTE / HOLD / REJECT | 1 |
+| 8. Audit | Cold review across 13 slices (api / data / errors / perf / security / observ / docs / types / tests / deps / build / deploy / rollback) | 13 |
+| 9. Ship | Publish fan-out (commit / tag / changelog / docs / hand-off / monitoring / on-call / rollback plan / etc.) | up to 21 |
 
-The loop fires on every tool call via the PreToolUse hook (not just Stop). It reads the current step from the frontmatter, advances to the next phase, picks a principle from `creation-teachings.json`, and generates a new prompt. A parallelism budget (1, 1, 2, 3, 5, 8, 1, 13, 21) is communicated to the agent for that phase — it's a suggestion, not an enforcement. Phase 7 (Verdict) is always single-threaded.
+Sub-agents run via the `Agent` tool — single assistant message with N
+`tool_use` blocks. The harness directive instructs this; the model
+complies.
+
+### Work-Product Validation
+
+`advanceHarness` won't let the model walk through the phases without
+producing actual artifacts. Each step's directive instructs the agent to
+append a teachings line. If the line is missing on the next firing, the
+harness re-injects the same step instead of advancing. After 3
+consecutive no-ops the session closes with a clear message — no more
+infinite-loop-on-empty-Write degenerate paths.
 
 ### Nested Harness (fib-harness)
 
-When a step can't close in one pass, `/fib-harness` (or `break-harness.sh --step N --scope "..."`) spawns a child verification harness in `/tmp/`. This is where the fractal behavior comes from:
+When a step can't close in one pass, `break-harness.sh` (under the
+bundled plugin tree) sets `harness_ws` in the state file. `advanceHarness`
+detects this and switches mode: the next directive becomes a **child
+harness scoped to the stuck sub-problem**, which runs its own full
+9-phase cycle to verdict=promote. Then `harness_ws` clears and the
+parent resumes from where it left off. True fractal recursion — a
+verification loop inside another verification loop.
 
-- The child harness registers **6 dimensions** (genesis days) scoped to the stuck problem. Each dimension declares a primitive — code execution, skill invocation, or both.
-- It runs a 20-agent investigation cycle (1 + 1 + 2 + 3 + 5 + 8 agents across 6 levels), collecting hypothesis artifacts.
-- **Judge** evaluates all hypotheses. If there are failures, it checks whether it can spawn children (max depth 5).
-- **spawn-child** creates another full harness at depth + 1, scoped to the specific failure. The child runs its own 20-agent cycle independently.
-- **link-child** connects the child's verdict back to the parent. The parent waits for all children to resolve before rendering its own verdict.
-- The parent harness advances to the next main-loop step only when its verdict is **PROMOTE** (all children pass).
+### Routing from the Guide Agent
 
-This nested structure means the harness can recursively drill down into a stuck problem — a verification loop inside another verification loop — up to 5 levels deep.
+The `aiko-code-guide` subagent (`src/tools/AgentTool/built-in/aikoCodeGuideAgent.ts`)
+is the entry point for "Can aiko-code...", "How do I...", and bug-shaped
+questions. It classifies trivial vs non-trivial:
+
+- **Trivial** (single-fact lookup, doc question): answers directly with
+  doc URL or DeepWiki citation.
+- **Non-trivial** (bug, multi-file change, "isn't working"): invokes
+  `/guide` via the `Skill` tool with a task statement that **embeds tool
+  routing for the relevant phases** — DeepWiki at survey/audit,
+  agent-browser at edges/integration, aiko SDK debug-replay at
+  signals/verdict. The harness phases.ts is domain-agnostic; the routing
+  rides on the appended `task` string.
+
+The guide-agent prompt also ships **tool playbooks** the agent reads
+before deciding — concrete how-tos for DeepWiki (`read_wiki_structure`
+vs `ask_question`, common target repos), agent-browser (CDP setup for
+web vs Electron, capture table for screenshots/console/network/eval/
+click/dom/perf-trace, common gotchas like service-worker cache), and
+aiko SDK debug replay (`ANTHROPIC_LOG=debug` runner, `usage.cache_*`,
+`messages.countTokens`, raw SSE dump, tool-use loop counting).
 
 ### Session Management
 
-Multiple sessions can run concurrently. Each has its own state file and teachings log. The Stop hook automatically picks the most-recently-modified session.
-
-### SubagentStop Hook
-
-The harness also responds to `SubagentStop` events. When a spawned sub-agent completes, the hook fires with the subagent's context — allowing the loop to react to agent completions, not just Stop/halt events.
+Multiple sessions can run concurrently. Each has its own state file and
+teachings log. The Stop hook picks the most-recently-modified session.
 
 ### State Files
 
 | File | Purpose |
 |------|---------|
-| `.aiko/aiko-code.<session>.local.md` | Loop state — current step, north star, completion promise, harness_ws |
-| `.aiko/aiko-code.<session>.teachings.local.md` | Phase-by-phase lessons learned |
+| `.aiko/aiko-code.<session>.local.md` | Loop state — `step`, `noop_count`, `north_star`, `completion_promise`, `harness_ws` |
+| `.aiko/aiko-code.<session>.teachings.local.md` | Phase-by-phase lessons learned (work-product gate) |
 
 ## Harness Commands
 
 | Command | Description |
 |---------|-------------|
-| `/auto "task"` | Start the fractal harness. Defaults to `--mode restructure`. |
-| `/auto --mode experiment "task"` | Run in experiment mode — divergent variants, keep what bears fruit. |
-| `/stop` | Advance to next phase |
-| `/cancel` | Abort current session |
-| `/log` | Read session teachings |
-| `/steer "direction"` | Re-aim mid-flight |
-| `/fib-harness` | Repair a stuck step — spawns a nested fib-harness cycle |
-| `/taste` `/audit` `/critique` `/craft` | Senior UI/UX design skills auto-invoked by the Taste Gate when the task touches UI |
-
-### Harness Modes
-
-The harness has two complementary modes that work hand-in-hand:
-
-- **`restructure`** (default, OT/law) — judges dimensions against success criteria, recurses into a child harness on each blocking failure until verdict=promote. Best for cleanup, alignment, "make this match the spec."
-- **`experiment`** (NT/grace) — fans out divergent variants per dimension, keeps the ones that bear fruit, logs the rest without condemnation. Best for exploration, "try several things and see what works."
-
-The two hand off: experiment → restructure to consolidate when a dimension has no keeper; restructure → experiment when judge returns `needs_investigation` with no clear repair direction.
-
-### Taste Gate (PHASE -1)
-
-Before every harness run, the agent decides whether the task touches UI/frontend/design (judgement, not regex). If it does, the harness invokes the appropriate taste-family skill — `/craft` for new UI, `/audit` for review, `/critique` for second-opinion, `/taste` otherwise — and treats its output as a binding constraint when declaring dimensions.
+| `/guide "task" [--session NAME] [--north-star "<text>"]` | Start the 9-phase fractal harness |
+| `/cancel [--session NAME \| --all]` | Abort a session (or all) |
+| `/log [--session NAME \| --all]` | Read session teachings |
+| `/steer [--session NAME] "direction"` | Re-aim the north star mid-flight |
 
 ### Visibility
 
 - **TUI banner** — SessionStart emits `aiko-code ◉ taste:on  harness:loaded` plus a one-line confirmation in conversation context.
-- **Statusline** — drop into `~/.claude/settings.json` to see active sessions and mode (`✶` experiment, `△` restructure):
+- **Statusline** — drop into `~/.aiko/settings.json` to see active sessions and mode:
   ```json
   "statusLine": { "type": "command",
                   "command": "<plugin-root>/scripts/statusline.sh" }
   ```
-  The exact path is printed when you run `/auto`.
+  The exact path is printed when you run `/guide`.
+
 ## Configuration
 
 All configuration lives in `~/.aiko/settings.json`. Key settings:
