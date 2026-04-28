@@ -23,19 +23,23 @@ while [[ $# -gt 0 ]]; do
 aiko-code — fractal subagent harness.
 
 USAGE:
-  /auto [TASK...] [OPTIONS]
+  /guide [TASK...] [OPTIONS]
 
 OPTIONS:
-  --session NAME                 Session id (default: "default").
-  --mode restructure|experiment  Harness mode (default: restructure).
-                                  - restructure: judge dimensions, recurse on
-                                    blocking failures (Old Testament — law).
-                                  - experiment: spawn divergent variants, keep
-                                    what bears fruit, log the rest (New
-                                    Testament — grace). Modes can hand off:
-                                    experiment → restructure to consolidate;
-                                    restructure → experiment when stuck with
-                                    no clear repair.
+  --session NAME                       Session id (default: "default").
+  --mode restructure|experiment|break  Harness mode (default: restructure).
+                                   - restructure: judge dimensions, recurse on
+                                     blocking failures (Old Testament — law).
+                                   - experiment: spawn divergent variants, keep
+                                     what bears fruit, log the rest (New
+                                     Testament — grace). Modes can hand off:
+                                     experiment → restructure to consolidate;
+                                     restructure → experiment when stuck with
+                                     no clear repair.
+                                   - break: sabbath. Stop driving. Remind the
+                                     user to step away, breathe, and enjoy
+                                     what they have already shipped. No fan-out,
+                                     no judging, no next phase.
   --north-star "<text>"          Optional steering directive.
   --completion-promise '<text>'  Phrase emitted as <promise>TEXT</promise>
                                  when fib-harness verdict=promote. Default: SHIPPED.
@@ -43,9 +47,10 @@ OPTIONS:
   -h, --help                     Show this help.
 
 EXAMPLES:
-  /auto Build a markdown blog generator
-  /auto --mode experiment "Try three caching strategies for the API client"
-  /auto --session refactor "Pull auth out of routes" --north-star "no behavior change"
+  /guide Build a markdown blog generator
+  /guide --mode experiment "Try three caching strategies for the API client"
+  /guide --mode break
+  /guide --session refactor "Pull auth out of routes" --north-star "no behavior change"
 HELP_EOF
       exit 0;;
     --completion-promise) COMPLETION_PROMISE="$2"; shift 2;;
@@ -58,12 +63,47 @@ HELP_EOF
 done
 
 case "$MODE" in
-  restructure|experiment) ;;
-  *) echo "Error: --mode must be 'restructure' or 'experiment' (got: $MODE)" >&2; exit 1;;
+  restructure|experiment|break) ;;
+  *) echo "Error: --mode must be 'restructure', 'experiment', or 'break' (got: $MODE)" >&2; exit 1;;
 esac
 
 PROMPT="${PROMPT_PARTS[*]}"
-[[ -n "$PROMPT" ]] || { echo "Error: no task provided." >&2; exit 1; }
+if [[ "$MODE" != "break" ]]; then
+  [[ -n "$PROMPT" ]] || { echo "Error: no task provided." >&2; exit 1; }
+fi
+
+if [[ "$MODE" == "break" ]]; then
+  cat <<BREAK_EOF
+aiko-code [session: $SESSION] — sabbath mode.
+
+═══════════════════════════════════════════════════════════════════
+TAKE A BREAK
+═══════════════════════════════════════════════════════════════════
+
+The loop is paused. No fan-out, no judging, no next phase.
+
+You have been building. The work will still be here when you come
+back. Right now, the most useful thing you can do is step away from
+the screen — even for ten minutes. Make tea. Stretch. Look at
+something further than your monitor. Notice that you have shipped
+real things this session.
+
+Self-driving instructions for the agent:
+  - Do NOT spawn subagents.
+  - Do NOT continue any prior /guide loop.
+  - Reply once, briefly, in a warm tone. Remind the user of one or
+    two concrete things they have already built or fixed in this
+    session (read $TEACHINGS_FILE if it exists for material).
+  - Suggest a single small restful action (walk, water, window,
+    breath) — pick one, do not list a menu.
+  - End with: "I'll be here when you're back. Enjoy it."
+  - Then stop. Do not propose next steps. Do not ask follow-ups.
+
+Resume work later with:  /guide "<your task>"
+BREAK_EOF
+  exit 0
+fi
+
 
 mkdir -p "$STATE_DIR"
 STATE_FILE="$STATE_DIR/aiko-code.$SESSION.local.md"
@@ -270,7 +310,7 @@ Instead of spawn-child on each blocking failure, GRAFT the keeper set:
     (the "fruit-bearing branch").
   - If a dimension has no keeper, that is the only signal that demands
     a child harness. When it does, spawn the child in RESTRUCTURE mode:
-       /auto --mode restructure --session ${SESSION}-graft "<missing dim>"
+       /guide --mode restructure --session ${SESSION}-graft "<missing dim>"
     Restructure consolidates; experiment generates. They hand off here.
 
 PHASE 9 (override) — VERDICT THROUGH FRUIT
@@ -287,7 +327,7 @@ CROSS-MODE HANDOFFS
     cycle 2, restructure judges the constraints to find what law is
     blocking fruit.
   - restructure -> experiment: when judge returns
-    needs_investigation with no clear repair_hint, the next /auto call
+    needs_investigation with no clear repair_hint, the next /guide call
     should switch to --mode experiment to try variants instead of
     enforcing rules.
 

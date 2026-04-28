@@ -23,7 +23,7 @@ Run these two commands inside aiko Code:
 
 Then enable it from /plugin if needed. Start a loop with:
 
-  /auto "your task here"
+  /guide "your task here"
 
 Other commands: /cancel, /log, /steer "<new north star>"
 

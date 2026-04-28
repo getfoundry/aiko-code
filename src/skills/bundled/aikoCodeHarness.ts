@@ -4,7 +4,7 @@
  * This bakes the 9-phase fractal development loop directly into the runtime,
  * not via the plugin system. At startup we:
  *   1. Resolve the bundled aiko-code plugin folder (ships under dist/plugins/aiko-code/).
- *   2. Register five slash commands (/auto, /loop, /cancel, /log, /steer) as bundled
+ *   2. Register five slash commands (/guide, /loop, /cancel, /log, /steer) as bundled
  *      skills whose getPromptForCommand execs the corresponding bash script.
  *   3. Register the Stop hook directly via registerHookCallbacks so the loop
  *      auto-fires on every Stop without any /plugin install or toggle.
@@ -74,7 +74,7 @@ async function runScript(
 
 function tokenizeArgs(input: string): string[] {
   // Minimal POSIX-like split that respects single/double quotes. Good enough
-  // for /auto "build a thing" --session foo style invocations.
+  // for /guide "build a thing" --session foo style invocations.
   const out: string[] = []
   let buf = ''
   let quote: '"' | "'" | null = null
@@ -125,12 +125,12 @@ export function registerAikoHarness(): void {
     pluginId: 'aiko-code@native',
   }
   registerHookCallbacks({ Stop: [stopMatcher] })
-  // /auto — fractal subagent harness entry point.
+  // /guide — fractal subagent harness entry point.
   registerBundledSkill({
-    name: 'auto',
+    name: 'guide',
     description:
-      'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents). Two modes: --mode restructure (default; OT/law — judge dimensions, recurse on blocking failures until verdict=promote) and --mode experiment (NT/grace — spawn divergent variants, keep what bears fruit, hand off to restructure when stuck).',
-    argumentHint: 'TASK [--mode restructure|experiment] [--session NAME] [--north-star "<text>"]',
+      'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents). Three modes: --mode restructure (default; OT/law — judge dimensions, recurse on blocking failures until verdict=promote), --mode experiment (NT/grace — spawn divergent variants, keep what bears fruit, hand off to restructure when stuck), and --mode break (sabbath — pause the loop, remind you to step away from the screen and enjoy what you have already built).',
+    argumentHint: 'TASK [--mode restructure|experiment|break] [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
     async getPromptForCommand(args) {
       const tokens = tokenizeArgs(args)
@@ -194,7 +194,7 @@ function registerDesignTaste(): void {
       {
         type: 'callback',
         callback: async () => ({
-          systemMessage: 'aiko-code ◉ taste:on  harness:loaded (/auto, /cancel, /log, /steer)',
+          systemMessage: 'aiko-code ◉ taste:on  harness:loaded (/guide, /cancel, /log, /steer)',
           hookSpecificOutput: {
             hookEventName: 'SessionStart',
             additionalContext:

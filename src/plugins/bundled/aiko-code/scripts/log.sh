@@ -12,7 +12,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ -z "$STATE_DIR" ]] && for d in .aiko .codex .opencode; do [[ -d "$d" ]] && STATE_DIR="$d" && break; done
-[[ -n "$STATE_DIR" ]] || { echo "No teachings yet. Start with /auto."; exit 0; }
+[[ -n "$STATE_DIR" ]] || { echo "No teachings yet. Start with /guide."; exit 0; }
 
 shopt -s nullglob
 if [[ "$ALL" == "1" ]]; then
@@ -29,5 +29,5 @@ for f in "${files[@]}"; do
   echo
   n=$((n+1))
 done
-if [[ "$n" == "0" ]]; then echo "No teachings yet for this session. Start with /auto."; fi
+if [[ "$n" == "0" ]]; then echo "No teachings yet for this session. Start with /guide."; fi
 exit 0
