@@ -74,8 +74,20 @@ export async function advanceHarness(
   if (state.harnessWs) {
     nextStep = state.step
     onHarness = true
+  } else if (state.step >= 9) {
+    // Step 9 already fired and no <promise> emitted. The model has exhausted
+    // the loop without shipping — close out cleanly instead of re-injecting
+    // step 9 forever. The user can /guide again to start fresh.
+    try {
+      unlinkSync(path)
+    } catch {
+      /* ignore */
+    }
+    return {
+      systemMessage: `◆ [${state.session}] step 9 reached without <promise>${state.completionPromise}</promise>. Loop closed. Run /guide again to restart.`,
+    }
   } else {
-    nextStep = Math.min(state.step + 1, 9)
+    nextStep = state.step + 1
     onHarness = false
   }
 
