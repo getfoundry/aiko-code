@@ -17,18 +17,22 @@ set -euo pipefail
 
 STEP=""
 SCOPE=""
+SESSION="default"
 PLUGIN_ROOT="${aiko_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-STATE=".aiko/aiko-code.local.md"
+STATE_DIR=".aiko"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --step)  STEP="$2"; shift 2;;
-    --scope) SCOPE="$2"; shift 2;;
+    --step)    STEP="$2"; shift 2;;
+    --scope)   SCOPE="$2"; shift 2;;
+    --session) SESSION="$2"; shift 2;;
+    --state-dir) STATE_DIR="$2"; shift 2;;
     -h|--help) sed -n '3,18p' "$0"; exit 0;;
     *) echo "unknown arg: $1" >&2; exit 1;;
   esac
 done
 
+STATE="$STATE_DIR/aiko-code.$SESSION.local.md"
 [[ -n "$STEP" && -n "$SCOPE" ]] || { echo "need --step and --scope" >&2; exit 1; }
 [[ -f "$STATE" ]] || { echo "no active loop ($STATE)" >&2; exit 1; }
 

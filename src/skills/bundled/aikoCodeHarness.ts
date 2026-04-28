@@ -125,42 +125,31 @@ export function registerAikoHarness(): void {
     pluginId: 'aiko-code@native',
   }
   registerHookCallbacks({ Stop: [stopMatcher] })
-
-  // /auto — friendly entry point for the fractal harness
+  // /auto — fractal subagent harness entry point.
   registerBundledSkill({
     name: 'auto',
     description:
-      'Start the 9-phase fractal dev loop — surveys, builds, ships incrementally with parallelism and subagent verification.',
+      'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents) that recursively spawns child harnesses on failure until verdict=promote.',
     argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
     async getPromptForCommand(args) {
       const tokens = tokenizeArgs(args)
       const text = await runScript(root, 'scripts/setup-loop.sh', tokens)
-      return [
-        {
-          type: 'text',
-          text: `Auto mode activated — the 9-phase fractal development loop is now running.\n\n${text}\n\nEach Stop advances the loop one phase. Use /cancel to stop, /log to read the teachings, /steer to re-aim.`,
-        },
-      ]
+      return [{ type: 'text', text }]
     },
   })
 
-  // /loop is an alias for /auto — same harness, same behavior.
+  // /loop — alias for /auto.
   registerBundledSkill({
     name: 'loop',
     description:
-      'Start the Aiko Code 9-phase fractal development loop on a task. Stop hook auto-fires each phase. (Alias for /auto.)',
+      'Alias for /auto. Launch the fractal subagent harness on a task.',
     argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
     async getPromptForCommand(args) {
       const tokens = tokenizeArgs(args)
       const text = await runScript(root, 'scripts/setup-loop.sh', tokens)
-      return [
-        {
-          type: 'text',
-          text: `${text}\n\nThe Stop hook will now fire each phase. Reply normally; phase 1 (Survey) prompt will arrive on next Stop.`,
-        },
-      ]
+      return [{ type: 'text', text }]
     },
   })
 

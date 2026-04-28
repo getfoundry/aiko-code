@@ -63,7 +63,7 @@ print(json.dumps(scan, indent=2))
   ;;
 
 # ── dimensions ────────────────────────────────────────────────────
-# Register the 6 Genesis-day dimensions for this workspace.
+# Register the 6 phase dimensions for this workspace.
 # Domain-general: each dimension declares primitive_type (code|skill|hybrid)
 # and the concrete primitive that executes it.
 dimensions)
@@ -86,7 +86,7 @@ if 'dimensions' not in d or len(d['dimensions']) != 6:
 domain = d.get('domain', 'unspecified')
 problem = d.get('problem', '')
 
-always = ['name','genesis_day','question','primitive_type','primitive_name','success_criteria']
+always = ['name','phase','question','primitive_type','primitive_name','success_criteria']
 allowed = ('code','skill','hybrid')
 for i, dim in enumerate(d['dimensions']):
     miss = [f for f in always if f not in dim or not dim[f]]
@@ -109,7 +109,7 @@ s['domain'] = domain
 s['problem'] = problem
 with open('$ws/state/harness.json','w') as f: json.dump(s, f, indent=2)
 print(json.dumps({'ok':True,'domain':domain,'dimensions':6,
-    'primitives':[{'L':i+1,'day':x['genesis_day'],'name':x['name'],
+    'primitives':[{'L':i+1,'day':x['phase'],'name':x['name'],
         'type':x['primitive_type'],'primitive':x['primitive_name']}
         for i,x in enumerate(d['dimensions'])]}, indent=2))
 "
@@ -128,11 +128,11 @@ if not os.path.exists(dp):
     raise SystemExit(1)
 with open(dp) as f: d = json.load(f)
 fib = [1,1,2,3,5,8]
-days = ['light','firmament','land','luminaries','creatures','dominion']
+days = ['survey','boundaries','skeleton','signals','edges','integration']
 plan = {'workspace':'$ws','domain':s.get('domain','unspecified'),
     'problem':s.get('problem',''),'total_agents':sum(fib),'levels':[]}
 for i, dim in enumerate(d['dimensions']):
-    plan['levels'].append({'level':i+1,'genesis_day':days[i],'agents':fib[i],
+    plan['levels'].append({'level':i+1,'phase':days[i],'agents':fib[i],
         'dimension':dim['name'],'question':dim['question'],
         'primitive_type':dim['primitive_type'],'primitive_name':dim['primitive_name'],
         'commands':dim.get('commands'),'skill_invocation':dim.get('skill_invocation'),
@@ -156,11 +156,10 @@ Known domains (see SKILL.md for 6-day templates per domain):
   product       PRD, roadmap, user research
   ml            data, checkpoints, eval, deploy
   growth        funnel, activation, retention
-  pastoral      facts, scripture, body, next-step (daylight only)
 
 Declare a new domain in your dimensions JSON:
   { "domain": "<name>", "problem": "<one-liner>",
-    "dimensions": [ 6 objects with: name, genesis_day, question,
+    "dimensions": [ 6 objects with: name, phase, question,
       primitive_type (code|skill|hybrid), primitive_name,
       success_criteria, plus commands/files for code or
       skill_invocation for skill, or both for hybrid ] }
@@ -213,7 +212,7 @@ import json, os, glob
 
 level = int('$level')
 fib = [1,1,2,3,5,8]
-days = ['light','firmament','land','luminaries','creatures','dominion']
+days = ['survey','boundaries','skeleton','signals','edges','integration']
 expected = fib[level-1]
 day = days[level-1]
 
@@ -223,7 +222,7 @@ d = f'$ws/repair/cycle{cycle}/L{level}' if cycle > 1 else f'$ws/artifacts/L{leve
 
 actual = len(glob.glob(f'{d}/*.json')) if os.path.isdir(d) else 0
 if actual != expected:
-    print(json.dumps({'level':level,'genesis_day':day,'expected':expected,'actual':actual,'status':'INCOMPLETE'},indent=2))
+    print(json.dumps({'level':level,'phase':day,'expected':expected,'actual':actual,'status':'INCOMPLETE'},indent=2))
     import sys; sys.exit(1)
 
 total=passed=failed=unknown=0
@@ -241,7 +240,7 @@ state['current_level'] = level
 state['status'] = f'level_{level}_complete'
 with open('$ws/state/harness.json','w') as f: json.dump(state, f, indent=2)
 
-print(json.dumps({'level':level,'genesis_day':day,'expected':expected,'actual':actual,'status':'COMPLETE',
+print(json.dumps({'level':level,'phase':day,'expected':expected,'actual':actual,'status':'COMPLETE',
     'hypotheses':{'total':total,'passed':passed,'failed':failed,'unknown':unknown}},indent=2))
 "
   ;;
@@ -518,7 +517,7 @@ COMMANDS:
   tree <ws>                                  Show full fractal tree
 
 DIMENSION SCHEMA (per entry inside dimensions[]):
-  name, genesis_day (light|firmament|land|luminaries|creatures|dominion),
+  name, phase (survey|boundaries|skeleton|signals|edges|integration),
   question, primitive_type (code|skill|hybrid), primitive_name,
   success_criteria, and:
     code   -> commands and/or files
