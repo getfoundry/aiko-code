@@ -29,6 +29,13 @@ export type HarnessState = {
   northStar: string | null
   startedAt: string
   task: string
+  /**
+   * Consecutive turns where the model failed to produce the required
+   * work-product (a teachings-line for the current step). Reset to 0 on
+   * successful step completion. Escalates to session close at 3 to prevent
+   * infinite degenerate loops where each turn is a no-op Write.
+   */
+  noOpCount: number
 }
 
 const FRONTMATTER_DELIM = '---'
@@ -66,6 +73,8 @@ export function readState(path: string): HarnessState | null {
   const step = /^\d+$/.test(stepRaw) ? Number.parseInt(stepRaw, 10) : NaN
   if (Number.isNaN(step)) return null
   const task = lines.slice(endIdx + 1).join('\n').replace(/^\n+/, '').replace(/\n+$/, '')
+  const noOpRaw = fm.get('noop_count') ?? '0'
+  const noOpCount = /^\d+$/.test(noOpRaw) ? Number.parseInt(noOpRaw, 10) : 0
   return {
     active: (fm.get('active') ?? 'false').toLowerCase() === 'true',
     session: fm.get('session') ?? 'default',
@@ -75,6 +84,7 @@ export function readState(path: string): HarnessState | null {
     northStar: nonEmpty(fm.get('north_star')),
     startedAt: fm.get('started_at') ?? new Date().toISOString(),
     task,
+    noOpCount,
   }
 }
 
@@ -87,6 +97,7 @@ export function writeState(path: string, state: HarnessState): void {
   lines.push(`completion_promise: "${state.completionPromise}"`)
   if (state.northStar) lines.push(`north_star: "${state.northStar}"`)
   lines.push(`started_at: "${state.startedAt}"`)
+  lines.push(`noop_count: ${state.noOpCount}`)
   lines.push(FRONTMATTER_DELIM)
   lines.push('')
   lines.push(state.task)

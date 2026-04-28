@@ -92,6 +92,55 @@ export async function advanceHarness(
   }
 
   const teachingsPath = teachingsFilePath(stateDir, state.session)
+
+  // Work-product validation: the previous step's directive instructed the
+  // model to append a line of the form `[step N / <title>] <lesson>` to the
+  // teachings file. If state.step >= 1 and that line is absent, the model
+  // produced no work-product on its last turn — re-inject the same step
+  // directive instead of advancing. Escalates to session close after 3
+  // consecutive no-ops to prevent the degenerate loop where every turn is a
+  // 1-byte Write and "Step N done" claim.
+  if (!onHarness && state.step >= 1) {
+    const teachingsContent = existsSync(teachingsPath)
+      ? readFileSync(teachingsPath, 'utf8')
+      : ''
+    const stepMarker = `[step ${state.step} `
+    const teachingsHasStep = teachingsContent.includes(stepMarker)
+    if (!teachingsHasStep) {
+      const newCount = (state.noOpCount ?? 0) + 1
+      if (newCount >= 3) {
+        try {
+          unlinkSync(path)
+        } catch {
+          /* ignore */
+        }
+        return {
+          systemMessage: `◆ [${state.session}] step ${state.step} produced no work-product across ${newCount} turns. Loop closed. Run /guide again with a clearer task or smaller scope.`,
+        }
+      }
+      writeState(path, { ...state, noOpCount: newCount })
+      // Re-inject the SAME step (don't advance).
+      nextStep = state.step
+      const directive = buildDirective({
+        state,
+        nextStep,
+        onHarness,
+        cwd,
+        teachingsPath,
+      })
+      const warning = `<no-op-warning priority="absolute">\nYour last turn did not append a teachings line for step ${state.step}. The harness will not advance. Re-do step ${state.step} properly: produce the artifact AND append the line:\n  - [step ${state.step} / <title>] <one-line lesson>\nto ${teachingsPath}. Whitespace-only writes are not work-product. This is attempt ${newCount}/3 — at 3 the loop closes.\n</no-op-warning>\n\n`
+      return {
+        decision: 'block',
+        reason: warning + directive,
+        systemMessage: `◆ [${state.session}] step ${state.step} no-op (${newCount}/3) — re-injecting.`,
+      }
+    }
+    // Step completed cleanly; reset the counter for the next step.
+    if ((state.noOpCount ?? 0) > 0) {
+      writeState(path, { ...state, noOpCount: 0 })
+    }
+  }
+
   const directive = buildDirective({
     state,
     nextStep,
@@ -102,7 +151,7 @@ export async function advanceHarness(
 
   // Persist step advance for non-harness phases.
   if (!onHarness && nextStep !== state.step) {
-    writeState(path, { ...state, step: nextStep })
+    writeState(path, { ...state, step: nextStep, noOpCount: 0 })
   }
 
   const sysMsg = buildSystemMessage(state, nextStep, onHarness)

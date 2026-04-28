@@ -42,6 +42,7 @@ export function setupHarness(args: SetupArgs): string {
     northStar: args.northStar ?? null,
     startedAt,
     task: args.task,
+    noOpCount: 0,
   })
 
   if (!existsSync(teachingsPath)) {
