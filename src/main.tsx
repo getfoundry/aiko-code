@@ -97,6 +97,7 @@ import { checkQuotaStatus } from './services/aikoAiLimits.js';
 import { getMcpToolsCommandsAndResources, prefetchAllMcpResources } from './services/mcp/client.js';
 import { VALID_INSTALLABLE_SCOPES, VALID_UPDATE_SCOPES } from './services/plugins/pluginCliCommands.js';
 import { initBundledSkills } from './skills/bundled/index.js';
+import { ensureAikoPluginInstalled } from './bootstrap/installAikoPlugin.js';
 import type { AgentColorName } from './tools/AgentTool/agentColorManager.js';
 import { getActiveAgentsFromList, getAgentDefinitionsWithOverrides, isBuiltInAgent, isCustomAgent, parseAgentsFromJson } from './tools/AgentTool/loadAgentsDir.js';
 import type { LogOption } from './types/logs.js';
@@ -1917,6 +1918,14 @@ async function run(): Promise<CommanderCommand> {
     if (process.env.aiko_CODE_ENTRYPOINT !== 'local-agent') {
       initBuiltinPlugins();
       initBundledSkills();
+      try {
+        const bootstrap = await ensureAikoPluginInstalled();
+        if (bootstrap.status === 'error') {
+          logForDebugging(`[aiko-bootstrap] ${bootstrap.reason ?? 'unknown error'}`);
+        }
+      } catch (err) {
+        logForDebugging(`[aiko-bootstrap] threw: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
     const setupPromise = setup(preSetupCwd, permissionMode, allowDangerouslySkipPermissions, worktreeEnabled, worktreeName, tmuxEnabled, sessionId ? validateUuid(sessionId) : undefined, worktreePRNumber, messagingSocketPath);
     const commandsPromise = worktreeEnabled ? null : getCommands(preSetupCwd);

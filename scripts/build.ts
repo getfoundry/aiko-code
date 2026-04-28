@@ -8,7 +8,7 @@
  * - src/ path aliases
  */
 
-import { readFileSync, readdirSync, writeFileSync } from 'fs'
+import { cpSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { noTelemetryPlugin } from './no-telemetry-plugin'
 
@@ -482,6 +482,8 @@ if (!result.success) {
   }
   process.exitCode = 1
 } else {
+  rmSync('dist/plugins', { recursive: true, force: true })
+  cpSync('src/plugins/bundled', 'dist/plugins', { recursive: true })
   console.log(`✓ Built Aiko Code v${version} → dist/cli.mjs`)
 }
 
