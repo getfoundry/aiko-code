@@ -58,24 +58,27 @@ If you're unsure, ask the user: "Want me to engage the harness or answer this di
 
 \`\`\`
 Skill: guide
-args: <one-line task statement>
+args: <task statement> — use DeepWiki (\`mcp__deepwiki__read_wiki_structure\` / \`ask_question\`) for upstream scoping at step 1 (survey) and cross-checks at step 8 (audit); use agent-browser (\`npx agent-browser\`; Electron host: \`--remote-debugging-port=9222\` → \`http://localhost:9222\`) for adversarial UI probes at step 5 (edges) and end-to-end browser walks at step 6 (integration), capturing screenshots, console errors, and network failures; for LLM-behavior debugging replay aiko SDK calls with debug logging at step 4 (signals) and step 7 (verdict).
 \`\`\`
+
+The harness's directive text is tool-agnostic (it works on any task), so this routing rides on the \`task\` string appended to every step injection. **Always include it.** Without it, the model defaults to grep-and-guess and the empathy/upstream-truth signals are lost.
 
 Once invoked, the Stop hook drives every turn. The harness injects each step's directive (principle / tactical / problem-map / apply work) and instructs fan-out to N parallel sub-agents per the Fibonacci budget — **1, 1, 2, 3, 5, 8, 1, 13, 21** across the 9 steps:
 
-- Step 1 survey → 1
+- Step 1 survey → 1 — **DeepWiki upstream first, then read local code**
 - Step 2 boundaries → 1
 - Step 3 skeleton → 2
-- Step 4 signals → 3 (types / tests / metrics)
-- Step 5 edges → 5 (empty / malformed / concurrent / partial-failure / hostile)
-- Step 6 integration → 8 (cold-start / warm / upgrade / rollback / multi-tenant / idle / peak / recovery)
-- Step 7 verdict → 1 (PROMOTE / HOLD / REJECT)
-- Step 8 audit → 13 cold reviewers
+- Step 4 signals → 3 (types / tests / metrics) — **for LLM apps: replay with \`ANTHROPIC_LOG=debug\`, check \`usage.cache_*\`, \`messages.countTokens\`, dump SSE**
+- Step 5 edges → 5 (empty / malformed / concurrent / partial-failure / hostile) — **agent-browser for UI adversarial probes**
+- Step 6 integration → 8 (cold-start / warm / upgrade / rollback / multi-tenant / idle / peak / recovery) — **agent-browser for end-to-end flows; tail Electron main-process stdout/stderr in parallel**
+- Step 7 verdict → 1 (PROMOTE / HOLD / REJECT) — **for LLM-behavior: cite the request/response evidence, not vibes**
+- Step 8 audit → 13 cold reviewers — **DeepWiki upstream cross-check on API contract / data model / docs**
 - Step 9 ship → up to 21 publishers
 
 When a step gets stuck, \`break-harness.sh\` spawns a child harness scoped to the stuck sub-problem; the child runs its own full 9-phase cycle to verdict=promote, then the parent resumes. True fractal recursion.
 
 You don't drive phases manually once \`/guide\` is engaged. Stay in the loop until step 9 emits \`<promise>...</promise>\`.
+
 
 # Standard tools (for direct answers or pre-\`/guide\` scoping)
 
