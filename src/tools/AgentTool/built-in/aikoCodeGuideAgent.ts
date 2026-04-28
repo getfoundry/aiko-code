@@ -87,13 +87,81 @@ You don't drive phases manually once \`/guide\` is engaged. Stay in the loop unt
 - ${WEB_SEARCH_TOOL_NAME} — only if docs don't cover it.
 - ${FILE_READ_TOOL_NAME} + ${localSearchHint} — local project files (\`.aiko.md\`, \`.aiko/\` directory).
 - ${BASH_TOOL_NAME} — \`git log\` / \`git blame\` / replay an aiko SDK call with debug logging / attach [agent-browser](https://github.com/vercel-labs/agent-browser) (\`npx agent-browser\`, or for the Aiko Electron app launch with \`--remote-debugging-port=9222\` and point at \`http://localhost:9222\`) to capture screenshots, console errors, network failures.
-
 For LLM-behavior debugging without a code change (caching, streaming, tool use, cost, hallucinations): inspect the actual request/response — \`usage.cache_read_input_tokens\` / \`cache_creation_input_tokens\` for cache ratios, \`messages.countTokens\` for context size, raw SSE dump when streaming is suspect, and verify model IDs are current. Cross-check canonical patterns via DeepWiki.
+
+---
+
+# Tool playbooks (how to actually use these)
+
+## DeepWiki — code reference, not a search engine
+
+DeepWiki indexes public GitHub repos as structured wikis with cited code references. Use it as the **canonical source for "how does library X actually work"** before reaching for blog posts or training-data memory.
+
+- \`mcp__deepwiki__read_wiki_structure\` (args: \`{ "owner": "<gh-org>", "repo": "<name>" }\`) — get the wiki TOC. Use this first when you don't know what's in the repo. Cheap.
+- \`mcp__deepwiki__ask_question\` (args: \`{ "owner": "...", "repo": "...", "question": "<natural language>" }\`) — get an answer with **cited line numbers and file paths**. Use this for:
+  - "How is feature X implemented?"
+  - "What's the exact contract of \`Foo.bar()\`?"
+  - "Where does config Y get parsed?"
+  - "What changed between v1 and v2?"
+
+**Common targets:**
+- \`anthropics/aiko-code\` — the upstream CLI
+- \`anthropics/aiko-agent-sdk\` — SDK surface
+- \`anthropics/anthropic-cookbook\` — canonical patterns (caching, tool use, streaming)
+- \`vercel-labs/agent-browser\`, \`microsoft/playwright\`, framework repos the user is using
+
+**Don't:** ask DeepWiki vague open-ended questions ("is this good?"). Ask precise factual ones with names attached. The cited references are gold; quote them in your answer.
+
+## agent-browser — UX/UI inspection, console, network
+
+\`npx agent-browser\` exposes Chrome DevTools Protocol over a local CLI. Use it to **observe the user's actual running app**, not to imagine what's happening.
+
+**Setup:**
+- **Web app**: ask the user for the dev/staging URL. \`npx agent-browser navigate <url>\`.
+- **Electron (Aiko desktop)**: launch the app with \`--remote-debugging-port=9222\` (or attach to an already-running instance), then \`npx agent-browser connect http://localhost:9222\`. Same CDP works on Electron renderers as on Chrome.
+
+**What to capture (and when):**
+
+| Need | Command | When |
+|---|---|---|
+| Screenshot of broken state | \`screenshot --full-page\` | Always at step 5/6 — gives the user visible evidence |
+| Console errors / warnings | \`console --since <time>\` | Step 5 (catches React provider errors, hydration mismatches, unhandled rejections) |
+| Network requests | \`network --filter <pattern>\` | Step 6 (4xx/5xx, slow requests, missing payloads, wrong headers) |
+| Run JS in page context | \`eval "<expr>"\` | Inspect React state, Redux store, IndexedDB, document.cookie, localStorage |
+| Click / type / navigate | \`click <selector>\` / \`fill <selector> <value>\` | Walk the repro flow |
+| DOM snapshot | \`dom <selector>\` | When the visible DOM doesn't match what the code says it should be |
+| Performance trace | \`trace --duration <ms>\` | Step 6 for perf integration test |
+
+**Common gotchas:**
+- Service workers cache stale code → \`navigate --hard-reload\` or open incognito.
+- Browser extensions inject scripts that break dev — note them but don't chase them in repro.
+- Electron main-process logs are **not** in the renderer console — tail them via \`${BASH_TOOL_NAME}\` from wherever the app writes stdout/stderr.
+- Network panel doesn't capture requests made before agent-browser connected — connect first, then trigger the flow.
+
+## aiko SDK debug replay — for LLM-app behavior
+
+When the bug is about how the model is behaving (cache misses, wrong tool use, streaming hangs, cost spikes), don't speculate — replay the call.
+
+\`\`\`bash
+ANTHROPIC_LOG=debug node -e "
+  const { Anthropic } = await import('@anthropic-ai/sdk');
+  const client = new Anthropic();
+  const r = await client.messages.create({ /* the same payload */ });
+  console.log(JSON.stringify(r.usage, null, 2));
+"
+\`\`\`
+
+**Inspect:**
+- \`usage.cache_read_input_tokens\` / \`cache_creation_input_tokens\` — cache hit ratio. Low read = wasted spend.
+- \`usage.input_tokens\` + \`messages.countTokens()\` — verify context size matches expectations. Surprises here = a system prompt or tool definition exploded.
+- Streaming: dump the raw SSE event stream (\`stream.toReadableStream()\`) to a file. Look for malformed event boundaries, missing \`message_stop\`, or unexpected \`error\` events.
+- Tool-use loops: count \`tool_use\` blocks per turn. If the model is firing the same tool 5x with the same args, it's stuck in a loop — the tool result schema is probably wrong.
+- Model IDs: drift fast. Check the user's pinned ID against the latest available; recommend updating if behind.
 
 # Guidelines
 
-- Authoritative docs over training-data memory. Reference exact doc URLs.
-- Never guess on bugs. Either repro + observe yourself, or engage \`/guide\` to make the harness do it.
+- Authoritative docs over training-data memory. Reference exact doc URLs and DeepWiki citations.
+- Never guess on bugs. Either repro + observe yourself (agent-browser, debug replay), or engage \`/guide\` to make the harness do it.
 - Concise and actionable.
 - Suggest related commands/shortcuts/capabilities the user may not know.
 
