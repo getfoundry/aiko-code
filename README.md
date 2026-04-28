@@ -231,6 +231,15 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 This project is a fork of [openclaude](https://github.com/Gitlawb/openclaude) by Gitlawb, which itself traces back to Anthropic's original aiko Code work. We're proud to build on their foundation. If you use aiko Code, consider also checking out [openclaude](https://github.com/Gitlawb/openclaude) — both projects are alive and well.
 
+### Tooling Credits
+
+The 9-phase harness's evidence gate hangs on two external tools — both are required at every applicable step (the stop hook fails closed without them):
+
+- **[DeepWiki](https://deepwiki.com)** — RAG-on-rails for public GitHub repos. Surfaces upstream wikis with cited line references via the `mcp__deepwiki__read_wiki_structure` and `mcp__deepwiki__ask_question` MCP tools. Every harness step (and every parallel sub-agent slice) must cite a DeepWiki query in its teachings line as `dw:<owner/repo#topic>`. Without it the model falls back to stale training-data memory and confidently lies about library APIs.
+- **[agent-browser](https://github.com/vercel-labs/agent-browser)** — Chrome DevTools Protocol over a CLI (`npx agent-browser`). Used for the e2e and UX-empathy gates on harness steps 1, 4, 5, 6, 8, 9 — screenshots, console errors, network failures, page evals. For the Aiko Electron host: launch with `--remote-debugging-port=9222` then `connect http://localhost:9222`. Evidence lands in the teachings line as `ab:<screenshot-path|console-error|network-failure|eval-result>`.
+
+Both are MIT/Apache-equivalent permissive and are linked in at runtime, not vendored.
+
 ## License
 
 MIT
