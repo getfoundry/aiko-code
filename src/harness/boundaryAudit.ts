@@ -138,6 +138,20 @@ export type AuditOptions = {
 export type AuditResult = {
   findings: BoundaryFinding[]
   /**
+   * Serena MCP follow-up calls the model should run during step 1. Emitted
+   * when LSP + bundled TS AST scanner both came up empty for a pattern.
+   * The stop hook can't call MCP itself; the model can. Serena handles
+   * cross-language semantic queries (Python, Go, Rust, Java, Ruby, …) the
+   * in-process tiers can't cover.
+   */
+  serenaFollowups: Array<{
+    pattern: string
+    role: 'producer' | 'consumer'
+    namePathSource: string
+    suggestion: string
+    reason: string
+  }>
+  /**
    * DeepWiki follow-up queries the model should run during step 1. Emitted
    * when LSP + bundled scanner both came up empty for a pattern that has a
    * `docs.repo` configured. Tier-3 fallback: when local code analysis can't
@@ -176,6 +190,7 @@ export async function runBoundaryAudit(
   const patternsApplied: string[] = []
   const backends: string[] = []
   const docsFollowups: AuditResult['docsFollowups'] = []
+  const serenaFollowups: AuditResult['serenaFollowups'] = []
 
   await waitForInitialization()
   const lsp = getLspServerManager()
@@ -226,10 +241,32 @@ export async function runBoundaryAudit(
 
     // No tier-3 regex fallback — regex scanning produces noisy false
     // positives without semantic precision. If LSP+AST both came up empty,
-    // emit a DeepWiki query (handled below) so the model grounds the pattern
-    // in canonical docs rather than guessing from grep results.
+    // emit serena (tier-3) and DeepWiki (tier-4) queries the model should
+    // run during step 1.
 
-    // Tier-3 fallback: if both LSP and scanner came up empty AND the pattern
+    // Tier-3 fallback: emit serena MCP follow-ups when in-process tiers
+    // returned empty. Serena handles cross-language semantic queries the
+    // bundled TS AST scanner can't cover (Python, Go, Rust, Java, Ruby, …).
+    if (producers.length === 0) {
+      serenaFollowups.push({
+        pattern: pattern.name,
+        role: 'producer',
+        namePathSource: pattern.producer.source,
+        suggestion: `mcp__serena__find_symbol name_path="${escapeForCallout(pattern.producer.source)}" substring_matching=true include_body=false`,
+        reason: 'no producer symbols found by LSP or in-process AST',
+      })
+    }
+    if (consumers.length === 0) {
+      serenaFollowups.push({
+        pattern: pattern.name,
+        role: 'consumer',
+        namePathSource: pattern.consumer.source,
+        suggestion: `mcp__serena__find_symbol name_path="${escapeForCallout(pattern.consumer.source)}" substring_matching=true include_body=false`,
+        reason: 'no consumer symbols found by LSP or in-process AST',
+      })
+    }
+
+    // Tier-4 fallback: if both LSP and scanner came up empty AND the pattern
     // has docs configured, emit a structured DeepWiki query the model should
     // run during step 1. The stop hook can't call MCP itself; the model can.
     if (
@@ -279,6 +316,7 @@ export async function runBoundaryAudit(
 
   return {
     findings,
+    serenaFollowups,
     docsFollowups,
     diagnostics: {
       lspReachable,
@@ -375,6 +413,10 @@ async function querySymbols(
     if (hits.length >= cap) break
   }
   return hits
+}
+
+function escapeForCallout(s: string): string {
+  return s.replace(/"/g, '\\"')
 }
 
 function uriToPath(uri: string): string {
@@ -485,6 +527,25 @@ export function formatAuditMarkdown(result: AuditResult): string {
     lines.push(
       'Heuristic scope: `likely` = same file/dir; `unlikely` = cross-package; `unknown` = needs structural analysis (e.g. JSX-tree containment via tree-sitter or serena).',
     )
+  }
+  if (result.serenaFollowups.length > 0) {
+    lines.push('')
+    lines.push(`## Serena follow-ups (${result.serenaFollowups.length}) — REQUIRED`)
+    lines.push('')
+    lines.push(
+      'The in-process tiers (LSP plugin + bundled TypeScript AST) returned empty for these patterns. Run the suggested `mcp__serena__find_symbol` calls — serena auto-spawns via the bundled uv (first call may take 10-30s). When a result lands, also run `mcp__serena__find_referencing_symbols` against each found producer to discover its consumers. Incorporate findings into your inventory. The stop hook can\'t call MCP; you can.',
+    )
+    lines.push('')
+    for (const fu of result.serenaFollowups) {
+      lines.push(`### \`${fu.pattern}\` → ${fu.role}`)
+      lines.push(`Reason: ${fu.reason}`)
+      lines.push('')
+      lines.push('Run:')
+      lines.push('```')
+      lines.push(fu.suggestion)
+      lines.push('```')
+      lines.push('')
+    }
   }
   if (result.docsFollowups.length > 0) {
     lines.push('')
