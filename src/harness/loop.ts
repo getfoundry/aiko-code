@@ -189,23 +189,120 @@ function evidenceMissing(
   phase: HarnessPhase | undefined,
 ): string[] {
   const missing: string[] = []
-  const checks: Array<{ tag: string; required: boolean }> = [
-    { tag: 'env:', required: true },
-    { tag: 'dw:', required: phase?.requires.deepwiki ?? true },
-    { tag: 'ab:', required: phase?.requires.agentBrowser ?? false },
+  const checks: Array<{
+    tag: string
+    required: boolean
+    shape?: (value: string) => string | null
+  }> = [
+    { tag: 'env:', required: true, shape: shapeEnv },
+    {
+      tag: 'dw:',
+      required: phase?.requires.deepwiki ?? true,
+      shape: shapeDeepWiki,
+    },
+    {
+      tag: 'ab:',
+      required: phase?.requires.agentBrowser ?? false,
+      shape: shapeAgentBrowser,
+    },
   ]
-  for (const { tag, required } of checks) {
+  for (const { tag, required, shape } of checks) {
     if (!required) continue
     const value = extractTag(line, tag)
     if (value === null) {
       missing.push(tag.replace(':', ''))
       continue
     }
-    if (value.startsWith('skip:') && value.slice(5).trim().length < 20) {
-      missing.push(`${tag.replace(':', '')}(skip-reason-too-short)`)
+    if (value.startsWith('skip:')) {
+      if (value.slice(5).trim().length < 20) {
+        missing.push(`${tag.replace(':', '')}(skip-reason-too-short)`)
+      }
+      continue
+    }
+    if (shape) {
+      const reason = shape(value)
+      if (reason) missing.push(`${tag.replace(':', '')}(${reason})`)
     }
   }
   return missing
+}
+
+/**
+ * `env:` value must look like a real environment description, not a single
+ * label. Require at least 12 chars after the prefix and reject single-word
+ * placeholders.
+ */
+function shapeEnv(value: string): string | null {
+  if (value.length < 12) return 'too-short'
+  if (/^(prod|dev|staging|local|test|ci)$/i.test(value)) return 'label-only'
+  return null
+}
+
+/**
+ * `dw:` value must look like a real DeepWiki citation. Canonical form is
+ * `owner/repo` or `owner/repo#topic` — reject values without a `/`, which
+ * indicates a vague library name rather than a queried repo.
+ */
+function shapeDeepWiki(value: string): string | null {
+  if (!value.includes('/')) return 'missing-owner/repo-form'
+  if (value.length < 5) return 'too-short'
+  return null
+}
+
+/**
+ * `ab:` value must look like a real agent-browser artifact, not a build-tool
+ * substitute. Reject build-tool tokens (bun, npm, next, etc.) and require a
+ * marker that proves a runtime browser probe actually ran.
+ */
+function shapeAgentBrowser(value: string): string | null {
+  const lower = value.toLowerCase()
+  const buildTokens = [
+    'bun',
+    'npm',
+    'npx',
+    'pnpm',
+    'yarn',
+    'node',
+    'next',
+    'vite',
+    'webpack',
+    'tsc',
+    'vitest',
+    'jest',
+    'eslint',
+    'prettier',
+    'tsx',
+    'esbuild',
+    'rollup',
+  ]
+  // npx is allowed only when followed by agent-browser
+  if (lower === 'npx' || lower.startsWith('npx')) {
+    if (!lower.includes('agent-browser')) return 'build-log-not-agent-browser'
+  } else if (buildTokens.includes(lower)) {
+    return 'build-log-not-agent-browser'
+  }
+  const runtimeMarkers = [
+    'screenshot',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.webp',
+    'console:',
+    'network:',
+    'eval:',
+    'agent-browser',
+    'cdp',
+    'localhost:',
+    '127.0.0.1',
+    ':9222',
+    'devtools',
+    'puppeteer',
+    'playwright',
+    'chrome:',
+  ]
+  const hasMarker = runtimeMarkers.some(m => lower.includes(m))
+  if (!hasMarker) return 'no-runtime-artifact-marker'
+  return null
 }
 
 /**
@@ -262,7 +359,7 @@ function buildDirective({
   const fanout =
     phase.fibBudget <= 1
       ? 'Single-threaded. Do this work yourself in this turn.'
-      : `Spawn ${phase.fibBudget} sub-agents in parallel via the Agent tool — single assistant message with ${phase.fibBudget} tool_use blocks. Each sub-agent owns one slice. Aggregate before stopping. Each sub-agent must independently RAG via DeepWiki for its slice; ${phase.requires.agentBrowser ? 'sub-agents touching UI/runtime must also capture agent-browser evidence (screenshot/console/network)' : 'sub-agents inherit DeepWiki requirement only'}.`
+      : `Spawn ${phase.fibBudget} sub-agents in parallel via the Agent tool — single assistant message with ${phase.fibBudget} tool_use blocks (use subagent_type: "general-purpose" for every block; only general-purpose has tools: ['*']). Each sub-agent owns one slice. Aggregate before stopping. Each sub-agent must independently RAG via DeepWiki for its slice; ${phase.requires.agentBrowser ? 'sub-agents touching UI/runtime must also capture agent-browser evidence (screenshot/console/network)' : 'sub-agents inherit DeepWiki requirement only'}.`
 
   const requiredTags: string[] = ['env:<runtime + full context>']
   if (phase.requires.deepwiki) requiredTags.push('dw:<owner/repo#topic>')
@@ -324,16 +421,16 @@ function buildDirective({
     `     - [step ${nextStep} / ${phase.title}] <H1 lesson — positive validation> ${tagsLine}`,
   )
   out.push(
-    '     env: must describe the actual runtime + full context (OS, node/bun version, repo branch, relevant config, the user-visible artifact under test). One short sentence — not a label.',
+    '     env: must describe the actual runtime + full context (≥12 chars, NOT a one-word label like "dev" or "prod" — include OS, runtime version, repo branch, the user-visible artifact under test). One short sentence.',
   )
   if (phase.requires.deepwiki) {
     out.push(
-      '     dw: must cite a real DeepWiki query you ran this turn (owner/repo#topic). `dw:skip:<reason>` allowed only with a 20+ char justification — and you should rarely need it.',
+      '     dw: must be in canonical `owner/repo` or `owner/repo#topic` form citing a real DeepWiki query you ran this turn. Bare library names ("wagmi", "next") are rejected — must contain a `/`. `dw:skip:<reason>` allowed only with a 20+ char justification.',
     )
   }
   if (phase.requires.agentBrowser) {
     out.push(
-      '     ab: must point at a real agent-browser artifact (screenshot path, console line, network record, or eval result). `ab:skip:<reason>` allowed only with a 20+ char justification.',
+      '     ab: must point at a real agent-browser RUNTIME artifact — a screenshot path (.png/.jpg), `console:<error>`, `network:<request>`, `eval:<result>`, or a string containing `agent-browser`/`localhost:`/`:9222`/`cdp`/`devtools`. Build/test logs ("bun run next build", "vitest passed", "tsc clean") are REJECTED — they are compile-time, not runtime, and miss hydration mismatches and provider-not-found errors. You must actually launch `npx agent-browser navigate <url>` (or attach to `--remote-debugging-port=9222`) and capture live output. `ab:skip:<reason>` allowed only with a 20+ char justification.',
     )
   }
   out.push(`  3. Do the work: ${apply}`)
