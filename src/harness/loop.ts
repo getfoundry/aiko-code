@@ -21,8 +21,8 @@ const STATE_DIR = '.aiko'
 
 export type StopHookOutput = {
   decision?: 'block'
+  reason?: string
   systemMessage?: string
-  hookSpecificOutput?: { hookEventName: string; reason: string }
 }
 
 export type StopHookInput = {
@@ -31,8 +31,12 @@ export type StopHookInput = {
 
 /**
  * Stop-hook callback. Returns `{}` (no-op) when there's no active session;
- * returns `{ decision: 'block', ... }` to inject the next step's playbook;
- * returns `{}` and clears the state file when the completion promise lands.
+ * returns `{ decision: 'block', reason, systemMessage }` to inject the next
+ * step's playbook (the host treats `reason` as the resume prompt to feed
+ * back to the model — same contract as bash core/loop.sh's
+ * `{decision: "block", reason: $prompt, systemMessage: $msg}` output);
+ * returns `{ systemMessage }` and clears the state file when the
+ * completion promise lands.
  */
 export async function advanceHarness(
   input: StopHookInput,
@@ -92,8 +96,8 @@ export async function advanceHarness(
   const sysMsg = buildSystemMessage(state, nextStep, onHarness)
   return {
     decision: 'block',
+    reason: directive,
     systemMessage: sysMsg,
-    hookSpecificOutput: { hookEventName: 'Stop', reason: directive },
   }
 }
 

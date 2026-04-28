@@ -88,7 +88,10 @@ export function registerAikoHarness(): void {
   // Always-on design taste — independent of plugin tree.
   registerDesignTaste()
 
-  // Native Stop hook — pure callback, no shell exec.
+  // Native Stop hook — pure callback, no shell exec. The TS callback returns
+  // the same `{ decision: 'block', reason, systemMessage }` shape that the
+  // bash core/loop.sh used to emit, so the host treats `reason` as the
+  // resume prompt to inject back into the model on the next turn.
   const stopMatcher: HookCallbackMatcher = {
     matcher: '',
     hooks: [
@@ -99,8 +102,8 @@ export function registerAikoHarness(): void {
           if (out.decision === 'block') {
             return {
               decision: 'block',
+              reason: out.reason,
               systemMessage: out.systemMessage,
-              hookSpecificOutput: out.hookSpecificOutput as never,
             } as never
           }
           if (out.systemMessage) {
@@ -140,8 +143,7 @@ export function registerAikoHarness(): void {
   })
 
   // Auxiliary commands still live as small shell scripts under the bundled
-  // plugin tree. Best-effort: if the tree isn't shipped (e.g. local dev
-  // without `bun run build`), skip them rather than blowing up.
+  // plugin tree. Best-effort: if the tree isn't shipped, skip them.
   const root = aikoCodeRoot()
   if (!root) return
 
