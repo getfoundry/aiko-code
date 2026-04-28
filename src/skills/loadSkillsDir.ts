@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, realpath as realpathSync } from 'fs'
+import { existsSync, lstatSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { realpath as realpathAsync } from 'fs/promises'
 import { homedir } from 'os'
 import ignore from 'ignore'
@@ -511,11 +511,48 @@ async function findSkillMarkdownFiles(basePath: string): Promise<string[]> {
  * Loads skills from a /skills/ directory path.
  * Supports nested directory format: category/skill/SKILL.md
  */
+// File-based cache for loadSkillsFromSkillsDir — persists across processes
+// Stored in ~/.aiko/skills-cache.json, invalidated when directory mtime changes
+const SKILLS_CACHE_PATH = join(getaikoConfigHomeDir(), 'skills-cache.json')
+
+function readSkillsCache(): Record<string, unknown> | null {
+  try {
+    if (!existsSync(SKILLS_CACHE_PATH)) return null
+    return JSON.parse(readFileSync(SKILLS_CACHE_PATH, 'utf-8')) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function writeSkillsCache(data: Record<string, unknown>): void {
+  try {
+    writeFileSync(SKILLS_CACHE_PATH, JSON.stringify(data), 'utf-8')
+  } catch {
+    // cache write failure is non-fatal
+  }
+}
+
 async function loadSkillsFromSkillsDir(
   basePath: string,
   source: SettingSource,
 ): Promise<SkillWithPath[]> {
   const fs = getFsImplementation()
+  const cacheKey = `skills:${basePath}`
+
+  // Check file-based cache first
+  const cache = readSkillsCache()
+  if (cache && cache[cacheKey]) {
+    const entry = cache[cacheKey] as { mtime: number; skills: SkillWithPath[] }
+    try {
+      const dirStat = await fs.promises.stat(basePath)
+      if (entry.mtime === dirStat.mtimeMs) {
+        return entry.skills
+      }
+    } catch {
+      // directory might not exist — fall through to re-read
+    }
+  }
+
   const skillFiles = await findSkillMarkdownFiles(basePath)
 
   const results = await Promise.all(
@@ -569,7 +606,19 @@ async function loadSkillsFromSkillsDir(
     }),
   )
 
-  return results.filter((r): r is SkillWithPath => r !== null)
+  const filtered = results.filter((r): r is SkillWithPath => r !== null)
+
+  // Write to file-based cache — key by mtime of the base directory
+  try {
+    const dirStat = await fs.promises.stat(basePath)
+    const cache = readSkillsCache() ?? {}
+    cache[cacheKey] = { mtime: dirStat.mtimeMs, skills: filtered }
+    writeSkillsCache(cache)
+  } catch {
+    // ignore — cache miss next time is fine
+  }
+
+  return filtered
 }
 
 // --- Legacy /commands/ loader ---
@@ -736,7 +785,7 @@ export const getSkillDirCommands = memoize(
 
     // Claude Code skills — load from ~/.claude/skills/ if present
     const ccSkillsDir = join(homedir(), '.claude', 'skills')
-    const hasCCSkills = existsSync(ccSkillsDir) && lstatSync(ccSkillsDir).isDirectory()
+    const hasCCSkills = existsSync(ccSkillsDir) && statSync(ccSkillsDir).isDirectory()
 
     logForDebugging(
       `Loading skills from: managed=${managedSkillsDir}, user=${userSkillsDir}, project=[${projectSkillsDirs.join(', ')}]${hasCCSkills ? `, cc=${ccSkillsDir}` : ''}`,
@@ -814,6 +863,18 @@ export const getSkillDirCommands = memoize(
         ? loadSkillsFromSkillsDir(ccSkillsDir, 'userSettings')
         : Promise.resolve([]),
     ])
+
+    // Debug logging: breakdown of skills by source before dedup
+    const ccCount = ccSkills.length
+    const userCount = userSkills.length
+    const projectCount = projectSkillsNested.flat().length
+    const managedCount = managedSkills.length
+    const additionalCount = additionalSkillsNested.flat().length
+    const legacyCount = legacyCommands.length
+    const totalBeforeDedup = managedCount + userCount + projectCount + additionalCount + legacyCount + ccCount
+    logForDebugging(
+      `Skills loaded: ${totalBeforeDedup} total (${managedCount} managed, ${userCount} user, ${projectCount} project, ${additionalCount} additional, ${legacyCount} legacy, ${ccCount} CC)`,
+    )
 
     // Flatten and combine all skills
     const allSkillsWithPaths = [
@@ -900,6 +961,21 @@ export const getSkillDirCommands = memoize(
 
     logForDebugging(
       `Loaded ${deduplicatedSkills.length} unique skills (${unconditionalSkills.length} unconditional, ${newConditionalSkills.length} conditional, managed: ${managedSkills.length}, user: ${userSkills.length}, project: ${projectSkillsNested.flat().length}, additional: ${additionalSkillsNested.flat().length}, legacy commands: ${legacyCommands.length})`,
+    )
+
+    // Debug log: skill counts by source
+    const counts: Record<string, number> = {}
+    for (const skill of allSkillsWithPaths) {
+      const src = skill.source
+      counts[src] = (counts[src] || 0) + 1
+    }
+    if (process.env.AIKO_DEBUG_SKILLS) {
+      console.error(
+        `Skills loaded: ${allSkillsWithPaths.length} total (deduped: ${deduplicatedSkills.length}, unconditional: ${unconditionalSkills.length}, conditional: ${newConditionalSkills.length}, sources: ${JSON.stringify(counts)})`,
+      )
+    }
+    logForDebugging(
+      `Skills loaded: ${allSkillsWithPaths.length} total (deduped: ${deduplicatedSkills.length}, unconditional: ${unconditionalSkills.length}, conditional: ${newConditionalSkills.length}, sources: ${JSON.stringify(counts)})`,
     )
 
     return unconditionalSkills
