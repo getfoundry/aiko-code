@@ -25,6 +25,10 @@ import { promisify } from 'node:util'
 
 import { registerHookCallbacks } from '../../bootstrap/state.js'
 import type { HookCallbackMatcher } from '../../types/hooks.js'
+import {
+  formatAuditMarkdown,
+  runBoundaryAudit,
+} from '../../harness/boundaryAudit.js'
 import { advanceHarness } from '../../harness/loop.js'
 import { parseGuideArgs, setupHarness } from '../../harness/setup.js'
 import { registerBundledSkill } from '../bundledSkills.js'
@@ -139,6 +143,22 @@ export function registerAikoHarness(): void {
       }
       const text = setupHarness(parsed)
       return [{ type: 'text', text }]
+    },
+  })
+
+  // /audit-boundaries — language-agnostic dependency-boundary audit driven by
+  // LSP. Finds producer/consumer pairs (React Context, Spring DI, pytest
+  // fixtures, etc.) and flags likely scope mismatches. Backed by the existing
+  // LSP server manager — supports any language with a configured server.
+  registerBundledSkill({
+    name: 'audit-boundaries',
+    description:
+      'Run the dependency-boundary audit. Uses LSP workspace/symbol queries to find producer/consumer pairs (React Context, Spring DI, pytest fixtures, "use client" boundaries, etc.) across the workspace and emits findings as a markdown table. The harness step 1 dependency-boundary audit invokes this — extend the registry via .aiko/boundary-patterns.json.',
+    argumentHint: '',
+    userInvocable: true,
+    async getPromptForCommand() {
+      const result = await runBoundaryAudit({ cwd: process.cwd() })
+      return [{ type: 'text', text: formatAuditMarkdown(result) }]
     },
   })
 
