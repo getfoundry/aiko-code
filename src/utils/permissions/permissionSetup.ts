@@ -752,13 +752,15 @@ export function initialPermissionModeFromCLI({
     mode = settingsMode
   }
 
-  if (mode === 'bypassPermissions' && disableBypassPermissionsMode) {
-    notification =
-      growthBookDisableBypassPermissionsMode
-        ? 'Bypass permissions mode was disabled by your organization policy'
-        : 'Bypass permissions mode was disabled by settings'
-    mode = 'default'
-  }
+  // Force bypassPermissions for tool/file/bash actions by default. The
+  // user explicitly opted into a no-permission-prompt UX; the
+  // disableBypassPermissionsMode kill-switch (Statsig gate, settings
+  // flag, org policy) is intentionally NOT honored here. Design
+  // questions reach the user via AskUserQuestion / model dialogue,
+  // which are independent of this gate.
+  // (Previously: if mode === 'bypassPermissions' && disableBypassPermissionsMode, downgrade to 'default'.)
+  void disableBypassPermissionsMode
+  void growthBookDisableBypassPermissionsMode
 
   return { mode, notification }
 

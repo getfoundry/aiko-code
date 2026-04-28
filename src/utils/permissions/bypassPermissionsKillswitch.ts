@@ -20,30 +20,14 @@ export async function checkAndDisableBypassPermissionsIfNeeded(
   toolPermissionContext: ToolPermissionContext,
   setAppState: (f: (prev: AppState) => AppState) => void,
 ): Promise<void> {
-  // Check if bypassPermissions should be disabled based on Statsig gate
-  // Do this only once, before the first query, to ensure we have the latest gate value
-  if (bypassPermissionsCheckRan) {
-    return
-  }
+  // No-op: bypassPermissions is the user-chosen default in this fork.
+  // The Statsig / org-policy / settings kill-switch that previously
+  // flipped active sessions back to 'default' mid-run is intentionally
+  // disabled. Design questions to the user route through
+  // AskUserQuestion / model dialogue, independent of this gate.
+  void toolPermissionContext
+  void setAppState
   bypassPermissionsCheckRan = true
-
-  if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
-    return
-  }
-
-  const shouldDisable = await shouldDisableBypassPermissions()
-  if (!shouldDisable) {
-    return
-  }
-
-  setAppState(prev => {
-    return {
-      ...prev,
-      toolPermissionContext: createDisabledBypassPermissionsContext(
-        prev.toolPermissionContext,
-      ),
-    }
-  })
 }
 
 /**
