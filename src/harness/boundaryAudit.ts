@@ -22,12 +22,12 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
-
 import {
   getLspServerManager,
   isLspConnected,
   waitForInitialization,
 } from '../services/lsp/manager.js'
+import { scanWithTsAst } from './tsAstScanner.js'
 
 export type BoundaryPattern = {
   /** Stable identifier — used in findings output and config overrides. */
@@ -199,8 +199,10 @@ export async function runBoundaryAudit(
 
     let producers: SymbolHit[] = []
     let consumers: SymbolHit[] = []
-    let usedBackend: 'lsp' | 'scanner' = 'scanner'
+    let usedBackend: 'lsp' | 'ts-ast' | 'docs-only' = 'docs-only'
 
+    // Tier-1: LSP (semantic, alias-aware). Best precision when configured —
+    // serena MCP is the recommended way to get this without an fcode plugin.
     if (lsp && lspReachable) {
       producers = await querySymbols(lsp, sampleFile, pattern.producer, maxPairs)
       consumers = await querySymbols(lsp, sampleFile, pattern.consumer, maxPairs)
@@ -209,15 +211,23 @@ export async function runBoundaryAudit(
       }
     }
 
-    // Always-available fallback: bundled scanner runs when LSP returned
-    // nothing OR when no LSP is configured at all. Zero-dep, works on any
-    // language that has a recognizable producer/consumer surface.
+    // Tier-2: TypeScript AST (proper syntax tree, alias resolution for
+    // imports). Runs when LSP came up empty AND the pattern targets TS-family
+    // extensions. Returns null when no matching files exist or TS module
+    // unavailable.
     if (producers.length === 0 && consumers.length === 0) {
-      const scan = scanFilesForPattern(cwd, pattern, maxPairs)
-      producers = scan.producers
-      consumers = scan.consumers
-      usedBackend = 'scanner'
+      const ast = await scanWithTsAst(cwd, pattern, maxPairs)
+      if (ast && (ast.producers.length > 0 || ast.consumers.length > 0)) {
+        producers = ast.producers
+        consumers = ast.consumers
+        usedBackend = 'ts-ast'
+      }
     }
+
+    // No tier-3 regex fallback — regex scanning produces noisy false
+    // positives without semantic precision. If LSP+AST both came up empty,
+    // emit a DeepWiki query (handled below) so the model grounds the pattern
+    // in canonical docs rather than guessing from grep results.
 
     // Tier-3 fallback: if both LSP and scanner came up empty AND the pattern
     // has docs configured, emit a structured DeepWiki query the model should
@@ -391,142 +401,6 @@ function heuristicScope(
   const cRel = relative(cwd, consumer.file).split('/')
   if (pRel[0] !== cRel[0]) return 'unlikely'
   return 'unknown'
-}
-
-/**
- * Bundled regex/AST-light scanner — the always-available fallback when no
- * LSP server is configured. Walks every file with matching extensions in the
- * workspace, extracts producer/consumer candidate symbols by structural
- * heuristics, and filters by the pattern's regex.
- *
- * Less precise than LSP (no alias / re-export resolution, no semantic types)
- * and less precise than tree-sitter (no proper grammar). Strikes the
- * "always works, zero-dep" bar — for full AST precision, install serena MCP
- * (https://github.com/oraios/serena), which the audit will prefer when
- * present.
- *
- * Producer detection looks for:
- *   - declarations: `(class|function|const|let|var|interface|type|def|fn|struct|enum)\s+(\w+)`
- *   - JSX usage: `<(\w+)` (capitalized) — covers React Context provider mounts.
- * Consumer detection looks for:
- *   - call sites: `(\w+)\s*\(` — covers hook calls, function invocations, decorator usage.
- */
-function scanFilesForPattern(
-  cwd: string,
-  pattern: BoundaryPattern,
-  cap: number,
-): { producers: SymbolHit[]; consumers: SymbolHit[] } {
-  const producers: SymbolHit[] = []
-  const consumers: SymbolHit[] = []
-  const seen = new Set<string>()
-  const files = walkAllFiles(cwd, pattern.extensions, 8, cap * 20)
-
-  const declRe =
-    /(?:class|function|const|let|var|interface|type|def|fn|struct|enum|object)\s+([A-Za-z_]\w*)/
-  const jsxRe = /<([A-Z]\w*)/g
-  const callRe = /\b([A-Za-z_]\w*)\s*\(/g
-
-  for (const file of files) {
-    if (producers.length + consumers.length >= cap * 4) break
-    let content: string
-    try {
-      content = readFileSync(file, 'utf8')
-    } catch {
-      continue
-    }
-    if (content.length > 1_000_000) continue
-    const lines = content.split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!
-
-      const decl = declRe.exec(line)
-      if (decl && pattern.producer.test(decl[1]!)) {
-        recordHit(producers, seen, 'p', decl[1]!, file, i + 1)
-      }
-
-      jsxRe.lastIndex = 0
-      let jm: RegExpExecArray | null
-      while ((jm = jsxRe.exec(line)) !== null) {
-        const name = jm[1]!
-        if (pattern.producer.test(name)) {
-          recordHit(producers, seen, 'p', name, file, i + 1)
-        }
-      }
-
-      callRe.lastIndex = 0
-      let cm: RegExpExecArray | null
-      while ((cm = callRe.exec(line)) !== null) {
-        const name = cm[1]!
-        if (pattern.consumer.test(name)) {
-          recordHit(consumers, seen, 'c', name, file, i + 1)
-        }
-      }
-
-      if (producers.length + consumers.length >= cap * 4) break
-    }
-  }
-  return { producers, consumers }
-}
-
-function recordHit(
-  bucket: SymbolHit[],
-  seen: Set<string>,
-  kind: 'p' | 'c',
-  symbol: string,
-  file: string,
-  line: number,
-): void {
-  const key = `${kind}:${symbol}@${file}:${line}`
-  if (seen.has(key)) return
-  seen.add(key)
-  bucket.push({ symbol, file, line })
-}
-
-/**
- * Walk every file in `cwd` matching the given extensions, up to a cap.
- * Same exclusions as findSampleFile — node_modules, dist, build, dotfiles.
- */
-function walkAllFiles(
-  cwd: string,
-  extensions: readonly string[],
-  maxDepth: number,
-  cap: number,
-): string[] {
-  const exts = new Set(extensions.map(e => `.${e.replace(/^\./, '')}`))
-  const out: string[] = []
-  const stack: Array<{ dir: string; depth: number }> = [{ dir: cwd, depth: 0 }]
-  while (stack.length > 0 && out.length < cap) {
-    const { dir, depth } = stack.pop()!
-    if (depth > maxDepth) continue
-    if (!existsSync(dir)) continue
-    let names: string[]
-    try {
-      names = readdirSafe(dir)
-    } catch {
-      continue
-    }
-    for (const name of names) {
-      if (name.startsWith('.')) continue
-      if (
-        name === 'node_modules' ||
-        name === 'dist' ||
-        name === 'build' ||
-        name === 'target' ||
-        name === '__pycache__' ||
-        name === 'vendor'
-      ) {
-        continue
-      }
-      const full = resolve(dir, name)
-      if (exts.has(extname(name))) {
-        out.push(full)
-        if (out.length >= cap) break
-      } else {
-        stack.push({ dir: full, depth: depth + 1 })
-      }
-    }
-  }
-  return out
 }
 
 /**
