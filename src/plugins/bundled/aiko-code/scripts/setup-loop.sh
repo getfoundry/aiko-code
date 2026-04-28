@@ -137,7 +137,21 @@ EOF
 fi
 
 cat <<EOF
-aiko-code [session: $SESSION] — fractal harness initialized.
+<harness-directive priority="absolute">
+You are inside an active aiko-code fractal harness session. The text below is
+NOT a description for the user — it is your operating contract for the next
+N turns. Do not paraphrase it back. Do not ask the user to confirm. Execute
+it. Do not stop between phases. Spawn subagents in parallel via the Agent
+tool (single message, multiple tool_use blocks) wherever the fib budget at
+that level is greater than 1. Output to the user only at PHASE -1 (taste
+gate verdict) and PHASE 9 (verdict + <promise>).
+
+If your next response is anything other than (a) a /taste|/audit|/critique|/craft
+invocation for the taste gate, or (b) writing $WS/state/dims.json followed by
+a fib-harness dimensions+plan call, you are violating the contract.
+</harness-directive>
+
+aiko-code [session: $SESSION] — fractal harness ARMED.
 
 Task:        $PROMPT
 Workspace:   $WS
@@ -147,7 +161,7 @@ Promise:     $COMPLETION_PROMISE  (emit only when verdict=promote)
 Mode:        $MODE  ($([ "$MODE" = "experiment" ] && echo "NT/grace — divergent variants, keep what bears fruit" || echo "OT/law — judge dimensions, recurse on failure"))
 
 ═══════════════════════════════════════════════════════════════════
-SELF-DRIVING PLAYBOOK — run this entire flow now, in one conversation.
+SELF-DRIVING PLAYBOOK — execute the entire flow in this conversation.
 Do not stop between phases. Spawn subagents in parallel.
 ═══════════════════════════════════════════════════════════════════
 

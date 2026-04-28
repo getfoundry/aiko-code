@@ -67,6 +67,13 @@ if [[ -n "$WS" && "$WS" != "null" && -d "$WS/state" ]]; then
 fi
 
 PROMPT=$( {
+  printf '<harness-directive priority="absolute">\n'
+  printf 'The harness is still active. Resume execution. Do NOT summarize for the\n'
+  printf 'user. Do NOT ask for confirmation. Your next response must be a tool\n'
+  printf 'call that advances the cycle (parallel Agent fan-out, fib-harness\n'
+  printf 'collect / level-check / judge / spawn-child / verdict). Stay silent to\n'
+  printf 'the user until verdict=promote.\n'
+  printf '</harness-directive>\n\n'
   printf 'aiko-code [session: %s] — RESUME the fractal harness.\n\n' "$FC_SESSION"
   if [[ -n "$NORTH_STAR" && "$NORTH_STAR" != "null" ]]; then
     printf 'NORTH STAR (re-read every cycle):\n  %s\n\n' "$NORTH_STAR"
@@ -79,7 +86,9 @@ PROMPT=$( {
   printf 'CONTRACT:\n'
   printf '  - Continue the harness flow. Do NOT stop until verdict=promote\n'
   printf '    (or genuine reject after exhausting fractal repair).\n'
-  printf '  - Spawn subagents IN PARALLEL where fib budget > 1.\n'
+  printf '  - Spawn subagents IN PARALLEL where fib budget > 1 — emit a single\n'
+  printf '    assistant message with multiple Agent tool_use blocks, not a\n'
+  printf '    sequence of single-agent calls.\n'
   printf '  - Use the harness commands:\n'
   printf '      %s/scripts/fib-harness status      %s\n' "$PLUGIN_ROOT" "$WS"
   printf '      %s/scripts/fib-harness plan        %s\n' "$PLUGIN_ROOT" "$WS"
