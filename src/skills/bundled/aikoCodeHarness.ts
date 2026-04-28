@@ -1,13 +1,20 @@
 /**
- * Aiko Code harness — native bundled skills + Stop hook.
+ * Aiko Code harness — fully native TS implementation.
  *
- * This bakes the 9-phase fractal development loop directly into the runtime,
- * not via the plugin system. At startup we:
- *   1. Resolve the bundled aiko-code plugin folder (ships under dist/plugins/aiko-code/).
- *   2. Register five slash commands (/guide, /loop, /cancel, /log, /steer) as bundled
- *      skills whose getPromptForCommand execs the corresponding bash script.
- *   3. Register the Stop hook directly via registerHookCallbacks so the loop
- *      auto-fires on every Stop without any /plugin install or toggle.
+ * The 9-step harness now runs entirely in-process:
+ *   1. /guide registers as a bundled skill whose getPromptForCommand calls
+ *      setupHarness() to write the session state file and emit the banner.
+ *   2. The Stop hook is registered as a native callback that calls
+ *      advanceHarness() each turn — reads state, advances the step, and
+ *      injects step N's playbook from src/harness/phases.ts.
+ *   3. /cancel, /log, /steer remain bundled-skill shells over their plugin
+ *      scripts (small wrappers — porting them is a separate pass).
+ *
+ * The bundled plugin tree at dist/plugins/aiko-code/ is now optional: the
+ * Stop hook no longer execs core/loop.sh. We only resolve the plugin root
+ * so the auxiliary commands (/cancel, /log, /steer, break-harness) keep
+ * working — and that resolution is best-effort: if the tree is missing,
+ * /guide still works and the auxiliary commands just won't register.
  */
 
 import { execFile as execFileCb } from 'node:child_process'
@@ -18,7 +25,8 @@ import { promisify } from 'node:util'
 
 import { registerHookCallbacks } from '../../bootstrap/state.js'
 import type { HookCallbackMatcher } from '../../types/hooks.js'
-import type { PluginHookMatcher } from '../../utils/settings/types.js'
+import { advanceHarness } from '../../harness/loop.js'
+import { parseGuideArgs, setupHarness } from '../../harness/setup.js'
 import { registerBundledSkill } from '../bundledSkills.js'
 
 const execFile = promisify(execFileCb)
@@ -46,7 +54,8 @@ function aikoCodeRoot(): string | undefined {
     }
   } catch {}
   for (const c of candidates) {
-    if (existsSync(resolve(c, 'core', 'loop.sh'))) return c
+    // Auxiliary commands (cancel/log/steer) live under scripts/.
+    if (existsSync(resolve(c, 'scripts', 'cancel.sh'))) return c
   }
   return undefined
 }
@@ -72,20 +81,119 @@ async function runScript(
   }
 }
 
-function tokenizeArgs(input: string): string[] {
-  // Minimal POSIX-like split that respects single/double quotes. Good enough
-  // for /guide "build a thing" --session foo style invocations.
+export function registerAikoHarness(): void {
+  if (registered) return
+  registered = true
+
+  // Always-on design taste — independent of plugin tree.
+  registerDesignTaste()
+
+  // Native Stop hook — pure callback, no shell exec.
+  const stopMatcher: HookCallbackMatcher = {
+    matcher: '',
+    hooks: [
+      {
+        type: 'callback',
+        callback: async input => {
+          const out = await advanceHarness(input as { transcript_path?: string })
+          if (out.decision === 'block') {
+            return {
+              decision: 'block',
+              systemMessage: out.systemMessage,
+              hookSpecificOutput: out.hookSpecificOutput as never,
+            } as never
+          }
+          if (out.systemMessage) {
+            return { systemMessage: out.systemMessage } as never
+          }
+          return {} as never
+        },
+        internal: true,
+      },
+    ],
+    pluginName: 'aiko-code',
+  }
+  registerHookCallbacks({ Stop: [stopMatcher] })
+
+  // /guide — native TS entry point. No bash, no plugin root needed.
+  const harnessAllowedTools: string[] = ['Agent', 'Skill', 'Write', 'Read']
+  registerBundledSkill({
+    name: 'guide',
+    description:
+      'Launch the aiko-code 9-step harness. Stop-driven: each assistant Stop calls the host runtime which reads the session state, advances the step, and injects step N\'s playbook (principle, problem map, fibonacci parallelism budget, work). Steps 1-6 build (survey, boundaries, skeleton, signals, edges, integration), 7 verdict, 8 audit, 9 ship. Per-step parallelism budget 1,1,2,3,5,8,1,13,21.',
+    argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
+    userInvocable: true,
+    allowedTools: harnessAllowedTools,
+    async getPromptForCommand(args) {
+      const parsed = parseGuideArgs(args)
+      if (!parsed.task) {
+        return [
+          {
+            type: 'text',
+            text: 'Error: /guide needs a task. Usage: /guide <task> [--session NAME] [--north-star "<text>"]',
+          },
+        ]
+      }
+      const text = setupHarness(parsed)
+      return [{ type: 'text', text }]
+    },
+  })
+
+  // Auxiliary commands still live as small shell scripts under the bundled
+  // plugin tree. Best-effort: if the tree isn't shipped (e.g. local dev
+  // without `bun run build`), skip them rather than blowing up.
+  const root = aikoCodeRoot()
+  if (!root) return
+
+  registerBundledSkill({
+    name: 'cancel',
+    description:
+      'Cancel a running aiko-code harness session (or all). Teachings logs are preserved.',
+    argumentHint: '[--session NAME | --all]',
+    userInvocable: true,
+    async getPromptForCommand(args) {
+      const tokens = tokenize(args)
+      const text = await runScript(root, 'scripts/cancel.sh', tokens)
+      return [{ type: 'text', text }]
+    },
+  })
+
+  registerBundledSkill({
+    name: 'log',
+    description:
+      'Read back the teachings log from one or all aiko-code harness sessions.',
+    argumentHint: '[--session NAME | --all]',
+    userInvocable: true,
+    async getPromptForCommand(args) {
+      const tokens = tokenize(args)
+      const text = await runScript(root, 'scripts/log.sh', tokens)
+      return [{ type: 'text', text }]
+    },
+  })
+
+  registerBundledSkill({
+    name: 'steer',
+    description:
+      'Re-aim the north star of a running aiko-code harness session without restarting it.',
+    argumentHint: '[--session NAME] "<new north star>"',
+    userInvocable: true,
+    async getPromptForCommand(args) {
+      const tokens = tokenize(args)
+      const text = await runScript(root, 'scripts/steer.sh', tokens)
+      return [{ type: 'text', text }]
+    },
+  })
+}
+
+function tokenize(input: string): string[] {
   const out: string[] = []
   let buf = ''
   let quote: '"' | "'" | null = null
   for (let i = 0; i < input.length; i++) {
     const ch = input[i]
     if (quote) {
-      if (ch === quote) {
-        quote = null
-      } else {
-        buf += ch
-      }
+      if (ch === quote) quote = null
+      else buf += ch
     } else if (ch === '"' || ch === "'") {
       quote = ch
     } else if (ch === ' ' || ch === '\t') {
@@ -101,100 +209,6 @@ function tokenizeArgs(input: string): string[] {
   return out
 }
 
-export function registerAikoHarness(): void {
-  if (registered) return
-  registered = true
-
-  const root = aikoCodeRoot()
-  if (!root) return
-
-  // Baked-in design taste — active for every session.
-  registerDesignTaste()
-
-  // Native Stop hook — no plugin layer.
-  const stopMatcher: PluginHookMatcher = {
-    matcher: '',
-    hooks: [
-      {
-        type: 'command',
-        command: `bash ${resolve(root, 'hooks', 'stop-hook.sh')}`,
-      },
-    ],
-    pluginRoot: root,
-    pluginName: 'aiko-code',
-    pluginId: 'aiko-code@native',
-  }
-  registerHookCallbacks({ Stop: [stopMatcher] })
-
-  // Pre-allow the tool surface the harness needs so the model never stalls
-  // on permission prompts mid-cycle. Bash patterns scope to the bundled
-  // fib-harness scripts under the plugin root only — wide-open Bash is
-  // still gated by user permissions.
-  const harnessAllowedTools = [
-    'Agent',
-    'Skill',
-    'Write',
-    'Read',
-    `Bash(${resolve(root, 'scripts', 'fib-harness')}:*)`,
-    `Bash(bash ${resolve(root, 'scripts', 'fib-harness')}:*)`,
-    `Bash(${resolve(root, 'scripts', 'break-harness.sh')}:*)`,
-    `Bash(bash ${resolve(root, 'scripts', 'break-harness.sh')}:*)`,
-  ]
-
-  // /guide — 9-step Stop-driven harness entry point.
-  registerBundledSkill({
-    name: 'guide',
-    description:
-      'Launch the aiko-code 9-step harness. Stop-driven: each assistant Stop fires core/loop.sh which reads the session state, advances the step, and injects step N\'s playbook (principle, problem map, fibonacci parallelism budget, work). Steps 1-6 build (survey, boundaries, skeleton, signals, edges, integration), 7 verdict, 8 audit, 9 ship. Per-step parallelism budget 1,1,2,3,5,8,1,13,21. If a step cannot close in one pass, break-harness.sh spawns a fib-harness child scoped to the stuck sub-problem.',
-    argumentHint: 'TASK [--session NAME] [--north-star "<text>"]',
-    userInvocable: true,
-    allowedTools: harnessAllowedTools,
-    async getPromptForCommand(args) {
-      const tokens = tokenizeArgs(args)
-      const text = await runScript(root, 'scripts/setup-loop.sh', tokens)
-      return [{ type: 'text', text }]
-    },
-  })
-
-  registerBundledSkill({
-    name: 'cancel',
-    description:
-      'Cancel a running aiko-code harness session (or all). Teachings logs are preserved.',
-    argumentHint: '[--session NAME | --all]',
-    userInvocable: true,
-    async getPromptForCommand(args) {
-      const tokens = tokenizeArgs(args)
-      const text = await runScript(root, 'scripts/cancel.sh', tokens)
-      return [{ type: 'text', text }]
-    },
-  })
-
-  registerBundledSkill({
-    name: 'log',
-    description:
-      'Read back the teachings log from one or all aiko-code harness sessions.',
-    argumentHint: '[--session NAME | --all]',
-    userInvocable: true,
-    async getPromptForCommand(args) {
-      const tokens = tokenizeArgs(args)
-      const text = await runScript(root, 'scripts/log.sh', tokens)
-      return [{ type: 'text', text }]
-    },
-  })
-
-  registerBundledSkill({
-    name: 'steer',
-    description:
-      'Re-aim the north star of a running aiko-code harness session without restarting it.',
-    argumentHint: '[--session NAME] "<new north star>"',
-    userInvocable: true,
-    async getPromptForCommand(args) {
-      const tokens = tokenizeArgs(args)
-      const text = await runScript(root, 'scripts/steer.sh', tokens)
-      return [{ type: 'text', text }]
-    },
-  })
-}
 /**
  * Register the design-taste SessionStart hook.
  *
