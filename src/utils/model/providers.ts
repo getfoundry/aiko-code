@@ -17,7 +17,8 @@ export type APIProvider =
   | 'xai'
 
 export function getAPIProvider(): APIProvider {
-  // Aiko Code always uses the OpenAI-compatible Aiko LLM endpoint
+  // Aiko Code uses the OpenAI-compatible endpoint specified by OPENAI_BASE_URL,
+  // or falls back to the default aiko-api endpoint.
   return 'openai'
 }
 

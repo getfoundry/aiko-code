@@ -7,6 +7,7 @@ import { registerKeybindingsSkill } from './keybindings.js'
 import { registerLoopSkill } from './loop.js'
 import { registerAikoHarness } from './aikoCodeHarness.js'
 import { registerSimplifySkill } from './simplify.js'
+import { registerTasteSkill } from './taste.js'
 import { registerUpdateConfigSkill } from './updateConfig.js'
 
 /**
@@ -23,6 +24,7 @@ export function initBundledSkills(): void {
   registerKeybindingsSkill()
   registerDebugSkill()
   registerSimplifySkill()
+  registerTasteSkill()
   registerBatchSkill()
   if (feature('KAIROS') || feature('KAIROS_DREAM')) {
     /* eslint-disable @typescript-eslint/no-require-imports */

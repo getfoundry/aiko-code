@@ -181,7 +181,7 @@ export async function getAnthropicClient({
     }
     return new Anthropic(nativeArgs)
   }
-  // All API calls route through aiko-api.getfoundry.app/v1 (OpenAI-compatible)
+  // API calls route through OpenAI-compatible endpoint (default: aiko-api.getfoundry.app/v1)
   const { createOpenAIShimClient } = await import('./openaiShim.js')
   return createOpenAIShimClient({
     defaultHeaders,

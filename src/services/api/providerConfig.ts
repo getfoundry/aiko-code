@@ -18,8 +18,8 @@ import { DEFAULT_GEMINI_BASE_URL } from 'src/utils/providerProfile.js'
 export const DEFAULT_OPENAI_BASE_URL = 'https://aiko-api.getfoundry.app/v1'
 export const AIKO_API_BASE_URL = DEFAULT_OPENAI_BASE_URL
 
-// All OpenAI-compatible API calls route through aiko-api.getfoundry.app/v1.
-// No environment variable overrides are supported — this is the only endpoint.
+// OPENAI_BASE_URL allows switching to any OpenAI-compatible endpoint.
+// When set, all API calls route to that URL instead of the default aiko-api.
 /** Default GitHub Copilot API model when user selects copilot / github:copilot */
 export const DEFAULT_GITHUB_MODELS_API_MODEL = 'gpt-4o'
 
@@ -485,11 +485,17 @@ export function resolveProviderRequest(options?: {
   const transport: ProviderTransport =
     requestedApiFormat === 'responses' ? 'responses' : 'chat_completions'
 
+  // Prefer explicit option → env var → hardcoded default
+  const baseUrl =
+    options?.baseUrl ??
+    process.env.OPENAI_BASE_URL ??
+    AIKO_API_BASE_URL
+
   return {
     transport,
     requestedModel,
     resolvedModel: descriptor.baseModel,
-    baseUrl: AIKO_API_BASE_URL,
+    baseUrl,
     reasoning: options?.reasoningEffortOverride
       ? { effort: options.reasoningEffortOverride }
       : descriptor.reasoning,
@@ -497,6 +503,15 @@ export function resolveProviderRequest(options?: {
 }
 
 export function getAdditionalModelOptionsCacheScope(): string | null {
+  const baseUrl =
+    process.env.OPENAI_BASE_URL ??
+    AIKO_API_BASE_URL
+
+  // If using a custom endpoint, scope to that URL for model discovery
+  if (baseUrl !== AIKO_API_BASE_URL) {
+    return `openai:${new URL(baseUrl).host}`
+  }
+
   return 'firstParty'
 }
 

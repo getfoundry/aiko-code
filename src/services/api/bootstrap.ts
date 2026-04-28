@@ -21,6 +21,7 @@ import {
 } from '../../utils/providerDiscovery.js'
 import { getaikoCodeUserAgent } from '../../utils/userAgent.js'
 import {
+  AIKO_API_BASE_URL,
   getAdditionalModelOptionsCacheScope,
   resolveProviderRequest,
 } from './providerConfig.js'
@@ -62,6 +63,13 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
 
   if (getAPIProvider() !== 'firstParty') {
     logForDebugging('[Bootstrap] Skipped: 3P provider')
+    return null
+  }
+
+  // Skip aiko-api bootstrap when using a custom OpenAI-compatible endpoint
+  const customUrl = process.env.OPENAI_BASE_URL
+  if (customUrl && customUrl !== AIKO_API_BASE_URL) {
+    logForDebugging('[Bootstrap] Skipped: custom OpenAI-compatible endpoint')
     return null
   }
 

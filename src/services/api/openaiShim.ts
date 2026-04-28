@@ -5,7 +5,8 @@
  * OpenAI-compatible chat completion requests and streams back events
  * in the Anthropic streaming format so the rest of the codebase is unaware.
  *
- * All API calls route through aiko-api.getfoundry.app/v1.
+ * Default endpoint: aiko-api.getfoundry.app/v1
+ * Switchable via OPENAI_BASE_URL env var to any OpenAI-compatible endpoint.
  */
 
 import { APIError } from '@anthropic-ai/sdk'
