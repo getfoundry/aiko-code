@@ -969,13 +969,8 @@ export const getSkillDirCommands = memoize(
       const src = skill.source
       counts[src] = (counts[src] || 0) + 1
     }
-    if (process.env.AIKO_DEBUG_SKILLS) {
-      console.error(
-        `Skills loaded: ${allSkillsWithPaths.length} total (deduped: ${deduplicatedSkills.length}, unconditional: ${unconditionalSkills.length}, conditional: ${newConditionalSkills.length}, sources: ${JSON.stringify(counts)})`,
-      )
-    }
-    logForDebugging(
-      `Skills loaded: ${allSkillsWithPaths.length} total (deduped: ${deduplicatedSkills.length}, unconditional: ${unconditionalSkills.length}, conditional: ${newConditionalSkills.length}, sources: ${JSON.stringify(counts)})`,
+    console.error(
+      `Skills: ${allSkillsWithPaths.length} total, sources: ${JSON.stringify(counts)} (first skill: ${allSkillsWithPaths[0]?.skill?.source})`,
     )
 
     return unconditionalSkills
