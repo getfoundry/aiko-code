@@ -125,6 +125,20 @@ export function registerAikoHarness(): void {
     pluginId: 'aiko-code@native',
   }
   registerHookCallbacks({ Stop: [stopMatcher] })
+
+  // Pre-allow the tool surface the harness needs so the model never stalls
+  // on permission prompts mid-cycle. Bash patterns scope to the bundled
+  // fib-harness scripts under the plugin root only — wide-open Bash is
+  // still gated by user permissions.
+  const harnessAllowedTools = [
+    'Agent',
+    'Skill',
+    'Write',
+    'Read',
+    `Bash(${resolve(root, 'scripts', 'fib-harness')}:*)`,
+    `Bash(bash ${resolve(root, 'scripts', 'fib-harness')}:*)`,
+  ]
+
   // /guide — fractal subagent harness entry point.
   registerBundledSkill({
     name: 'guide',
@@ -132,6 +146,7 @@ export function registerAikoHarness(): void {
       'Launch the aiko-code fractal harness — fib-scaled subagent fan-out (1,1,2,3,5,8 = 20 agents). Three modes: --mode restructure (default; OT/law — judge dimensions, recurse on blocking failures until verdict=promote), --mode experiment (NT/grace — spawn divergent variants, keep what bears fruit, hand off to restructure when stuck), and --mode break (sabbath — pause the loop, remind you to step away from the screen and enjoy what you have already built).',
     argumentHint: 'TASK [--mode restructure|experiment|break] [--session NAME] [--north-star "<text>"]',
     userInvocable: true,
+    allowedTools: harnessAllowedTools,
     async getPromptForCommand(args) {
       const tokens = tokenizeArgs(args)
       const text = await runScript(root, 'scripts/setup-loop.sh', tokens)

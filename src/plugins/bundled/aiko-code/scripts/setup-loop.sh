@@ -182,12 +182,16 @@ Pick by intent verb: build/start -> /craft, review/inspect -> /audit,
 critique/feedback -> /critique, otherwise -> /taste. Treat the skill's
 output as a binding constraint when declaring dimensions in PHASE 0.
 
-If the task does NOT qualify, write a one-line note in $TEACHINGS_FILE:
+If the task does NOT qualify, append ONE line to $(pwd)/$TEACHINGS_FILE:
   "taste-gate: skipped — task is non-UI ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-and proceed directly to PHASE 0.
+Use the absolute path above as written. Do NOT write to \$HOME/.aiko or
+any other memory directory — \$HOME/.aiko is personal memory, NOT the
+harness teachings log. The teachings log lives in the working tree under
+.aiko/. Then proceed IMMEDIATELY to PHASE 0 in the same turn (no chat
+reply, no summary, just the next tool call).
 
-PHASE 0 — DECLARE 6 DIMENSIONS
-Write a JSON file at $WS/state/dims.json with this shape:
+PHASE 0 — DECLARE 6 DIMENSIONS (the next two tool calls after the gate)
+Tool call 1: Write file $WS/state/dims.json with this shape:
   {
     "domain": "<one of: code, content, sales, fundraising, research,
                 operations, product, ml, growth>",
@@ -203,9 +207,8 @@ Write a JSON file at $WS/state/dims.json with this shape:
       { ..., "phase": "integration", ... }
     ]
   }
-Then register:
-  $PLUGIN_ROOT/scripts/fib-harness dimensions $WS @$WS/state/dims.json
-  $PLUGIN_ROOT/scripts/fib-harness plan $WS
+Tool call 2: Bash, run BOTH commands chained with &&:
+  $PLUGIN_ROOT/scripts/fib-harness dimensions $WS @$WS/state/dims.json && $PLUGIN_ROOT/scripts/fib-harness plan $WS
 
 PHASE 1..6 — PARALLEL FAN-OUT (Fibonacci budget: 1,1,2,3,5,8 = 20 agents)
 For each level L in 1..6, spawn fib[L-1] subagents IN PARALLEL via the Agent

@@ -1,6 +1,6 @@
 {
   "name": "aiko-code",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Aiko Code — your wholesome coding companion~ Fork of Anthropic's aiko Code. 9-phase fractal development loop with Fibonacci parallelism budgets baked in.",
   "type": "module",
   "bin": {
