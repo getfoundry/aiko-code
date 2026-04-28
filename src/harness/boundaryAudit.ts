@@ -42,6 +42,20 @@ export type BoundaryPattern = {
   consumer: RegExp
   /** Human-friendly fix hint shown in the audit report. */
   fixHint: string
+  /**
+   * Optional docs grounding. When LSP + scanner both fail to find producers
+   * or consumers, the audit emits a structured "ask DeepWiki <repo>" hint
+   * with this template. The model executes the actual DeepWiki call during
+   * step 1 (it has MCP access; the stop hook doesn't). The placeholders
+   * `${producer}` and `${consumer}` are interpolated from the pattern's
+   * regex source string for human-readable framing.
+   */
+  docs?: {
+    /** GitHub owner/repo slug for DeepWiki queries (e.g. "wevm/wagmi"). */
+    repo: string
+    /** Question template for `mcp__deepwiki__ask_question`. */
+    questionTemplate: string
+  }
 }
 
 /**
@@ -57,6 +71,11 @@ export const DEFAULT_PATTERNS: readonly BoundaryPattern[] = [
     consumer: /^use[A-Z]/,
     fixHint:
       'Hoist the provider to a common ancestor of every consumer (root layout for app-wide context), or wrap the specific consumer subtree.',
+    docs: {
+      repo: 'facebook/react',
+      questionTemplate:
+        'For a React Context provider matching pattern "${producer}" with hook consumer "${consumer}", what are the standard mount-point patterns and which components in a Next.js App Router or Vite SPA typically consume it? Cite source files and line numbers.',
+    },
   },
   {
     name: 'spring-di',
@@ -66,6 +85,11 @@ export const DEFAULT_PATTERNS: readonly BoundaryPattern[] = [
     consumer: /^Autowired$|^Inject$/,
     fixHint:
       'Ensure the consumer class is in the @ComponentScan path of the configuration that registers the producer, or annotate it with @Component itself.',
+    docs: {
+      repo: 'spring-projects/spring-framework',
+      questionTemplate:
+        'How does Spring resolve "${consumer}" against "${producer}" beans? What scope/component-scan rules govern visibility, and what are the canonical failure modes when a consumer is outside the producer\'s scan path?',
+    },
   },
   {
     name: 'pytest-fixture',
@@ -75,6 +99,11 @@ export const DEFAULT_PATTERNS: readonly BoundaryPattern[] = [
     consumer: /^test_[a-zA-Z_]+$/,
     fixHint:
       'Move the fixture into conftest.py at or above the test directory, or import it explicitly in the test module.',
+    docs: {
+      repo: 'pytest-dev/pytest',
+      questionTemplate:
+        'Where should a pytest fixture decorated with @pytest.fixture be defined so that test functions matching "${consumer}" can consume it? What conftest.py placement rules govern fixture visibility and what is the canonical failure when placement is wrong?',
+    },
   },
   {
     name: 'react-hook-client-only',
@@ -83,6 +112,11 @@ export const DEFAULT_PATTERNS: readonly BoundaryPattern[] = [
     producer: /^['"]use client['"]$/,
     consumer: /^use[A-Z]/,
     fixHint: 'Add `"use client"` directive to the top of the file containing the hook call site.',
+    docs: {
+      repo: 'vercel/next.js',
+      questionTemplate:
+        'In Next.js App Router, when can a React hook like "${consumer}" be called and what happens if the file lacks the "use client" directive? Cite canonical guidance and typical error shapes.',
+    },
   },
 ]
 
@@ -103,6 +137,19 @@ export type AuditOptions = {
 
 export type AuditResult = {
   findings: BoundaryFinding[]
+  /**
+   * DeepWiki follow-up queries the model should run during step 1. Emitted
+   * when LSP + bundled scanner both came up empty for a pattern that has a
+   * `docs.repo` configured. Tier-3 fallback: when local code analysis can't
+   * find producer/consumer symbols, ask the canonical upstream repo's docs
+   * what the patterns should look like.
+   */
+  docsFollowups: Array<{
+    pattern: string
+    repo: string
+    question: string
+    reason: string
+  }>
   diagnostics: {
     lspReachable: boolean
     languagesProbed: string[]
@@ -127,6 +174,8 @@ export async function runBoundaryAudit(
   const findings: BoundaryFinding[] = []
   const languagesProbed = new Set<string>()
   const patternsApplied: string[] = []
+  const backends: string[] = []
+  const docsFollowups: AuditResult['docsFollowups'] = []
 
   await waitForInitialization()
   const lsp = getLspServerManager()
@@ -134,7 +183,7 @@ export async function runBoundaryAudit(
 
   if (!lspReachable) {
     notes.push(
-      'LSP not reachable — boundary audit downgraded to syntactic-only. Findings will be limited to what file-content scanning can detect.',
+      'LSP not reachable in this aiko-code session (no plugin contributing language servers). Falling back to the bundled regex/AST-light scanner. For full AST precision, configure serena MCP server (https://github.com/oraios/serena) — adds semantic queries with alias / re-export resolution across every language with an LSP server installed.',
     )
   }
 
@@ -148,23 +197,61 @@ export async function runBoundaryAudit(
       continue
     }
 
-    if (!lsp) continue
+    let producers: SymbolHit[] = []
+    let consumers: SymbolHit[] = []
+    let usedBackend: 'lsp' | 'scanner' = 'scanner'
 
-    const producers = await querySymbols(lsp, sampleFile, pattern.producer, maxPairs)
-    const consumers = await querySymbols(lsp, sampleFile, pattern.consumer, maxPairs)
+    if (lsp && lspReachable) {
+      producers = await querySymbols(lsp, sampleFile, pattern.producer, maxPairs)
+      consumers = await querySymbols(lsp, sampleFile, pattern.consumer, maxPairs)
+      if (producers.length > 0 || consumers.length > 0) {
+        usedBackend = 'lsp'
+      }
+    }
+
+    // Always-available fallback: bundled scanner runs when LSP returned
+    // nothing OR when no LSP is configured at all. Zero-dep, works on any
+    // language that has a recognizable producer/consumer surface.
+    if (producers.length === 0 && consumers.length === 0) {
+      const scan = scanFilesForPattern(cwd, pattern, maxPairs)
+      producers = scan.producers
+      consumers = scan.consumers
+      usedBackend = 'scanner'
+    }
+
+    // Tier-3 fallback: if both LSP and scanner came up empty AND the pattern
+    // has docs configured, emit a structured DeepWiki query the model should
+    // run during step 1. The stop hook can't call MCP itself; the model can.
+    if (
+      (producers.length === 0 || consumers.length === 0) &&
+      pattern.docs != null
+    ) {
+      docsFollowups.push({
+        pattern: pattern.name,
+        repo: pattern.docs.repo,
+        question: pattern.docs.questionTemplate
+          .replace(/\$\{producer\}/g, pattern.producer.source)
+          .replace(/\$\{consumer\}/g, pattern.consumer.source),
+        reason:
+          producers.length === 0 && consumers.length === 0
+            ? 'no producer or consumer symbols found locally'
+            : producers.length === 0
+              ? 'no producer symbols found locally'
+              : 'no consumer symbols found locally',
+      })
+    }
 
     if (producers.length === 0) {
-      notes.push(`pattern=${pattern.name}: no producer symbols found in workspace`)
+      notes.push(`pattern=${pattern.name}: no producer symbols found (backend=${usedBackend})`)
       continue
     }
     if (consumers.length === 0) {
-      notes.push(`pattern=${pattern.name}: no consumer symbols found in workspace`)
+      notes.push(`pattern=${pattern.name}: no consumer symbols found (backend=${usedBackend})`)
       continue
     }
 
-    // Pair every consumer with every producer of the same pattern. The
-    // containment check is heuristic for now — flagged as 'unknown' so the
-    // step 1 directive (or human reviewer) can do the structural reasoning.
+    backends.push(`${pattern.name}=${usedBackend}`)
+
     for (const consumer of consumers) {
       for (const producer of producers) {
         findings.push({
@@ -182,11 +269,12 @@ export async function runBoundaryAudit(
 
   return {
     findings,
+    docsFollowups,
     diagnostics: {
       lspReachable,
       languagesProbed: [...languagesProbed],
       patternsApplied,
-      notes,
+      notes: backends.length > 0 ? [`Backends used: ${backends.join(', ')}`, ...notes] : notes,
     },
   }
 }
@@ -306,6 +394,142 @@ function heuristicScope(
 }
 
 /**
+ * Bundled regex/AST-light scanner — the always-available fallback when no
+ * LSP server is configured. Walks every file with matching extensions in the
+ * workspace, extracts producer/consumer candidate symbols by structural
+ * heuristics, and filters by the pattern's regex.
+ *
+ * Less precise than LSP (no alias / re-export resolution, no semantic types)
+ * and less precise than tree-sitter (no proper grammar). Strikes the
+ * "always works, zero-dep" bar — for full AST precision, install serena MCP
+ * (https://github.com/oraios/serena), which the audit will prefer when
+ * present.
+ *
+ * Producer detection looks for:
+ *   - declarations: `(class|function|const|let|var|interface|type|def|fn|struct|enum)\s+(\w+)`
+ *   - JSX usage: `<(\w+)` (capitalized) — covers React Context provider mounts.
+ * Consumer detection looks for:
+ *   - call sites: `(\w+)\s*\(` — covers hook calls, function invocations, decorator usage.
+ */
+function scanFilesForPattern(
+  cwd: string,
+  pattern: BoundaryPattern,
+  cap: number,
+): { producers: SymbolHit[]; consumers: SymbolHit[] } {
+  const producers: SymbolHit[] = []
+  const consumers: SymbolHit[] = []
+  const seen = new Set<string>()
+  const files = walkAllFiles(cwd, pattern.extensions, 8, cap * 20)
+
+  const declRe =
+    /(?:class|function|const|let|var|interface|type|def|fn|struct|enum|object)\s+([A-Za-z_]\w*)/
+  const jsxRe = /<([A-Z]\w*)/g
+  const callRe = /\b([A-Za-z_]\w*)\s*\(/g
+
+  for (const file of files) {
+    if (producers.length + consumers.length >= cap * 4) break
+    let content: string
+    try {
+      content = readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    if (content.length > 1_000_000) continue
+    const lines = content.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!
+
+      const decl = declRe.exec(line)
+      if (decl && pattern.producer.test(decl[1]!)) {
+        recordHit(producers, seen, 'p', decl[1]!, file, i + 1)
+      }
+
+      jsxRe.lastIndex = 0
+      let jm: RegExpExecArray | null
+      while ((jm = jsxRe.exec(line)) !== null) {
+        const name = jm[1]!
+        if (pattern.producer.test(name)) {
+          recordHit(producers, seen, 'p', name, file, i + 1)
+        }
+      }
+
+      callRe.lastIndex = 0
+      let cm: RegExpExecArray | null
+      while ((cm = callRe.exec(line)) !== null) {
+        const name = cm[1]!
+        if (pattern.consumer.test(name)) {
+          recordHit(consumers, seen, 'c', name, file, i + 1)
+        }
+      }
+
+      if (producers.length + consumers.length >= cap * 4) break
+    }
+  }
+  return { producers, consumers }
+}
+
+function recordHit(
+  bucket: SymbolHit[],
+  seen: Set<string>,
+  kind: 'p' | 'c',
+  symbol: string,
+  file: string,
+  line: number,
+): void {
+  const key = `${kind}:${symbol}@${file}:${line}`
+  if (seen.has(key)) return
+  seen.add(key)
+  bucket.push({ symbol, file, line })
+}
+
+/**
+ * Walk every file in `cwd` matching the given extensions, up to a cap.
+ * Same exclusions as findSampleFile — node_modules, dist, build, dotfiles.
+ */
+function walkAllFiles(
+  cwd: string,
+  extensions: readonly string[],
+  maxDepth: number,
+  cap: number,
+): string[] {
+  const exts = new Set(extensions.map(e => `.${e.replace(/^\./, '')}`))
+  const out: string[] = []
+  const stack: Array<{ dir: string; depth: number }> = [{ dir: cwd, depth: 0 }]
+  while (stack.length > 0 && out.length < cap) {
+    const { dir, depth } = stack.pop()!
+    if (depth > maxDepth) continue
+    if (!existsSync(dir)) continue
+    let names: string[]
+    try {
+      names = readdirSafe(dir)
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (name.startsWith('.')) continue
+      if (
+        name === 'node_modules' ||
+        name === 'dist' ||
+        name === 'build' ||
+        name === 'target' ||
+        name === '__pycache__' ||
+        name === 'vendor'
+      ) {
+        continue
+      }
+      const full = resolve(dir, name)
+      if (exts.has(extname(name))) {
+        out.push(full)
+        if (out.length >= cap) break
+      } else {
+        stack.push({ dir: full, depth: depth + 1 })
+      }
+    }
+  }
+  return out
+}
+
+/**
  * Find one file in `cwd` matching the given extensions. Used as the routing
  * key for the LSP server (the manager picks the server based on the file's
  * extension, then the workspace/symbol query is workspace-scoped).
@@ -373,20 +597,39 @@ export function formatAuditMarkdown(result: AuditResult): string {
   lines.push(`## Findings (${result.findings.length})`)
   if (result.findings.length === 0) {
     lines.push('')
-    lines.push('No producer/consumer pairs found for the active patterns.')
-    return lines.join('\n')
-  }
-  lines.push('')
-  lines.push('| pattern | scope | producer | consumer | fix |')
-  lines.push('|---|---|---|---|---|')
-  for (const f of result.findings) {
+    lines.push('No producer/consumer pairs found locally for the active patterns.')
+  } else {
+    lines.push('')
+    lines.push('| pattern | scope | producer | consumer | fix |')
+    lines.push('|---|---|---|---|---|')
+    for (const f of result.findings) {
+      lines.push(
+        `| ${f.pattern} | ${f.inScopeHeuristic} | \`${f.producer.symbol}\` @ ${f.producer.file}:${f.producer.line} | \`${f.consumer.symbol}\` @ ${f.consumer.file}:${f.consumer.line} | ${f.fixHint} |`,
+      )
+    }
+    lines.push('')
     lines.push(
-      `| ${f.pattern} | ${f.inScopeHeuristic} | \`${f.producer.symbol}\` @ ${f.producer.file}:${f.producer.line} | \`${f.consumer.symbol}\` @ ${f.consumer.file}:${f.consumer.line} | ${f.fixHint} |`,
+      'Heuristic scope: `likely` = same file/dir; `unlikely` = cross-package; `unknown` = needs structural analysis (e.g. JSX-tree containment via tree-sitter or serena).',
     )
   }
-  lines.push('')
-  lines.push(
-    'Heuristic scope notes: `likely` = same file/dir (likely in scope); `unlikely` = cross-package (likely outside scope); `unknown` = needs structural analysis (e.g. JSX-tree containment).',
-  )
+  if (result.docsFollowups.length > 0) {
+    lines.push('')
+    lines.push(`## DeepWiki follow-ups (${result.docsFollowups.length}) — REQUIRED`)
+    lines.push('')
+    lines.push(
+      'The local code analysis (LSP + bundled scanner) returned empty for these patterns. Before declaring step 1 inventory complete, run each query against DeepWiki and incorporate the cited answer into your inventory. The model has MCP access; the stop hook does not — that is why this is your job, not the harness\'s.',
+    )
+    lines.push('')
+    for (const fu of result.docsFollowups) {
+      lines.push(`### \`${fu.pattern}\` → \`${fu.repo}\``)
+      lines.push(`Reason: ${fu.reason}`)
+      lines.push('')
+      lines.push('Run:')
+      lines.push('```')
+      lines.push(`mcp__deepwiki__ask_question owner="${fu.repo.split('/')[0]}" repo="${fu.repo.split('/')[1]}" question="${fu.question.replace(/"/g, '\\"')}"`)
+      lines.push('```')
+      lines.push('')
+    }
+  }
   return lines.join('\n')
 }

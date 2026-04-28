@@ -233,12 +233,14 @@ This project is a fork of [openclaude](https://github.com/Gitlawb/openclaude) by
 
 ### Tooling Credits
 
-The 9-phase harness's evidence gate hangs on two external tools — both are required at every applicable step (the stop hook fails closed without them):
+The 9-phase harness's evidence gate and the dependency-boundary audit hang on a small set of external tools. All MIT-equivalent permissive, all linked at runtime — none are vendored.
 
-- **[DeepWiki](https://deepwiki.com)** — RAG-on-rails for public GitHub repos. Surfaces upstream wikis with cited line references via the `mcp__deepwiki__read_wiki_structure` and `mcp__deepwiki__ask_question` MCP tools. Every harness step (and every parallel sub-agent slice) must cite a DeepWiki query in its teachings line as `dw:<owner/repo#topic>`. Without it the model falls back to stale training-data memory and confidently lies about library APIs.
+- **[DeepWiki](https://deepwiki.com)** — RAG-on-rails for public GitHub repos. Surfaces upstream wikis with cited line references via the `mcp__deepwiki__read_wiki_structure` and `mcp__deepwiki__ask_question` MCP tools. Every harness step (and every parallel sub-agent slice) must cite a DeepWiki query in its teachings line as `dw:<owner/repo#topic>`. Also the tier-3 fallback for the boundary audit: when LSP and the bundled scanner both come up empty, the audit emits structured DeepWiki queries against the canonical upstream repo (`facebook/react`, `vercel/next.js`, `spring-projects/spring-framework`, `pytest-dev/pytest`, …) so the model can ground producer/consumer patterns in official docs. Without it the model falls back to stale training-data memory and confidently lies about library APIs.
 - **[agent-browser](https://github.com/vercel-labs/agent-browser)** — Chrome DevTools Protocol over a CLI (`npx agent-browser`). Used for the e2e and UX-empathy gates on harness steps 1, 4, 5, 6, 8, 9 — screenshots, console errors, network failures, page evals. For the Aiko Electron host: launch with `--remote-debugging-port=9222` then `connect http://localhost:9222`. Evidence lands in the teachings line as `ab:<screenshot-path|console-error|network-failure|eval-result>`.
+- **[serena](https://github.com/oraios/serena)** by oraios — LSP-backed semantic code intelligence as an MCP server. Wraps tsserver, pyright, gopls, rust-analyzer, jdtls, clangd via [solid-lsp](https://github.com/oraios/solid-lsp). Optional but recommended: when configured, the harness's `/audit-boundaries` skill prefers serena's `find_symbol` / `find_referencing_symbols` for cross-file alias-aware producer/consumer discovery — far more precise than the bundled regex/AST-light scanner that ships as the always-on default.
+- **Bundled scanner** — zero-dep regex/AST-light fallback inside `src/harness/boundaryAudit.ts`. Always available, always runs when LSP/serena returns nothing. Less precise (no alias resolution, no semantic types) but works in any environment with no setup. The "works by default" floor.
 
-Both are MIT/Apache-equivalent permissive and are linked in at runtime, not vendored.
+The audit's three-tier fallback chain is: serena MCP (preferred when configured) → bundled scanner (always available) → DeepWiki for canonical-pattern lookup (when local code analysis came up empty). Each tier feeds the next; the model sees a single audit report with whatever evidence the tiers produced.
 
 ## License
 
