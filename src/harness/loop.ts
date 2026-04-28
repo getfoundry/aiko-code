@@ -7,6 +7,11 @@ import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 import { formatAuditMarkdown, runBoundaryAudit } from './boundaryAudit.js'
+import {
+  buildFibRepairApplyText,
+  clearFibHarness,
+  engageFibHarness,
+} from './fib.js'
 import type { HarnessPhase } from './phases.js'
 import {
   fibBudgetForMode,
@@ -101,13 +106,23 @@ export async function advanceHarness(
   const teachingsPath = teachingsFilePath(stateDir, state.session)
 
   // Work-product validation: the previous step's directive instructed the
-  // model to append a line of the form
   //   `[step N / <title>] <H1 lesson> env:<ctx> dw:<ref> ab:<evidence>`
   // to the teachings file. The gate checks for both the step marker AND the
   // required evidence tags (env always; dw always; ab when the phase requires
-  // it). Missing tags = no work-product → re-inject the same step. Escalates
-  // to session close after 3 consecutive no-ops.
-  if (!onHarness && state.step >= 1) {
+  // it).
+  //
+  // Escalation ladder:
+  //   attempt 1: re-inject the same step with a no-op warning.
+  //   attempt 2: engage fractal repair (engageFibHarness) — pin the step,
+  //              switch the directive into Repair mode, and reset noOpCount
+  //              so the recursion has fresh attempts. The model fans out
+  //              5 parallel sub-agents at the scoped sub-problem.
+  //   attempt 3 (post-fib): close the session — fractal repair couldn't
+  //              produce evidence either.
+  //
+  // When the gate PASSES while harnessWs is set, clear harnessWs (auto-resolve
+  // fractal mode) and advance normally.
+  if (state.step >= 1) {
     const prevPhase = PHASES.find(p => p.step === state.step)
     const teachingsContent = existsSync(teachingsPath)
       ? readFileSync(teachingsPath, 'utf8')
@@ -116,38 +131,85 @@ export async function advanceHarness(
     const missing = stepLine
       ? evidenceMissing(stepLine, prevPhase)
       : ['teachings-line']
-    if (missing.length > 0) {
+
+    if (missing.length === 0) {
+      // Gate passed. If we were in fractal repair, exit it now and advance.
+      if (onHarness) {
+        const cleared = clearFibHarness(state)
+        writeState(path, cleared)
+        // Re-derive nextStep using the cleared state's mode.
+        const advance = nextStepForMode(state.step, state.mode)
+        if (advance < 0) {
+          try { unlinkSync(path) } catch { /* ignore */ }
+          return {
+            systemMessage: `◆ [${state.session}] fractal repair resolved on final step. Closing.`,
+          }
+        }
+        nextStep = advance
+        onHarness = false
+      } else if ((state.noOpCount ?? 0) > 0) {
+        writeState(path, { ...state, noOpCount: 0 })
+      }
+    } else if (!onHarness) {
+      // Gate failed and not yet in fractal mode — escalate.
+      const newCount = (state.noOpCount ?? 0) + 1
+      if (newCount === 1) {
+        // Attempt 1: simple re-inject with no-op warning.
+        writeState(path, { ...state, noOpCount: newCount })
+        nextStep = state.step
+        const directive = buildDirective({
+          state, nextStep, onHarness, cwd, teachingsPath,
+        })
+        const warning = `<no-op-warning priority="absolute">\nYour last turn did not satisfy the work-product gate for step ${state.step}. Missing: ${missing.join(', ')}. Re-do step ${state.step}: produce the artifact AND append the schema'd teachings-line. Attempt ${newCount}/2 before fractal repair engages, then 3/3 closes the session.\n</no-op-warning>\n\n`
+        return {
+          decision: 'block',
+          reason: warning + directive,
+          systemMessage: `◆ [${state.session}] step ${state.step} no-op (${newCount}/2) — re-injecting.`,
+        }
+      }
+      // Attempt 2: engage fractal repair. Pin the step, set harnessWs,
+      // reset noOpCount so the recursion has fresh attempts.
+      const ws = engageFibHarness(
+        cwd,
+        state.session,
+        state.step,
+        `step ${state.step} stuck — missing: ${missing.join(', ')}`,
+      )
+      const fibState: HarnessState = {
+        ...state, harnessWs: ws, noOpCount: 0,
+      }
+      writeState(path, fibState)
+      nextStep = state.step
+      onHarness = true
+      const directive = buildDirective({
+        state: fibState, nextStep, onHarness, cwd, teachingsPath,
+      })
+      const banner = `<fractal-repair priority="absolute">\nFractal harness engaged for step ${state.step} — the no-op gate fired twice. Recursion is the response, not closure. Workspace: ${ws}. The step pin remains until you produce the gate-accepted teachings-line for step ${state.step}.\n</fractal-repair>\n\n`
+      return {
+        decision: 'block',
+        reason: banner + directive,
+        systemMessage: `◆ [${state.session}] step ${state.step} → fractal repair (workspace: ${ws}).`,
+      }
+    } else {
+      // Already in fractal mode and gate still failing — count fractal attempts.
       const newCount = (state.noOpCount ?? 0) + 1
       if (newCount >= 3) {
-        try {
-          unlinkSync(path)
-        } catch {
-          /* ignore */
-        }
+        try { unlinkSync(path) } catch { /* ignore */ }
         return {
-          systemMessage: `◆ [${state.session}] step ${state.step} produced no work-product across ${newCount} turns. Loop closed. Run /guide again with a clearer task or smaller scope.`,
+          systemMessage: `◆ [${state.session}] fractal repair on step ${state.step} produced no work-product across ${newCount} turns. Loop closed. Run /guide again with a clearer scope.`,
         }
       }
       writeState(path, { ...state, noOpCount: newCount })
-      // Re-inject the SAME step (don't advance).
       nextStep = state.step
       const directive = buildDirective({
-        state,
-        nextStep,
-        onHarness,
-        cwd,
-        teachingsPath,
+        state, nextStep, onHarness, cwd, teachingsPath,
       })
-      const warning = `<no-op-warning priority="absolute">\nYour last turn did not satisfy the work-product gate for step ${state.step}. Missing: ${missing.join(', ')}. The harness will not advance. Re-do step ${state.step} properly: produce the artifact AND append the line:\n  - [step ${state.step} / <title>] <H1 lesson — positive validation only> env:<runtime+ctx> dw:<owner/repo#topic> ${prevPhase?.requires.agentBrowser ? 'ab:<screenshot|console|network|eval>' : ''}\nto ${teachingsPath}. Treat this as H1 only — validate what worked. Do NOT reject H0; H0 may be revalidatable later. Whitespace-only writes and tag-only stubs are not work-product. This is attempt ${newCount}/3 — at 3 the loop closes.\n</no-op-warning>\n\n`
+      const banner = `<fractal-repair-warning priority="absolute">\nFractal repair attempt ${newCount}/3 still missing: ${missing.join(', ')}. Tighten the scope further OR escalate the fix to root cause. Closure at 3/3.\n</fractal-repair-warning>\n\n`
       return {
         decision: 'block',
-        reason: warning + directive,
-        systemMessage: `◆ [${state.session}] step ${state.step} no-op (${newCount}/3) — re-injecting (missing: ${missing.join(',')}).`,
+        reason: banner + directive,
+        systemMessage: `◆ [${state.session}] fractal repair ${newCount}/3 — still missing: ${missing.join(',')}.`,
       }
-    }
-    // Step completed cleanly; reset the counter for the next step.
-    if ((state.noOpCount ?? 0) > 0) {
-      writeState(path, { ...state, noOpCount: 0 })
     }
   }
 
@@ -373,14 +435,18 @@ function buildDirective({
     phase = {
       step: state.step,
       label: 'repair',
-      title: 'Repair (fib-harness child active)',
+      title: 'Fractal Repair (recursion engaged)',
       principle:
-        'Repair is fractal. Each stuck step earns its own full cycle.',
+        'Repair is fractal. Each stuck step earns its own scoped recursion — fan out adversarially at the sub-problem, fix the root, then satisfy the parent gate.',
       tactical:
-        'Drive the fib-harness child to verdict=promote before resuming the main loop.',
-      problemMap: `Step ${state.step} is stuck and a fib-harness is running in ${state.harnessWs}.`,
-      apply: `Work the harness. When verdict=promote, blank harness_ws in the state file so the next firing advances the main loop to step ${state.step + 1}.`,
-      fibBudget: 1,
+        'Five parallel adversarial sub-agents on the scoped sub-problem. Aggregate. Fix root cause. Produce the original step\'s teachings-line evidence — the parent gate releases the pin automatically when it accepts.',
+      problemMap: `Step ${state.step} is stuck. Fractal workspace: ${state.harnessWs ?? 'unknown'}.`,
+      apply: buildFibRepairApplyText(
+        state.step,
+        state.session,
+        state.harnessWs ?? '<unknown>',
+      ),
+      fibBudget: 5,
       requires: { deepwiki: true, agentBrowser: false },
     }
   } else {
@@ -497,7 +563,7 @@ function buildDirective({
     out.push('')
     out.push('IF STEP CANNOT CLOSE IN ONE PASS:')
     out.push(
-      `  /cancel --session ${state.session}  (or invoke break-harness.sh under the bundled plugin to spawn a fib-harness child scoped to the stuck sub-problem)`,
+      `  /cancel --session ${state.session}  (fractal repair auto-engages on the second consecutive no-op — pin holds the step until you produce gate-accepted evidence; closure only at 3/3 in fractal mode)`,
     )
   }
   if (isFinalStep) {
