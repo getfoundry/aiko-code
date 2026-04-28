@@ -48,20 +48,20 @@ Uses a **Fibonacci parallelism budget** — each phase spawns workers matching F
 Make sure you have [Node.js](https://nodejs.org/) (v20+) installed, then:
 
 ```bash
-npm install -g aiko
+npm install -g aiko-code
 ```
 
 That's it. No API keys, no config. Just:
 
 ```bash
-aiko
+aiko-code
 ```
 
 If you prefer to build from source:
 
 ```bash
-git clone https://github.com/getfoundry/aiko.git
-cd aiko
+git clone https://github.com/getfoundry/aiko-code.git
+cd aiko-code
 npm install
 npm run build
 npm install -g .
@@ -71,13 +71,13 @@ npm install -g .
 
 ```bash
 # Start interactive session
-aiko
+aiko-code
 
 # Run with a task via the harness
-aiko /auto "refactor the auth module to use JWT"
+aiko-code /auto "refactor the auth module to use JWT"
 
 # Run in non-interactive mode
-aiko -c "list all files in src/services"
+aiko-code -c "list all files in src/services"
 ```
 
 ## Harness Commands
@@ -90,6 +90,10 @@ aiko -c "list all files in src/services"
 | `/log` | Read session teachings |
 | `/steer "direction"` | Re-aim mid-flight |
 | `/fib-harness` | Repair stuck harness |
+
+## Usage
+
+Run `aiko-code` to start. all harness commands (`/auto`, `/stop`, etc.) are available inside the session.
 
 ## Configuration
 
