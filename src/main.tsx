@@ -189,6 +189,7 @@ import { createRemoteSessionConfig } from './remote/RemoteSessionManager.js';
 // teleportWithProgress dynamically imported at call site
 import { createDirectConnectSession, DirectConnectError } from './server/createDirectConnectSession.js';
 import { initializeLspServerManager } from './services/lsp/manager.js';
+import { bootstrapBundledUv } from './utils/uvBootstrap.js';
 import { shouldEnablePromptSuggestion } from './services/PromptSuggestion/promptSuggestion.js';
 import { type AppState, getDefaultAppState, IDLE_SPECULATION_STATE } from './state/AppStateStore.js';
 import { onChangeAppState } from './state/onChangeAppState.js';
@@ -2317,6 +2318,10 @@ async function run(): Promise<CommanderCommand> {
     // code in untrusted directories before user consent.
     // Must be after inline plugins are set (if any) so --plugin-dir LSP servers are included.
     initializeLspServerManager();
+    // Prepend bundled uv (dist/bin/uv) to PATH so child processes — notably
+    // the auto-registered serena MCP server — find uvx without the user
+    // installing uv themselves. No-op when the binary isn't present.
+    bootstrapBundledUv();
 
     if (!isNonInteractiveSession) {
       const {

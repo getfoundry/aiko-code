@@ -484,6 +484,18 @@ if (!result.success) {
 } else {
   rmSync('dist/plugins', { recursive: true, force: true })
   cpSync('src/plugins/bundled', 'dist/plugins', { recursive: true })
+
+  // Bundle uv binary for the current platform into dist/bin/. Best-effort —
+  // failure (network down, unsupported platform) logs a warning but does not
+  // fail the build. The runtime path-prepend in src/utils/uvBootstrap.ts is
+  // a no-op when the binary is missing.
+  try {
+    const { spawnSync } = await import('node:child_process')
+    spawnSync(process.execPath, ['scripts/install-uv.mjs'], { stdio: 'inherit' })
+  } catch (e) {
+    console.warn(`  ⚠ install-uv: ${(e as Error)?.message ?? e}`)
+  }
+
   console.log(`✓ Built Aiko Code v${version} → dist/cli.mjs`)
 }
 
