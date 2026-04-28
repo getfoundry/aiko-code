@@ -54,14 +54,14 @@ npm install -g aiko
 That's it. No API keys, no config. Just:
 
 ```bash
-aiko-code
+aiko
 ```
 
 If you prefer to build from source:
 
 ```bash
-git clone https://github.com/getfoundry/aiko-code.git
-cd aiko-code
+git clone https://github.com/getfoundry/aiko.git
+cd aiko
 npm install
 npm run build
 npm install -g .
@@ -71,13 +71,13 @@ npm install -g .
 
 ```bash
 # Start interactive session
-aiko-code
+aiko
 
 # Run with a task via the harness
-aiko-code /auto "refactor the auth module to use JWT"
+aiko /auto "refactor the auth module to use JWT"
 
 # Run in non-interactive mode
-aiko-code -c "list all files in src/services"
+aiko -c "list all files in src/services"
 ```
 
 ## Harness Commands
