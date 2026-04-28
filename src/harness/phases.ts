@@ -32,7 +32,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What files, modules, contracts, and external systems does this task touch? Enumerate them precisely with paths.',
     apply:
-      'Read every file in the affected scope. Produce a written inventory: paths, current behavior, dependencies, owners. No edits. No proposals.',
+      'Read every file in the affected scope. Produce a written inventory: paths, current behavior, dependencies, owners. No edits. No proposals.\nFor any public library / framework / npm package the task touches, also run mcp__deepwiki__read_wiki_structure + ask_question to verify API surface, icon names, directive syntax, or breaking changes — do NOT rely on training-data memory for these.',
     fibBudget: 1,
   },
   {
@@ -88,7 +88,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What inputs, conditions, race windows, and partial failures break this? Five adversarial probes.',
     apply:
-      'Spawn five parallel sub-agents. Each probes one adversarial axis (empty, malformed, concurrent, partial-failure, hostile) and reports a failing case or a clean pass. Fix or document each.',
+      'Spawn five parallel sub-agents. Each probes one adversarial axis (empty, malformed, concurrent, partial-failure, hostile) and reports a failing case or a clean pass. Fix or document each.\nFor UI/taste tasks: also use aiko-in-chrome to render the page and visually probe edges — hover states that break layout, click targets that are too small, mobile overflow, contrast failures. Attach screenshots to the report.',
     fibBudget: 5,
   },
   {
@@ -102,7 +102,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which end-to-end flows must work? Which user journeys, deploy paths, lifecycle transitions?',
     apply:
-      'Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.',
+      'Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\nFor UI tasks: walk each flow in aiko-in-chrome (navigate → interact → screenshot → check console logs), not just code review.',
     fibBudget: 8,
   },
   {
@@ -130,7 +130,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which slices need cold review? API contract, data model, error paths, perf, security, observability, docs, types, tests, deps, build, deploy, rollback.',
     apply:
-      'Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.',
+      'Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\nFor UI/taste audit: always run /critique skill + aiko-in-chrome visual pass — render the actual page and screenshot to catch rendering issues that code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow). Cross-check any library API claims via DeepWiki (read_wiki_structure → ask_question).',
     fibBudget: 13,
   },
   {

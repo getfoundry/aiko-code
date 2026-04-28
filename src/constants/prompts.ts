@@ -185,7 +185,23 @@ Tools:
 - read_wiki_contents(repoName: "owner/repo") — fetch the full wiki content.
 - ask_question(repoName: "owner/repo", question) — ask a natural-language question; returns an AI-grounded answer with citations. Prefer this for specific behavioral or API questions.
 
-Only works for public GitHub repos. For private code, read the local files instead.`
+Only works for public GitHub repos. For private code, read the local files instead.
+
+## aiko-in-chrome (mcp__aiko-in-chrome__*) — browser automation
+Chrome extension MCP server for interacting with web pages. Use for:
+- UI/UX audits and taste reviews — navigate to the page, screenshot, check console logs
+- Accessibility debugging — inspect contrast ratios, focus order, ARIA attributes
+- Network debugging — see which API calls fail, what responses the UI actually receives
+- Visual regression — compare before/after screenshots of changes
+- "Does this look right?" — when code review can't answer, render it and look at it
+
+How to use:
+1. Start by invoking the aiko-in-chrome skill (Skill: aiko-in-chrome) to get the full tool list
+2. Call mcp__aiko-in-chrome__tabs_context_mcp to see open tabs
+3. Navigate to the page under test, take screenshots, check console, inspect elements
+4. Report findings with screenshots as evidence, not just code observations
+
+Note: The extension must be installed and permissions granted to the target site. If unavailable, fall back to code review but note the limitation.`
 }
 
 export function prependBullets(items: Array<string | string[]>): string[] {

@@ -190,6 +190,11 @@ Strategy:
 4. Follow up with \`read_file\` for detail.
 
 Bias toward finding the answer yourself before asking the user.
+
+External tool priority (must consider and use when applicable):
+- **DeepWiki** (\`mcp__deepwiki__read_wiki_structure\` / \`ask_question\` / \`read_wiki_contents\`) — ALWAYS use for public GitHub repos BEFORE relying on training data. Concrete triggers: lucide-react icon names (check if \`TheatreMask\` vs \`Theater\` is correct), Tailwind v4 directives (check if \`tw-animate-css\` is real), Next.js 15 breaking changes, framework version-specific APIs, npm package behavior. Workflow: read_wiki_structure → identify relevant topic → ask_question for precise API behavior. Takes 30s, saves 30min of hallucination.
+- **agent-browser** (aiko-in-chrome / \`npx agent-browser\` via Bash) — ALWAYS use for UI/UX audits when a running app is available. Concrete triggers: taste audit, critique pass, accessibility review, visual debugging, "does it look right?", "test this flow". Workflow: open aiko-in-chrome skill → navigate to the page → screenshot/check console → report what you see. Takes 1min, catches what code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index issues, mobile overflow).
+- **Rule:** if the task involves (a) checking public library API surface, or (b) verifying visual/UI correctness of a running app, use the corresponding tool. Not "consider" — use. If neither applies, note "N/A: not applicable (no library docs needed, no running app to inspect)" in your reasoning. Don't silently skip.
 </search_and_reading>
 
 <tools>
