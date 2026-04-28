@@ -35,6 +35,9 @@ const DEEPWIKI_RAG =
 const AGENT_BROWSER_PROBE =
   'Empathy probe via agent-browser: `npx agent-browser` (Electron host: launch with `--remote-debugging-port=9222` then `connect http://localhost:9222`). Walk the actual UI as a user would — screenshot, console, network, eval. Capture evidence as `ab:<screenshot-path|console-error|network-failure|eval-result>`.'
 
+const TASTE_SKILL_ROUTING =
+  'Taste/UX skill routing: enumerate available Skills and invoke whichever match `taste|critique|design-review|ux|frontend-design|ui-ux` for the slice — common candidates installed at the user level: `/design-taste-frontend`, `/ui-ux-pro-max`, `/gpt-taste`, `/running-design-reviews`, `/frontend-design`, `/code-review`, `/stitch-design-taste`, `/minimalist-ui`. Pick by name match against the slice (frontend bug → `/frontend-design` or `/ui-ux-pro-max`; pure visual taste → `/design-taste-frontend` or `/gpt-taste`; structured review framing → `/running-design-reviews`). If no match exists, note `taste-skill:none-installed` in the report and rely on the agent-browser pass alone.'
+
 export const PHASES: readonly HarnessPhase[] = [
   {
     step: 1,
@@ -47,7 +50,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What files, modules, contracts, and external systems does this task touch? Enumerate them precisely with paths.',
     apply:
-      `Read every file in the affected scope. Produce a written inventory: paths, current behavior, dependencies, owners. No edits. No proposals.\n${DEEPWIKI_RAG}\n${AGENT_BROWSER_PROBE} (initial-state screenshot of the affected UI surface, even if "working".)`,
+      `Read every file in the affected scope. Produce a written inventory: paths, current behavior, dependencies, owners. No edits. No proposals.\n${DEEPWIKI_RAG}\n${AGENT_BROWSER_PROBE} (initial-state screenshot of the affected UI surface, even if "working".)\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 1,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -107,7 +110,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What inputs, conditions, race windows, and partial failures break this? Five adversarial probes.',
     apply:
-      `Spawn five parallel sub-agents. Each probes one adversarial axis (empty, malformed, concurrent, partial-failure, hostile) and reports a failing case or a clean pass. Fix or document each.\n${DEEPWIKI_RAG} Look up known edge-case bugs / CVEs / issues filed upstream against the libraries you depend on.\n${AGENT_BROWSER_PROBE} UX empathy pass: hover states that break layout, click targets too small, mobile overflow, contrast failures, keyboard-only nav, screen-reader labels. Attach screenshots of every broken state.`,
+      `Spawn five parallel sub-agents. Each probes one adversarial axis (empty, malformed, concurrent, partial-failure, hostile) and reports a failing case or a clean pass. Fix or document each.\n${DEEPWIKI_RAG} Look up known edge-case bugs / CVEs / issues filed upstream against the libraries you depend on.\n${AGENT_BROWSER_PROBE} UX empathy pass: hover states that break layout, click targets too small, mobile overflow, contrast failures, keyboard-only nav, screen-reader labels. Attach screenshots of every broken state.\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 5,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -122,7 +125,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which end-to-end flows must work? Which user journeys, deploy paths, lifecycle transitions?',
     apply:
-      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.`,
+      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 8,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -152,7 +155,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which slices need cold review? API contract, data model, error paths, perf, security, observability, docs, types, tests, deps, build, deploy, rollback.',
     apply:
-      `Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\n${DEEPWIKI_RAG} Cross-check every API claim, data-model invariant, and dep version against upstream wikis.\n${AGENT_BROWSER_PROBE} Run /critique skill alongside an agent-browser visual pass — render the actual page and screenshot to catch rendering issues code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow).`,
+      `Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\n${DEEPWIKI_RAG} Cross-check every API claim, data-model invariant, and dep version against upstream wikis.\n${AGENT_BROWSER_PROBE} Run the available taste/critique skill alongside an agent-browser visual pass — render the actual page and screenshot to catch rendering issues code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow).\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 13,
     requires: { deepwiki: true, agentBrowser: true },
   },
