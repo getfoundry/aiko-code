@@ -4,6 +4,7 @@
  * directive. Native TS replacement for core/loop.sh.
  */
 import { existsSync, readFileSync, unlinkSync } from 'node:fs'
+import { detectDevCommand } from '../utils/devCommand.js'
 import { dirname, resolve } from 'node:path'
 
 import {
@@ -420,6 +421,7 @@ function buildDirective({
   state,
   nextStep,
   onHarness,
+  cwd,
   teachingsPath,
 }: DirectiveArgs): string {
   let phase: HarnessPhase
@@ -536,8 +538,17 @@ function buildDirective({
     )
   }
   if (phase.requires.agentBrowser) {
+    const devCmd = detectDevCommand(cwd)
     out.push(
-      '     ab: must point at a real agent-browser RUNTIME artifact — a screenshot path (.png/.jpg), `console:<error>`, `network:<request>`, `eval:<result>`, or a string containing `agent-browser`/`localhost:`/`:9222`/`cdp`/`devtools`. Build/test logs ("bun run next build", "vitest passed", "tsc clean") are REJECTED — they are compile-time, not runtime, and miss hydration mismatches and provider-not-found errors. You must actually launch `npx agent-browser navigate <url>` (or attach to `--remote-debugging-port=9222`) and capture live output. `ab:skip:<reason>` allowed only with a 20+ char justification.',
+      '     ab: must point at a real agent-browser RUNTIME artifact — a screenshot path (.png/.jpg), `console:<error>`, `network:<request>`, `eval:<result>`, or a string containing `agent-browser`/`localhost:`/`:9222`/`cdp`/`devtools`. Build/test logs ("bun run next build", "vitest passed", "tsc clean") are REJECTED — they are compile-time, not runtime, and miss hydration mismatches and provider-not-found errors.',
+    )
+    out.push(
+      '     BEFORE writing ab:skip: try to bring the dev server up first. Detected stack: ' +
+        (devCmd.framework ?? 'unknown framework') +
+        ' (source: ' + devCmd.source + '). Run \'' + devCmd.install + ' && ' + devCmd.dev + '\' in the background, then poll http://localhost:' + devCmd.port + ' until the page returns 2xx/3xx/5xx (5xx is fine — it means the server is alive and an in-app error counts as a real runtime artifact via console:/network:/eval: markers). Only ab:skip if dev server fails to bind (env validation, port conflict, install error). If the framework is "unknown" or the dev script is wrong, query DeepWiki via mcp__deepwiki__ask_question for the dev/start command before skipping.',
+    )
+    out.push(
+      '     `ab:skip:<reason>` is auto-accepted with a 20+ char justification — preferred reasons: "dev server unreachable: env validation failed for <var>", "port 3000 already in use after launch attempt", "install failed: <error>". Generic reasons ("server not running") are too short and will be rejected.',
     )
   }
   out.push(`  3. Do the work: ${apply}`)
