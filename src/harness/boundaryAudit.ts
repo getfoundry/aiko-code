@@ -27,6 +27,7 @@ import {
   isLspConnected,
   waitForInitialization,
 } from '../services/lsp/manager.js'
+import { collectIdentifiers, isAvailable as treeSitterAvailable, langForExtension } from '../utils/treeSitter.js'
 import { scanWithTsAst } from './tsAstScanner.js'
 
 export type BoundaryPattern = {
@@ -214,7 +215,7 @@ export async function runBoundaryAudit(
 
     let producers: SymbolHit[] = []
     let consumers: SymbolHit[] = []
-    let usedBackend: 'lsp' | 'ts-ast' | 'docs-only' = 'docs-only'
+    let usedBackend: 'lsp' | 'tree-sitter' | 'ts-ast' | 'docs-only' = 'docs-only'
 
     // Tier-1: LSP (semantic, alias-aware). Best precision when configured —
     // serena MCP is the recommended way to get this without an fcode plugin.
@@ -226,10 +227,25 @@ export async function runBoundaryAudit(
       }
     }
 
-    // Tier-2: TypeScript AST (proper syntax tree, alias resolution for
-    // imports). Runs when LSP came up empty AND the pattern targets TS-family
-    // extensions. Returns null when no matching files exist or TS module
-    // unavailable.
+    // Tier-2: tree-sitter (cross-language AST). Runs when LSP came up empty
+    // AND tree-sitter grammars are bundled for at least one of the pattern's
+    // extensions. Walks every matching file, extracts identifier roles
+    // (declaration / call / jsx) via parent-context classification, filters
+    // by pattern.producer / pattern.consumer regex.
+    if (producers.length === 0 && consumers.length === 0 && treeSitterAvailable()) {
+      const ts = await scanWithTreeSitter(cwd, pattern, maxPairs)
+      if (ts && (ts.producers.length > 0 || ts.consumers.length > 0)) {
+        producers = ts.producers
+        consumers = ts.consumers
+        usedBackend = 'tree-sitter'
+      }
+    }
+
+    // Tier-3: TypeScript AST (TS-only fallback). Runs when both LSP and
+    // tree-sitter came up empty AND the pattern targets TS-family extensions.
+    // Uses the bundled `typescript` compiler API; less precise than
+    // tree-sitter for non-TS but more reliable for complex TS-specific syntax
+    // (decorators, JSX-with-aliased-imports).
     if (producers.length === 0 && consumers.length === 0) {
       const ast = await scanWithTsAst(cwd, pattern, maxPairs)
       if (ast && (ast.producers.length > 0 || ast.consumers.length > 0)) {
@@ -494,9 +510,110 @@ function readdirSafe(dir: string): string[] {
 }
 
 /**
- * Format an audit result as a markdown report suitable for direct inclusion
- * in a step 1 inventory or as a /audit-boundaries skill response.
+ * Tree-sitter scanner — walks all files matching the pattern's extensions,
+ * parses each via the bundled grammar, collects identifiers classified by
+ * parent context, and matches against pattern.producer / pattern.consumer.
+ *
+ * Producer-shaped identifiers: declarations (class / function / variable /
+ * type / interface / enum / struct) AND JSX opening elements (covers React
+ * Context provider mounts).
+ * Consumer-shaped identifiers: calls (function calls, hook calls, decorators
+ * via call syntax).
+ *
+ * Returns null if no files matched or all parses failed — caller should fall
+ * through to the next tier.
  */
+async function scanWithTreeSitter(
+  cwd: string,
+  pattern: BoundaryPattern,
+  cap: number,
+): Promise<{ producers: SymbolHit[]; consumers: SymbolHit[] } | null> {
+  const exts = new Set(pattern.extensions.map(e => e.replace(/^\./, '')))
+  const tsLangs = pattern.extensions
+    .map(e => langForExtension(e.replace(/^\./, '')))
+    .filter((l): l is NonNullable<ReturnType<typeof langForExtension>> => l != null)
+  if (tsLangs.length === 0) return null
+
+  const files = walkAllFilesForTs(cwd, exts, 8, cap * 20)
+  if (files.length === 0) return null
+
+  const producers: SymbolHit[] = []
+  const consumers: SymbolHit[] = []
+  const seen = new Set<string>()
+  let parsed = 0
+
+  for (const file of files) {
+    if (producers.length + consumers.length >= cap * 4) break
+    const idents = await collectIdentifiers(file)
+    if (!idents) continue
+    parsed += 1
+    for (const id of idents) {
+      const isProducer =
+        (id.role === 'declaration' || id.role === 'jsx') &&
+        pattern.producer.test(id.name)
+      const isConsumer = id.role === 'call' && pattern.consumer.test(id.name)
+      if (!isProducer && !isConsumer) continue
+      const bucket = isProducer ? producers : consumers
+      const kind = isProducer ? 'p' : 'c'
+      const key = `${kind}:${id.name}@${file}:${id.line}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      bucket.push({ symbol: id.name, file, line: id.line })
+    }
+  }
+
+  if (parsed === 0) return null
+  return { producers, consumers }
+}
+
+/**
+ * Local file walker — duplicated from earlier (the regex scanner used a
+ * similar one). Kept inline to avoid cross-module dep churn.
+ */
+function walkAllFilesForTs(
+  cwd: string,
+  extensions: Set<string>,
+  maxDepth: number,
+  cap: number,
+): string[] {
+  const out: string[] = []
+  const stack: Array<{ dir: string; depth: number }> = [{ dir: cwd, depth: 0 }]
+  const fs = require('node:fs') as typeof import('node:fs')
+  while (stack.length > 0 && out.length < cap) {
+    const { dir, depth } = stack.pop()!
+    if (depth > maxDepth) continue
+    if (!existsSync(dir)) continue
+    let names: string[]
+    try {
+      if (!fs.statSync(dir).isDirectory()) continue
+      names = fs.readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (name.startsWith('.')) continue
+      if (
+        name === 'node_modules' ||
+        name === 'dist' ||
+        name === 'build' ||
+        name === 'target' ||
+        name === '__pycache__' ||
+        name === 'vendor'
+      ) {
+        continue
+      }
+      const full = resolve(dir, name)
+      const ext = extname(name).replace(/^\./, '')
+      if (extensions.has(ext)) {
+        out.push(full)
+        if (out.length >= cap) break
+      } else {
+        stack.push({ dir: full, depth: depth + 1 })
+      }
+    }
+  }
+  return out
+}
 export function formatAuditMarkdown(result: AuditResult): string {
   const lines: string[] = []
   lines.push('# Dependency-Boundary Audit')

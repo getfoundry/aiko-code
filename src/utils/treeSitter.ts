@@ -254,3 +254,97 @@ export async function runQuery(
 export function isAvailable(): boolean {
   return grammarsDir() !== null
 }
+
+/**
+ * Walk an AST collecting every identifier-shaped node, classifying it as
+ * declaration, call, or JSX-element by parent context. Used by the boundary
+ * audit to find producer/consumer candidates in any language tree-sitter
+ * supports — replaces the TS-only tsAstScanner for cross-language coverage.
+ */
+export type IdentifierHit = {
+  name: string
+  role: 'declaration' | 'call' | 'jsx' | 'other'
+  line: number
+  column: number
+}
+
+export async function collectIdentifiers(
+  filePath: string,
+): Promise<IdentifierHit[] | null> {
+  const parsed = await parseFile(filePath)
+  if (!parsed) return null
+
+  type Node = {
+    type: string
+    text: string
+    startPosition: { row: number; column: number }
+    children?: Node[]
+    childForFieldName?: (name: string) => Node | null
+    namedChildren?: Node[]
+  }
+
+  const out: IdentifierHit[] = []
+
+  function visit(node: Node, parent: Node | null): void {
+    const t = node.type
+    const isIdentLike =
+      t === 'identifier' ||
+      t === 'type_identifier' ||
+      t === 'property_identifier' ||
+      t === 'shorthand_property_identifier'
+
+    if (isIdentLike) {
+      const role = classify(node, parent)
+      out.push({
+        name: node.text,
+        role,
+        line: node.startPosition.row + 1,
+        column: node.startPosition.column + 1,
+      })
+    }
+
+    const children = (node.namedChildren ?? node.children ?? []) as Node[]
+    for (const c of children) visit(c, node)
+  }
+
+  function classify(_node: Node, parent: Node | null): IdentifierHit['role'] {
+    if (!parent) return 'other'
+    const pt = parent.type
+    if (
+      pt === 'class_declaration' ||
+      pt === 'class_definition' ||
+      pt === 'function_declaration' ||
+      pt === 'function_definition' ||
+      pt === 'method_definition' ||
+      pt === 'function_item' ||
+      pt === 'struct_item' ||
+      pt === 'enum_item' ||
+      pt === 'interface_declaration' ||
+      pt === 'type_alias_declaration' ||
+      pt === 'variable_declarator' ||
+      pt === 'lexical_declaration' ||
+      pt === 'type_declaration'
+    ) {
+      return 'declaration'
+    }
+    if (
+      pt === 'call_expression' ||
+      pt === 'call' ||
+      pt === 'function_call'
+    ) {
+      return 'call'
+    }
+    if (
+      pt === 'jsx_opening_element' ||
+      pt === 'jsx_self_closing_element' ||
+      pt === 'jsx_closing_element'
+    ) {
+      return 'jsx'
+    }
+    return 'other'
+  }
+
+  const tree = parsed.tree as { rootNode: Node }
+  visit(tree.rootNode, null)
+  return out
+}

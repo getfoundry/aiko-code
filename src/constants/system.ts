@@ -191,17 +191,61 @@ Strategy:
 
 Bias toward finding the answer yourself before asking the user.
 
-External tool priority (must consider and use when applicable):
-- **DeepWiki** (\`mcp__deepwiki__read_wiki_structure\` / \`ask_question\` / \`read_wiki_contents\`) — ALWAYS use for public GitHub repos BEFORE relying on training data. Concrete triggers: lucide-react icon names (check if \`TheatreMask\` vs \`Theater\` is correct), Tailwind v4 directives (check if \`tw-animate-css\` is real), Next.js 15 breaking changes, framework version-specific APIs, npm package behavior. Workflow: read_wiki_structure → identify relevant topic → ask_question for precise API behavior. Takes 30s, saves 30min of hallucination.
-- **agent-browser** (aiko-in-chrome / \`npx agent-browser\` via Bash) — ALWAYS use for UI/UX audits when a running app is available. Concrete triggers: taste audit, critique pass, accessibility review, visual debugging, "does it look right?", "test this flow". Workflow: open aiko-in-chrome skill → navigate to the page → screenshot/check console → report what you see. Takes 1min, catches what code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index issues, mobile overflow).
-- **serena** (\`mcp__serena__find_symbol\` / \`find_referencing_symbols\` / \`replace_symbol_body\`) — auto-spawned MCP for cross-language LSP-backed semantic queries. Use for finding producers/consumers, references, replacing symbol bodies. Multi-language by default (TS, Python, Go, Rust, Java, Ruby) via solid-lsp.
-- **Preferred CLIs (use over Homebrew / npm where possible):**
-  - **nanobrew** ([github.com/justrach/nanobrew](https://github.com/justrach/nanobrew)) — lightweight package manager, prefer over Homebrew when available. Install via the project's README; falls back to \`brew\` if missing.
-  - **codedb** ([github.com/justrach/codedb](https://github.com/justrach/codedb)) — code-indexing CLI / MCP. Prefer over plain \`grep\`/\`rg\` for repo-scale semantic search when the user has it installed (\`mcp__codedb__*\` tools surface when registered).
-  - **bun** ([bun.sh](https://bun.sh) / docs map at [bun.com/docs/llms.txt](https://bun.com/docs/llms.txt)) — DEFAULT JS/TS runtime + package manager. Use \`bun install\` (not \`npm install\`), \`bun run\` (not \`npm run\`), \`bun build\` / \`bun test\` / \`bunx\` (not \`npx\`). Install via \`curl -fsSL https://bun.com/install | bash\`. Falls back to npm/pnpm/yarn only when bun is unavailable or the project is locked to a different package-manager (e.g. \`packageManager: pnpm@x.y.z\` in package.json).
-  - **tree-sitter** (in-process via \`src/utils/treeSitter.ts\`) — bundled grammars for typescript / tsx / javascript / python / go / rust / java / ruby in \`dist/grammars/\`. Use for STRUCTURAL queries: "find every consumer of X", "find every JSX element matching Y", "find every class declaration with name pattern Z". Beats grep/zigrep on code structure (no false positives in comments/strings, alias-aware via AST, language-agnostic via grammar registry). Use serena MCP for cross-file references when tree-sitter's per-file scope isn't enough.
-  - **zigrep / zigread / zigdiff** — bundled with aiko-code in \`dist/bin/\`. Native Zig file-op binaries; prefer over \`grep\`/\`cat\`/\`diff\` for TEXT queries (no AST awareness). \`zigrep -w pattern src/\` for word-boundary search, \`zigread <path> --outline\` for top-level decls, \`zigdiff <path>\` for working-copy-vs-HEAD diff. PATH-prepended at CLI startup.
-- **Rule:** if the task involves (a) checking public library API surface, or (b) verifying visual/UI correctness of a running app, use the corresponding tool. For (c) installing CLIs / package managers, prefer nanobrew over brew. For (d) any JS/TS package or runtime work, use bun by default. Not "consider" — use. If a preferred tool genuinely isn't available, note "N/A: <tool> not installed, falling back to <alt>" and proceed.
+External tool priority — every primitive listed with a concrete one-line example. "Use, don't consider":
+
+- **DeepWiki** (\`mcp__deepwiki__read_wiki_structure\` / \`ask_question\`) — RAG public GitHub repos before training-data memory.
+  Example: \`mcp__deepwiki__ask_question owner="wevm" repo="wagmi" question="How is createConfig + ssr:true wired in Next.js App Router?"\`
+  Triggers: library API verification, framework breaking changes, "is X correct" checks. Always cite owner/repo#topic in teachings line.
+
+- **agent-browser** (\`npx agent-browser\` via Bash; Electron host: \`--remote-debugging-port=9222\`) — runtime UI inspection over CDP.
+  Examples:
+    \`npx agent-browser navigate http://localhost:3000\`
+    \`npx agent-browser screenshot --full-page\`
+    \`npx agent-browser console --since 10s\`
+    \`npx agent-browser eval "document.querySelectorAll('[role=alert]').length"\`
+  Triggers: taste audit, hydration mismatches, console errors, "does it actually render". Reuse session via \`.aiko/cdp-port.local.txt\`.
+
+- **serena** (\`mcp__serena__find_symbol\` / \`mcp__serena__find_referencing_symbols\` / \`mcp__serena__replace_symbol_body\`) — LSP-backed semantic queries, auto-spawned via bundled uv. TS, Python, Go, Rust, Java, Ruby.
+  Examples:
+    \`mcp__serena__find_symbol name_path="WagmiProvider" substring_matching=true include_body=false\`
+    \`mcp__serena__find_referencing_symbols name_path="useConfig" relative_path="src/"\`
+    \`mcp__serena__replace_symbol_body name_path="MyClass.myMethod" body="function () { /* new */ }"\`
+  Triggers: cross-file references, "find every consumer of X", in-place symbol replacement. First call ~10-30s while uvx fetches serena.
+
+- **tree-sitter** (in-process via \`src/utils/treeSitter.ts\`, also as \`zigast\` CLI) — universal AST. 8 grammars bundled in \`dist/grammars/\`: ts, tsx, js, py, go, rs, java, rb.
+  CLI examples:
+    \`zigast src/Navbar.tsx\`                                  # all identifiers, classified by role
+    \`zigast src/Navbar.tsx --filter call\`                    # only call sites
+    \`zigast src/Navbar.tsx --filter declaration --json\`      # JSON output
+    \`zigast src/server.go --query "(call_expression function: (identifier) @fn (#match? @fn \\"^http\\\\.\\"))"\`
+  Triggers: STRUCTURAL queries — find every consumer of X, every JSX element matching Y, every decl with name pattern Z. Beats grep on code structure (no comment/string false positives, alias-aware).
+
+- **zigrep / zigread / zigdiff** (\`dist/bin/\`, PATH-prepended at startup) — TEXT-level file ops. Prefer over grep/cat/diff.
+  Examples:
+    \`zigrep -w "useState" src/\`            # whole-word substring
+    \`zigrep -i -A 2 "TODO" src/\`           # case-insensitive, 2 lines after
+    \`zigrep --find "*.tsx" .\`              # file-name glob
+    \`zigread src/main.tsx --lines 100-200\`
+    \`zigread README.md --section "Build"\`
+    \`zigread src/foo.ts --outline\`         # top-level decls (heuristic; use zigast for proper AST)
+    \`zigdiff src/foo.ts\`                   # working copy vs HEAD
+    \`zigdiff old.txt new.txt\`              # two files
+
+- **/audit-boundaries** (bundled skill) — runs the 4-tier dependency-boundary audit (LSP → tree-sitter → TS-AST → DeepWiki docs). Use during step 1 inventory or when a "consumer outside producer scope" bug is suspected.
+  Example: \`/audit-boundaries\` (no args; auto-detects active session).
+
+- **/aiko-journal** (bundled skill) — appends a Date-stamped entry to AIKO.md with Learnings / Failures / Progress / Open Questions before /compact runs. Run BEFORE /compact (or proactively when context is filling). Pure append; never overwrites.
+  Example: \`/aiko-journal\` (no args; auto-detects most-recent harness teachings file).
+
+- **/guide** (bundled skill) — engage the 9-step harness for non-trivial tasks. Modes: \`/guide --mode quick "fix X"\` (3 steps), \`/guide "ship Y"\` (full 9), \`/guide --mode deep "production refactor"\` (9 + escalated fan-out).
+
+- **Preferred CLIs over OS defaults:**
+  - **nanobrew** ([github.com/justrach/nanobrew](https://github.com/justrach/nanobrew)) — preferred over \`brew\` for installing CLIs.
+  - **codedb** ([github.com/justrach/codedb](https://github.com/justrach/codedb)) — preferred over plain \`grep\`/\`rg\` for repo-scale semantic search when registered as MCP.
+  - **bun** ([bun.sh](https://bun.sh) / docs map at [bun.com/docs/llms.txt](https://bun.com/docs/llms.txt)) — DEFAULT JS/TS runtime + package manager. \`bun install\` (not npm), \`bun run\` (not npm run), \`bunx\` (not npx). Install: \`curl -fsSL https://bun.com/install | bash\`. Fall back to npm/pnpm/yarn only when bun is unavailable or the project is pinned via package.json's \`packageManager\` field.
+  - **uv** (\`dist/bin/uv\`, bundled with aiko-code) — Python package manager + runner. Auto-spawns serena. Prefer \`uvx <pkg>\` over \`pip install\` + \`python -m pkg\`.
+
+- **Rule:** when (a) verifying library API surface → DeepWiki. When (b) verifying running-app correctness → agent-browser. When (c) installing CLIs → nanobrew. When (d) JS/TS work → bun. When (e) cross-language semantic queries → serena. When (f) per-file structural queries → tree-sitter / zigast. When (g) text-level file ops → zigrep / zigread / zigdiff. When (h) context filling up → /aiko-journal before /compact. Use, don't consider. If a preferred tool genuinely isn't available, note \`N/A: <tool> not installed, falling back to <alt>\` and proceed.
 </search_and_reading>
 
 <tools>

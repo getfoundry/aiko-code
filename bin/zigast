@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+/**
+ * zigast — pipe-friendly AST query CLI for the harness.
+ *
+ * Usage:
+ *   zigast <path>                       # outline (declaration / call / jsx idents)
+ *   zigast <path> --query "<s-expr>"    # tree-sitter query against the file
+ *   zigast <path> --filter call         # only show calls
+ *   zigast <path> --filter declaration  # only show declarations
+ *   zigast <path> --json                # JSON output (default is one-per-line text)
+ *
+ * Backed by `dist/grammars/` bundled with aiko-code. Languages: typescript,
+ * tsx, javascript, python, go, rust, java, ruby. Extending: add a grammar
+ * to scripts/install-tree-sitter-grammars.mjs and rebuild.
+ *
+ * No setup needed — the runtime + grammar WASMs ship with `npm i -g aiko-code`.
+ */
+import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+// Resolve the bundled cli.mjs (which ships the treeSitter module) so we can
+// import from it. This binary is shipped alongside dist/ so we walk up.
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '..')
+const distCli = join(repoRoot, 'dist', 'cli.mjs')
+
+if (!existsSync(distCli)) {
+  process.stderr.write(
+    `zigast: dist/cli.mjs not found at ${distCli}. Run \`bun run build\` first.\n`,
+  )
+  process.exit(1)
+}
+
+const args = process.argv.slice(2)
+if (args.length === 0 || args.includes('-h') || args.includes('--help')) {
+  process.stderr.write(
+    `usage: zigast <path> [--query "<s-expr>" | --filter declaration|call|jsx] [--json]\n`,
+  )
+  process.exit(args.length === 0 ? 2 : 0)
+}
+
+let path = ''
+let query = ''
+let filter = ''
+let json = false
+
+for (let i = 0; i < args.length; i++) {
+  const a = args[i]
+  if (a === '--query') {
+    query = args[++i] || ''
+  } else if (a === '--filter') {
+    filter = args[++i] || ''
+  } else if (a === '--json') {
+    json = true
+  } else if (!a.startsWith('-')) {
+    path = a
+  }
+}
+
+if (!path) {
+  process.stderr.write(`zigast: no <path> given\n`)
+  process.exit(2)
+}
+
+// Dynamically import the bundled treeSitter module — easier than re-resolving
+// the grammars dir ourselves. The bundle exports collectIdentifiers,
+// parseFile, runQuery via internal references; we use a small bridge module
+// path that's stable across builds.
+const mod = await import('../src/utils/treeSitter.ts').catch(async () => {
+  // Production install: import from the compiled CLI bundle by URL.
+  return await import(distCli + '#treeSitter').catch(() => null)
+})
+
+if (!mod || typeof mod.collectIdentifiers !== 'function') {
+  process.stderr.write(
+    `zigast: could not load treeSitter module — fcode may not be built\n`,
+  )
+  process.exit(1)
+}
+
+const fileAbs = resolve(path)
+
+if (query) {
+  const parsed = await mod.parseFile(fileAbs)
+  if (!parsed) {
+    process.stderr.write(`zigast: failed to parse ${path}\n`)
+    process.exit(1)
+  }
+  const matches = await mod.runQuery(parsed, query)
+  if (json) {
+    process.stdout.write(JSON.stringify(matches, null, 2) + '\n')
+  } else {
+    for (const m of matches) {
+      process.stdout.write(
+        `${path}:${m.startLine}:${m.startColumn}: @${m.captureName} ${m.text}\n`,
+      )
+    }
+  }
+} else {
+  const idents = await mod.collectIdentifiers(fileAbs)
+  if (!idents) {
+    process.stderr.write(`zigast: failed to parse ${path} (unsupported language?)\n`)
+    process.exit(1)
+  }
+  const filtered = filter ? idents.filter(i => i.role === filter) : idents
+  if (json) {
+    process.stdout.write(JSON.stringify(filtered, null, 2) + '\n')
+  } else {
+    for (const i of filtered) {
+      process.stdout.write(`${path}:${i.line}:${i.column}: ${i.role} ${i.name}\n`)
+    }
+  }
+}
