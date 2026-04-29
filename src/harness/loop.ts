@@ -383,13 +383,29 @@ function shapeAgentBrowser(value: string): string | null {
 
 /**
  * Extract a tag value from a teachings line. The tag is matched as
- * whitespace-or-start, then the tag, then a value terminated by whitespace.
- * Returns the value (without the tag prefix) or null.
+ * whitespace-or-start, then the tag, then a value that runs until the next
+ * sibling tag (` env:`, ` dw:`, ` ab:`) or end-of-line. We need to capture
+ * multi-word values like "env:macOS Sequoia 25.0.0, Node v25.6.1, ...";
+ * a `\\S+` capture would only grab the first whitespace-free token and break
+ * the length-floor checks downstream.
  */
+const SIBLING_TAGS = ['env:', 'dw:', 'ab:'] as const
 function extractTag(line: string, tag: string): string | null {
-  const re = new RegExp(`(?:^|\\s)${tag.replace(':', '\\:')}(\\S+)`)
-  const m = re.exec(line)
-  return m ? m[1]! : null
+  const startRe = new RegExp(`(?:^|\\s)${tag.replace(':', '\\:')}`)
+  const m = startRe.exec(line)
+  if (!m) return null
+  const startIdx = m.index + m[0].length
+  let endIdx = line.length
+  for (const sib of SIBLING_TAGS) {
+    if (sib === tag) continue
+    const sibRe = new RegExp(`\\s${sib.replace(':', '\\:')}`)
+    const sibMatch = sibRe.exec(line.slice(startIdx))
+    if (sibMatch) {
+      const candidate = startIdx + sibMatch.index
+      if (candidate < endIdx) endIdx = candidate
+    }
+  }
+  return line.slice(startIdx, endIdx).trim() || null
 }
 
 type DirectiveArgs = {

@@ -220,16 +220,7 @@ External tool priority — every primitive listed with a concrete one-line examp
     \`zigast src/server.go --query "(call_expression function: (identifier) @fn (#match? @fn \\"^http\\\\.\\"))"\`
   Triggers: STRUCTURAL queries — find every consumer of X, every JSX element matching Y, every decl with name pattern Z. Beats grep on code structure (no comment/string false positives, alias-aware).
 
-- **zigrep / zigread / zigdiff** (\`dist/bin/\`, PATH-prepended at startup) — TEXT-level file ops. Prefer over grep/cat/diff.
-  Examples:
-    \`zigrep -w "useState" src/\`            # whole-word substring
-    \`zigrep -i -A 2 "TODO" src/\`           # case-insensitive, 2 lines after
-    \`zigrep --find "*.tsx" .\`              # file-name glob
-    \`zigread src/main.tsx --lines 100-200\`
-    \`zigread README.md --section "Build"\`
-    \`zigread src/foo.ts --outline\`         # top-level decls (heuristic; use zigast for proper AST)
-    \`zigdiff src/foo.ts\`                   # working copy vs HEAD
-    \`zigdiff old.txt new.txt\`              # two files
+- **codedb** ([github.com/justrach/codedb](https://github.com/justrach/codedb)) — repo-scale text + semantic search. Prefer over plain \`grep\`/\`rg\` for any non-trivial query. For per-file reads use the FileReadTool; for diffs use \`git diff\`.
 
 - **/audit-boundaries** (bundled skill) — runs the 4-tier dependency-boundary audit (LSP → tree-sitter → TS-AST → DeepWiki docs). Use during step 1 inventory or when a "consumer outside producer scope" bug is suspected.
   Example: \`/audit-boundaries\` (no args; auto-detects active session).
@@ -243,9 +234,10 @@ External tool priority — every primitive listed with a concrete one-line examp
   - **nanobrew** ([github.com/justrach/nanobrew](https://github.com/justrach/nanobrew)) — preferred over \`brew\` for installing CLIs.
   - **codedb** ([github.com/justrach/codedb](https://github.com/justrach/codedb)) — preferred over plain \`grep\`/\`rg\` for repo-scale semantic search when registered as MCP.
   - **bun** ([bun.sh](https://bun.sh) / docs map at [bun.com/docs/llms.txt](https://bun.com/docs/llms.txt)) — DEFAULT JS/TS runtime + package manager. \`bun install\` (not npm), \`bun run\` (not npm run), \`bunx\` (not npx). Install: \`curl -fsSL https://bun.com/install | bash\`. Fall back to npm/pnpm/yarn only when bun is unavailable or the project is pinned via package.json's \`packageManager\` field.
+  - **bun shell (\`Bun.$\`)** — preferred over bash for one-shot scripting. Cross-platform, no subshell spawn for builtins, JS-native interpolation that escapes by default. One-liner: \`bun -e 'await Bun.$\`ls -la\`'\`. In code: \`import { $ } from "bun"; const r = await $\`grep -r foo src\`.text()\`. Use the bundled \`src/utils/bunShell.ts\` (\`sh(cmd)\`) which detects Bun runtime and falls back to execa under Node.
   - **uv** (\`dist/bin/uv\`, bundled with aiko-code) — Python package manager + runner. Auto-spawns serena. Prefer \`uvx <pkg>\` over \`pip install\` + \`python -m pkg\`.
 
-- **Rule:** when (a) verifying library API surface → DeepWiki. When (b) verifying running-app correctness → agent-browser. When (c) installing CLIs → nanobrew. When (d) JS/TS work → bun. When (e) cross-language semantic queries → serena. When (f) per-file structural queries → tree-sitter / zigast. When (g) text-level file ops → zigrep / zigread / zigdiff. When (h) context filling up → /aiko-journal before /compact. Use, don't consider. If a preferred tool genuinely isn't available, note \`N/A: <tool> not installed, falling back to <alt>\` and proceed.
+- **Rule:** when (a) verifying library API surface → DeepWiki. When (b) verifying running-app correctness → agent-browser. When (c) installing CLIs → nanobrew. When (d) JS/TS work → bun (and \`Bun.$\` / \`sh()\` from \`bunShell.ts\` over execa for shelling out). When (e) cross-language semantic queries → serena. When (f) per-file structural queries → tree-sitter / zigast. When (g) repo-scale search → codedb (text-level reads → native FileReadTool, diffs → \`git diff\`). When (h) context filling up → /aiko-journal before /compact. Use, don't consider. If a preferred tool genuinely isn't available, note \`N/A: <tool> not installed, falling back to <alt>\` and proceed.
 </search_and_reading>
 
 <tools>
