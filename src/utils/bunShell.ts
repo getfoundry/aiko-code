@@ -51,3 +51,71 @@ export async function sh(
 }
 
 export const runtimeIsBun = isBun
+
+
+/**
+ * Direct binary spawn — bypasses the shell entirely. Use when:
+ *  - args are already split (no shell metacharacters needed)
+ *  - you want the lowest possible spawn latency
+ *
+ * On Bun, this uses `Bun.spawn` (faster than Node's child_process.spawn for
+ * short-lived processes by ~2-5x in benchmarks). On Node, falls back to
+ * child_process.spawn.
+ *
+ * Tradeoff vs `sh()`:
+ *   - `sh()` runs through `sh -c` so it supports pipes/globs/&&/redirects.
+ *   - `runFast()` does NOT support those — argv goes straight to execve.
+ */
+export async function runFast(
+  argv: string[],
+  opts: { cwd?: string; env?: Record<string, string>; timeout?: number; input?: string } = {},
+): Promise<ShellResult> {
+  if (argv.length === 0) return { stdout: '', stderr: 'empty argv', exitCode: 2 }
+  if (isBun) {
+    const Bun = (globalThis as { Bun: { spawn: (cmd: string[], opts: unknown) => unknown } }).Bun
+    const proc = Bun.spawn(argv, {
+      cwd: opts.cwd,
+      env: opts.env ? { ...process.env, ...opts.env } : process.env,
+      stdin: opts.input ? new TextEncoder().encode(opts.input) : 'ignore',
+      stdout: 'pipe',
+      stderr: 'pipe',
+    }) as {
+      stdout: ReadableStream<Uint8Array>
+      stderr: ReadableStream<Uint8Array>
+      exited: Promise<number>
+      kill: (sig?: string) => void
+    }
+    let timer: NodeJS.Timeout | undefined
+    if (opts.timeout) {
+      timer = setTimeout(() => proc.kill('SIGTERM'), opts.timeout)
+    }
+    const [stdoutText, stderrText, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ])
+    if (timer) clearTimeout(timer)
+    return { stdout: stdoutText, stderr: stderrText, exitCode }
+  }
+  // Node fallback
+  const { spawn } = await import('node:child_process')
+  return await new Promise<ShellResult>(resolve => {
+    const p = spawn(argv[0]!, argv.slice(1), {
+      cwd: opts.cwd,
+      env: opts.env ? { ...process.env, ...opts.env } : process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    let out = ''
+    let err = ''
+    p.stdout.on('data', (b: Buffer) => { out += b.toString('utf8') })
+    p.stderr.on('data', (b: Buffer) => { err += b.toString('utf8') })
+    if (opts.input) p.stdin.end(opts.input); else p.stdin.end()
+    let timer: NodeJS.Timeout | undefined
+    if (opts.timeout) timer = setTimeout(() => p.kill('SIGTERM'), opts.timeout)
+    p.on('exit', code => {
+      if (timer) clearTimeout(timer)
+      resolve({ stdout: out, stderr: err, exitCode: code ?? 1 })
+    })
+    p.on('error', () => resolve({ stdout: out, stderr: err || 'spawn error', exitCode: 127 }))
+  })
+}
