@@ -242,6 +242,153 @@ The 9-phase harness's evidence gate and the dependency-boundary audit hang on a 
 
 The audit's three-tier fallback chain: serena MCP / fcode LSP plugin (preferred when configured) → in-process TypeScript AST (always available for TS/JSX) → DeepWiki for canonical-pattern lookup (when local code analysis came up empty). No regex tier — guess-based scanning produces noisy false positives, so the audit prefers honest "we don't know, here's what to ask the docs" over false confidence.
 
+## OpenAI-Compatible API (free for a month)
+
+aiko Code routes to the aiko API by default (`https://aiko-api.getfoundry.app/v1`), which speaks the OpenAI chat completions protocol and can be used free for a month. works with aiko Code, openclaw, and any OpenAI-compatible coding agent. we do not collect any data — your prompts, responses, and usage stay between you and the API. no config changes needed, it's the default.
+
+### Quick start
+
+The `/v1/chat/completions` endpoint is free for now — no API key, no signup. works with aiko Code, openclaw, and any OpenAI-compatible coding agent. we do not collect any data — your prompts, responses, and usage stay between you and the API.
+
+```bash
+export OPENAI_BASE_URL=https://aiko-api.getfoundry.app/v1
+```
+
+### Full OpenAPI spec
+
+The API is a faithful subset of the [OpenAI Chat Completions API](https://platform.openai.com/docs/api-reference/chat).
+
+#### `POST /v1/chat/completions`
+
+Generate a chat completion.
+
+**Headers:**
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Content-Type` | yes | `application/json` |
+
+**Request body:**
+
+```json
+{
+  "model": "aiko-opus-4.6",
+  "messages": [
+    { "role": "system", "content": "You are a helpful assistant." },
+    { "role": "user", "content": "Hello!" }
+  ],
+  "stream": false
+}
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `model` | string | no | `aiko-opus-4.6` | Model to use (see model list below) |
+| `messages` | array | yes | — | Conversation history (see [OpenAI format](https://platform.openai.com/docs/api-reference/chat/create#chat-create-messages)) |
+| `stream` | boolean | no | `false` | Enable streaming (SSE) |
+| `max_tokens` | integer | no | null | Max tokens in response |
+| `temperature` | number | no | `1.0` | Sampling temperature |
+| `top_p` | number | no | `1.0` | Nucleus sampling |
+| `tools` | array | no | — | Tool/function calling format |
+
+**Response (non-streaming):**
+
+```json
+{
+  "id": "chatcmpl-xxx",
+  "object": "chat.completion",
+  "created": 1745900000,
+  "model": "aiko-opus-4.6",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hey there! How can I help?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 25,
+    "completion_tokens": 12,
+    "total_tokens": 37
+  }
+}
+```
+
+**Example with curl:**
+
+```bash
+curl https://aiko-api.getfoundry.app/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "aiko-opus-4.6",
+    "messages": [
+      { "role": "user", "content": "What is the capital of France?" }
+    ]
+  }'
+```
+
+**Example streaming:**
+
+```bash
+curl https://aiko-api.getfoundry.app/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "aiko-sonnet-4.6",
+    "messages": [
+      { "role": "user", "content": "Tell me a joke" }
+    ],
+    "stream": true
+  }'
+```
+
+### Available models
+
+| Model | ID | Best for |
+|-------|----|----------|
+| aiko Opus 4.6 | `aiko-opus-4.6` | Complex reasoning, code generation, multi-step tasks |
+| aiko Sonnet 4.6 | `aiko-sonnet-4.6` | Fast, capable — good default for most tasks |
+| aiko Haiku 4.5 | `aiko-haiku-4-5` | Quick answers, lightweight tasks |
+| GPT-5.5 | `gpt-5.5` | OpenAI's flagship |
+| GPT-5.4 | `gpt-5.4` | Strong general-purpose |
+| GPT-4o | `gpt-4o` | Fast and versatile |
+| Codex (gpt-5.5) | `codexplan` | Autonomous coding agent with reasoning |
+| Codex Spark (gpt-5.3-codex-spark) | `codexspark` | High-throughput autonomous coding |
+
+**Alias shortcuts** — use these in `/model` or any OpenAI-compatible client:
+
+| Alias | Resolves to |
+|-------|-------------|
+| `codexplan` | `gpt-5.5` (high reasoning) |
+| `codexspark` | `gpt-5.3-codex-spark` |
+| `gpt-5.5` | `gpt-5.5` (high reasoning) |
+| `gpt-5.5-mini` | `gpt-5.5-mini` (medium reasoning) |
+| `gpt-5.4-mini` | `gpt-5.4-mini` (medium reasoning) |
+| `gpt-5.4` | `gpt-5.4` (high reasoning) |
+| `gpt-5.3-codex` | `gpt-5.3-codex` (high reasoning) |
+| `gpt-5.2-codex` | `gpt-5.2-codex` (high reasoning) |
+| `gpt-5.2` | `gpt-5.2` (medium reasoning) |
+
+### Error codes
+
+| HTTP status | Meaning |
+|-------------|---------|
+| `401` | Invalid or missing API key |
+| `429` | Rate limited — free tier has generous per-minute limits |
+| `500` | Internal server error — retry with backoff |
+
+### Swapping endpoints
+
+Set `OPENAI_BASE_URL` to point any OpenAI-compatible client at the aiko API:
+
+```bash
+export OPENAI_BASE_URL=https://aiko-api.getfoundry.app/v1
+```
+
+Use with `curl`, Python (`openai` package), TypeScript (`openai` npm), or any SDK that speaks the OpenAI protocol.
+
 ## License
 
 MIT
