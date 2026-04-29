@@ -79,6 +79,7 @@ import { pathInWorkingPath } from './permissions/filesystem.js'
 import {
   getProjectInstructionFilePath,
   isProjectInstructionFileName,
+  JOURNAL_PROJECT_INSTRUCTION_FILE,
 } from './projectInstructions.js'
 import { isSettingSourceEnabled } from './settings/constants.js'
 import { getInitialSettings } from './settings/settings.js'
@@ -923,6 +924,17 @@ export const getMemoryFiles = memoize(
           )),
         )
 
+        // Always-loaded AIKO.md journal (additive — survives compaction).
+        const journalPath = join(dir, JOURNAL_PROJECT_INSTRUCTION_FILE)
+        result.push(
+          ...(await processMemoryFile(
+            journalPath,
+            'Project',
+            processedPaths,
+            includeExternal,
+          )),
+        )
+
         // Try reading .aiko/rules/*.md files (Project)
         const rulesDir = join(dir, '.aiko', 'rules')
         result.push(
@@ -976,6 +988,17 @@ export const getMemoryFiles = memoize(
         result.push(
           ...(await processMemoryFile(
             dotaikoPath,
+            'Project',
+            processedPaths,
+            includeExternal,
+          )),
+        )
+
+        // Always-loaded AIKO.md journal from the additional directory.
+        const journalPath = join(dir, JOURNAL_PROJECT_INSTRUCTION_FILE)
+        result.push(
+          ...(await processMemoryFile(
+            journalPath,
             'Project',
             processedPaths,
             includeExternal,
@@ -1291,6 +1314,15 @@ export async function getMemoryFilesForNestedDirectory(
     result.push(
       ...(await processMemoryFile(
         dotaikoPath,
+        'Project',
+        processedPaths,
+        false,
+      )),
+    )
+    const journalPath = join(dir, JOURNAL_PROJECT_INSTRUCTION_FILE)
+    result.push(
+      ...(await processMemoryFile(
+        journalPath,
         'Project',
         processedPaths,
         false,

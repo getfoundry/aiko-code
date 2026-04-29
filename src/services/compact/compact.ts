@@ -41,7 +41,9 @@ import {
   getDeferredToolsDeltaAttachment,
   getMcpInstructionsDeltaAttachment,
 } from '../../utils/attachments.js'
+import { appendCompactionJournalEntry } from '../../utils/aikoJournalAppend.js'
 import { getMemoryPath } from '../../utils/config.js'
+import { getCwd } from '../../utils/cwd.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import {
   analyzeContext,
@@ -424,6 +426,20 @@ export async function compactConversation(
       hookResult.newCustomInstructions,
     )
     const userDisplayMessage = hookResult.userDisplayMessage
+
+    // Deterministic AIKO.md journal append. Runs *before* the LLM-driven
+    // summarization wipes context. Pure-data extract from `messages` + the
+    // most-recent harness teachings tail — no model call, no failure mode
+    // that can block compaction (errors are swallowed and reported).
+    try {
+      appendCompactionJournalEntry({
+        cwd: getCwd(),
+        messages,
+        trigger: isAutoCompact ? 'auto' : 'manual',
+      })
+    } catch {
+      /* journal append must never block compaction */
+    }
 
     // Show requesting mode with up arrow and custom message
     context.setStreamMode?.('requesting')
