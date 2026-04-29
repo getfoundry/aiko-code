@@ -6,7 +6,6 @@
 import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-import { formatAuditMarkdown, runBoundaryAudit } from './boundaryAudit.js'
 import {
   buildFibRepairApplyText,
   clearFibHarness,
@@ -213,15 +212,13 @@ export async function advanceHarness(
     }
   }
 
-  // When the harness advances INTO step 1 (state.step was 0 or below, nextStep
-  // is 1 in any mode), pre-run the dependency-boundary audit and prepend the
-  // findings to the directive. The model still sees the directive that says
-  // "invoke /audit-boundaries" — having the report already in-context lets it
-  // skip the round-trip on the easy case and still re-run when needed.
-  const auditPrelude =
-    !onHarness && nextStep === 1
-      ? await runAuditWithTimeout(cwd, 30000)
-      : ''
+  // Note: the in-process boundary audit prelude was removed — it ran on every
+  // step 1 entry and could stall the stop hook because TS-AST file walking
+  // is synchronous inside an async function (Promise.race timeout returned
+  // but the work continued blocking the event loop). The /audit-boundaries
+  // skill remains user-invocable, and step 1's DEPENDENCY_BOUNDARY_AUDIT
+  // directive instructs the model to call it from the model side where MCP
+  // tools and async cancellation work properly.
 
   const directive = buildDirective({
     state,
@@ -239,29 +236,8 @@ export async function advanceHarness(
   const sysMsg = buildSystemMessage(state, nextStep, onHarness)
   return {
     decision: 'block',
-    reason: auditPrelude ? `${auditPrelude}\n\n${directive}` : directive,
+    reason: directive,
     systemMessage: sysMsg,
-  }
-}
-
-/**
- * Run the boundary audit with a hard timeout so the stop hook never hangs.
- * Returns an empty string on timeout or any error — the directive still
- * tells the model to invoke `/audit-boundaries` itself, so a missing
- * prelude just costs one extra tool call.
- */
-async function runAuditWithTimeout(cwd: string, timeoutMs: number): Promise<string> {
-  try {
-    const audit = await Promise.race([
-      runBoundaryAudit({ cwd }),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
-    ])
-    if (!audit) return ''
-    if (audit.findings.length === 0 && !audit.diagnostics.lspReachable) return ''
-    const md = formatAuditMarkdown(audit)
-    return `<boundary-audit priority="high">\n${md}\n</boundary-audit>`
-  } catch {
-    return ''
   }
 }
 
