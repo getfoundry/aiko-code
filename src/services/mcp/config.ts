@@ -81,7 +81,7 @@ const BUILTIN_DEFAULT_MCP_SERVERS: Record<string, McpServerConfig> = {
     args: [
       '--from',
       'git+https://github.com/oraios/serena',
-      'serena-mcp-server',
+      'serena',
       '--context',
       'ide-assistant',
     ],
