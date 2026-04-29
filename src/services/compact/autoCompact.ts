@@ -263,6 +263,17 @@ export async function autoCompactIfNeeded(
     tracking?.consecutiveFailures !== undefined &&
     tracking.consecutiveFailures >= MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES
   ) {
+    // Last-ditch journal — circuit-breaker is about to refuse all future
+    // compaction attempts this session. AIKO.md is the only state that
+    // survives. Idempotent: if one was just written, this is a duplicate
+    // entry for the next-session-aiko, which is fine.
+    try {
+      appendCompactionJournalEntry({
+        cwd: getCwd(),
+        messages,
+        trigger: 'auto',
+      })
+    } catch { /* journal must never block */ }
     return { wasCompacted: false }
   }
 
@@ -293,6 +304,16 @@ export async function autoCompactIfNeeded(
     recompactionInfo.autoCompactThreshold,
   )
   if (sessionMemoryResult) {
+    // Bypass-path journal: session-memory compaction skips compactConversation,
+    // so AIKO.md would never get an entry for this turn. Write it here.
+    try {
+      appendCompactionJournalEntry({
+        cwd: getCwd(),
+        messages,
+        trigger: 'auto',
+      })
+    } catch { /* journal must never block compaction */ }
+
     // Reset lastSummarizedMessageId since session memory compaction prunes messages
     // and the old message UUID will no longer exist after the REPL replaces messages
     setLastSummarizedMessageId(undefined)

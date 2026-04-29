@@ -103,6 +103,8 @@ import { getGlobalConfig } from './utils/config.js'
 import { productionDeps, type QueryDeps } from './query/deps.js'
 import type { Terminal, Continue } from './query/transitions.js'
 import { feature } from 'bun:bundle'
+import { appendCompactionJournalEntry } from './utils/aikoJournalAppend.js'
+import { getCwd as __aikoCwd } from './utils/cwd.js'
 import {
   getCurrentTurnTokenBudget,
   getTurnOutputTokens,
@@ -686,6 +688,16 @@ async function* queryLoop(
         toolUseContext.options.mainLoopModel,
       )
       if (isAtBlockingLimit) {
+        // Last-ditch journal: about to surface "Context limit reached" to the
+        // user. Write AIKO.md so the next session can pick up state instead
+        // of starting cold.
+        try {
+          appendCompactionJournalEntry({
+            cwd: __aikoCwd(),
+            messages: messagesForQuery,
+            trigger: 'auto',
+          })
+        } catch { /* journal must never block error surface */ }
         yield createAssistantAPIErrorMessage({
           content: PROMPT_TOO_LONG_ERROR_MESSAGE,
           error: 'invalid_request',
@@ -713,6 +725,13 @@ async function* queryLoop(
         model,
       )
       if (isAboveAutoCompactThreshold) {
+        try {
+          appendCompactionJournalEntry({
+            cwd: __aikoCwd(),
+            messages: messagesForQuery,
+            trigger: 'auto',
+          })
+        } catch { /* journal must never block error surface */ }
         yield createAssistantAPIErrorMessage({
           content:
             'The conversation has exceeded the context limit and automatic compaction has failed. ' +
