@@ -1,3 +1,4 @@
+import { runFast } from './bunShell.js'
 import { execa } from 'execa'
 import { readFile, realpath } from 'fs/promises'
 import { homedir } from 'os'
@@ -143,10 +144,7 @@ export async function getCurrentInstallationType(): Promise<InstallationType> {
     return 'npm-global'
   }
 
-  const npmConfigResult = await execa('npm config get prefix', {
-    shell: true,
-    reject: false,
-  })
+  const npmConfigResult = await runFast(['npm', 'config', 'get', 'prefix'])
   const globalPrefix =
     npmConfigResult.exitCode === 0 ? npmConfigResult.stdout.trim() : null
 

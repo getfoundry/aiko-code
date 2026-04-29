@@ -1,4 +1,4 @@
-import { execa } from 'execa'
+import { runFast } from '../bunShell.js'
 import { which } from '../which.js'
 
 export type GhAuthStatus =
@@ -19,11 +19,10 @@ export async function getGhAuthStatus(): Promise<GhAuthStatus> {
   if (!ghPath) {
     return 'not_installed'
   }
-  const { exitCode } = await execa('gh', ['auth', 'token'], {
+  const { exitCode } = await runFast(['gh', 'auth', 'token'], {
     stdout: 'ignore',
     stderr: 'ignore',
     timeout: 5000,
-    reject: false,
   })
   return exitCode === 0 ? 'authenticated' : 'not_authenticated'
 }

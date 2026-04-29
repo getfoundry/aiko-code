@@ -68,30 +68,65 @@ export const runtimeIsBun = isBun
  */
 export async function runFast(
   argv: string[],
-  opts: { cwd?: string; env?: Record<string, string>; timeout?: number; input?: string } = {},
+  opts: {
+    cwd?: string
+    env?: Record<string, string>
+    timeout?: number
+    input?: string
+    /** Discard the stream — useful for security (e.g. tokens never enter
+     * process memory) or when output is unused. Default: 'pipe' (captured). */
+    stdout?: 'pipe' | 'ignore'
+    stderr?: 'pipe' | 'ignore'
+  } = {},
 ): Promise<ShellResult> {
   if (argv.length === 0) return { stdout: '', stderr: 'empty argv', exitCode: 2 }
   if (isBun) {
     const Bun = (globalThis as { Bun: { spawn: (cmd: string[], opts: unknown) => unknown } }).Bun
-    const proc = Bun.spawn(argv, {
+    const stdoutMode = opts.stdout ?? 'pipe'
+    const stderrMode = opts.stderr ?? 'pipe'
+    let proc: {
+      stdout: ReadableStream<Uint8Array> | null
+      stderr: ReadableStream<Uint8Array> | null
+      exited: Promise<number>
+      kill: (sig?: string) => void
+    }
+    try {
+      proc = Bun.spawn(argv, {
       cwd: opts.cwd,
       env: opts.env ? { ...process.env, ...opts.env } : process.env,
       stdin: opts.input ? new TextEncoder().encode(opts.input) : 'ignore',
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: stdoutMode,
+      stderr: stderrMode,
     }) as {
-      stdout: ReadableStream<Uint8Array>
-      stderr: ReadableStream<Uint8Array>
-      exited: Promise<number>
-      kill: (sig?: string) => void
+        stdout: ReadableStream<Uint8Array> | null
+        stderr: ReadableStream<Uint8Array> | null
+        exited: Promise<number>
+        kill: (sig?: string) => void
+      }
+    } catch (err) {
+      // Match execa's reject:false / Node spawn 'error' shape: ENOENT etc.
+      // surface as exitCode 127 with the message in stderr instead of throwing.
+      return {
+        stdout: '',
+        stderr: err instanceof Error ? err.message : String(err),
+        exitCode: 127,
+      }
     }
     let timer: NodeJS.Timeout | undefined
     if (opts.timeout) {
       timer = setTimeout(() => proc.kill('SIGTERM'), opts.timeout)
     }
+    const stdoutPromise =
+      stdoutMode === 'pipe' && proc.stdout
+        ? new Response(proc.stdout).text()
+        : Promise.resolve('')
+    const stderrPromise =
+      stderrMode === 'pipe' && proc.stderr
+        ? new Response(proc.stderr).text()
+        : Promise.resolve('')
     const [stdoutText, stderrText, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
+      stdoutPromise,
+      stderrPromise,
       proc.exited,
     ])
     if (timer) clearTimeout(timer)
@@ -100,15 +135,21 @@ export async function runFast(
   // Node fallback
   const { spawn } = await import('node:child_process')
   return await new Promise<ShellResult>(resolve => {
+    const stdoutMode = opts.stdout ?? 'pipe'
+    const stderrMode = opts.stderr ?? 'pipe'
     const p = spawn(argv[0]!, argv.slice(1), {
       cwd: opts.cwd,
       env: opts.env ? { ...process.env, ...opts.env } : process.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', stdoutMode, stderrMode],
     })
     let out = ''
     let err = ''
-    p.stdout.on('data', (b: Buffer) => { out += b.toString('utf8') })
-    p.stderr.on('data', (b: Buffer) => { err += b.toString('utf8') })
+    if (stdoutMode === 'pipe') {
+      p.stdout?.on('data', (b: Buffer) => { out += b.toString('utf8') })
+    }
+    if (stderrMode === 'pipe') {
+      p.stderr?.on('data', (b: Buffer) => { err += b.toString('utf8') })
+    }
     if (opts.input) p.stdin.end(opts.input); else p.stdin.end()
     let timer: NodeJS.Timeout | undefined
     if (opts.timeout) timer = setTimeout(() => p.kill('SIGTERM'), opts.timeout)
