@@ -27,5 +27,5 @@ Then enable it from /plugin if needed. Start a loop with:
 
 Other commands: /cancel, /log, /steer "<new north star>"
 
-Requires: bash, jq, perl, python3 (for fib-harness escape).
+Requires: bash (for /cancel, /log, /steer wrappers). Fractal repair is native TS — no python/jq/perl needed.
 EOF

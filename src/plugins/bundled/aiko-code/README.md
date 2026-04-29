@@ -14,7 +14,7 @@ A 9-phase fractal development loop for aiko Code. Each Stop is intercepted; the 
 8. **Audit** — re-read the artifact cold
 9. **Ship** — publish, hand off
 
-A Fibonacci parallelism budget (1, 1, 2, 3, 5, 8, 1, 13, 21) sets the worker count per phase. If a step can't close in one pass, `break-harness.sh` spawns a child fib-harness cycle scoped to the stuck sub-problem.
+A Fibonacci parallelism budget (1, 1, 2, 3, 5, 8, 1, 13, 21) sets the worker count per phase. If a step can't close in one pass (the work-product gate fires twice), the harness automatically engages **fractal repair** — pins the step, fans out 5 adversarial sub-agents at the scoped sub-problem, auto-resolves when the gate accepts the fix. Native TS, no bash escape.
 
 ## Install
 
@@ -42,7 +42,7 @@ Other commands:
 
 ## Requirements
 
-bash, jq, perl, python3 (for the fib-harness escape).
+bash (for /cancel, /log, /steer wrappers). Fractal repair runs natively in TS — no python/jq/perl required.
 
 ## Local-only
 

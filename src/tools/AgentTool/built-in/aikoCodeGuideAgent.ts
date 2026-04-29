@@ -77,7 +77,7 @@ Once invoked, the Stop hook drives every turn. The harness injects each step's d
 
 The same H1-only learning frame applies on every step: **validate H1 with positive evidence; do NOT reject H0** (it may be revalidatable later when more context lands).
 
-When a step gets stuck, \`break-harness.sh\` spawns a child harness scoped to the stuck sub-problem; the child runs its own full 9-phase cycle to verdict=promote, then the parent resumes. True fractal recursion.
+When a step gets stuck (the work-product gate fires twice in a row), the harness automatically engages **fractal repair** — it pins the current step, switches the directive into a 5-way adversarial fan-out scoped to the stuck sub-problem, and resets the no-op counter. Auto-resolves when the original step's gate-accepted teachings-line lands; closes only on a third failure inside fractal mode. Native TS, no bash. True fractal recursion, on by default.
 
 You don't drive phases manually once \`/guide\` is engaged. Stay in the loop until step 9 emits \`<promise>...</promise>\`.
 
