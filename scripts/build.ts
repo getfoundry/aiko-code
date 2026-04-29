@@ -492,6 +492,7 @@ if (!result.success) {
   try {
     const { spawnSync } = await import('node:child_process')
     spawnSync(process.execPath, ['scripts/install-uv.mjs'], { stdio: 'inherit' })
+    spawnSync(process.execPath, ['scripts/build-zig.mjs'], { stdio: 'inherit' })
   } catch (e) {
     console.warn(`  ⚠ install-uv: ${(e as Error)?.message ?? e}`)
   }
