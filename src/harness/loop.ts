@@ -5,6 +5,11 @@
  */
 import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { detectDevCommand } from '../utils/devCommand.js'
+import {
+  describeProbeForDirective,
+  probeOrStartDevServer,
+  type DevServerProbeResult,
+} from '../utils/devServerProbe.js'
 import { dirname, resolve } from 'node:path'
 
 import {
@@ -221,12 +226,25 @@ export async function advanceHarness(
   // directive instructs the model to call it from the model side where MCP
   // tools and async cancellation work properly.
 
+  let probeResult: DevServerProbeResult | undefined
+  const upcomingPhase = onHarness
+    ? undefined
+    : PHASES.find(p => p.step === nextStep)
+  if (upcomingPhase?.requires.agentBrowser) {
+    try {
+      probeResult = await probeOrStartDevServer({ cwd })
+    } catch {
+      /* probe must never crash the harness */
+    }
+  }
+
   const directive = buildDirective({
     state,
     nextStep,
     onHarness,
     cwd,
     teachingsPath,
+    probeResult,
   })
 
   // Persist step advance for non-harness phases.
@@ -415,6 +433,7 @@ type DirectiveArgs = {
   onHarness: boolean
   cwd: string
   teachingsPath: string
+  probeResult?: DevServerProbeResult
 }
 
 function buildDirective({
@@ -423,6 +442,7 @@ function buildDirective({
   onHarness,
   cwd,
   teachingsPath,
+  probeResult,
 }: DirectiveArgs): string {
   let phase: HarnessPhase
   if (onHarness) {
@@ -550,6 +570,9 @@ function buildDirective({
     out.push(
       '     `ab:skip:<reason>` is auto-accepted with a 20+ char justification — preferred reasons: "dev server unreachable: env validation failed for <var>", "port 3000 already in use after launch attempt", "install failed: <error>". Generic reasons ("server not running") are too short and will be rejected.',
     )
+    if (probeResult) {
+      out.push(describeProbeForDirective(probeResult))
+    }
   }
   out.push(`  3. Do the work: ${apply}`)
   out.push('')
