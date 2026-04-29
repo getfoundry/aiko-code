@@ -133,8 +133,9 @@ export async function advanceHarness(
       ? readFileSync(teachingsPath, 'utf8')
       : ''
     const stepLine = findStepLine(teachingsContent, state.step)
+    const freshness = countFreshToolUses(input.transcript_path)
     const missing = stepLine
-      ? evidenceMissing(stepLine, prevPhase)
+      ? evidenceMissing(stepLine, prevPhase, freshness)
       : ['teachings-line']
 
     if (missing.length === 0) {
@@ -273,15 +274,74 @@ function findStepLine(content: string, step: number): string | null {
   return null
 }
 
+export type FreshTurnEvidence = {
+  deepwiki: number
+  agentBrowser: number
+  zigast: number
+}
+
+/**
+ * Walk the transcript bottom-up until the most recent user-role message and
+ * count tool_use blocks emitted on the current turn. Used by the gate to
+ * reject "stale citation" patterns where the model writes `dw:owner/repo`
+ * without actually running a DeepWiki query this turn (recycling old cache
+ * entries to satisfy the form-only check).
+ *
+ * "This turn" definition: every assistant message AFTER the most-recent
+ * user-role message in the transcript. A turn ends when the next user
+ * message arrives (or, here, when the stop hook fires).
+ */
+export function countFreshToolUses(
+  transcriptPath: string | undefined,
+): FreshTurnEvidence {
+  const empty: FreshTurnEvidence = { deepwiki: 0, agentBrowser: 0, zigast: 0 }
+  if (!transcriptPath || !existsSync(transcriptPath)) return empty
+  let raw: string
+  try {
+    raw = readFileSync(transcriptPath, 'utf8')
+  } catch {
+    return empty
+  }
+  const lines = raw.split('\n').filter(Boolean)
+  const counts: FreshTurnEvidence = { deepwiki: 0, agentBrowser: 0, zigast: 0 }
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let obj: { message?: { role?: string; content?: unknown } }
+    try { obj = JSON.parse(lines[i]!) as typeof obj } catch { continue }
+    const role = obj.message?.role
+    if (role === 'user') break
+    if (role !== 'assistant') continue
+    const content = obj.message?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      const b = block as { type?: string; name?: string; input?: { command?: string } }
+      if (b?.type !== 'tool_use') continue
+      const name = b.name ?? ''
+      if (name === 'mcp__deepwiki__ask_question' || /deepwiki/i.test(name)) {
+        counts.deepwiki++
+        continue
+      }
+      if (name === 'Bash') {
+        const cmd = b.input?.command ?? ''
+        if (/\bagent-browser\b/.test(cmd)) counts.agentBrowser++
+        if (/\bzigast\b/.test(cmd)) counts.zigast++
+      }
+    }
+  }
+  return counts
+}
+
 /**
  * Check the teachings line for the required evidence tags. Returns the list
  * of missing tags. `env:` and `dw:` are always required. `ab:` is required
  * when the phase requires.agentBrowser. A tag value of `skip:<reason>` is
- * accepted only when the reason is non-trivial (>=20 chars).
+ * accepted only when the reason is non-trivial (>=20 chars). When freshness
+ * counts are provided, citations that AREN'T \`skip:\` must correspond to
+ * an actual tool call this turn — otherwise rejected as stale.
  */
 function evidenceMissing(
   line: string,
   phase: HarnessPhase | undefined,
+  freshness?: FreshTurnEvidence,
 ): string[] {
   const missing: string[] = []
   const checks: Array<{
@@ -316,7 +376,21 @@ function evidenceMissing(
     }
     if (shape) {
       const reason = shape(value)
-      if (reason) missing.push(`${tag.replace(':', '')}(${reason})`)
+      if (reason) {
+        missing.push(`${tag.replace(':', '')}(${reason})`)
+        continue
+      }
+    }
+    // Freshness floor: a non-skip citation must correspond to a real tool
+    // call on the current turn. Recycling cached citations across turns is
+    // the dominant failure mode (latest giggity session: 421 tool calls,
+    // zero DeepWiki, but 5 dw: citations in teachings — pure recycling).
+    if (freshness) {
+      if (tag === 'dw:' && freshness.deepwiki === 0) {
+        missing.push('dw(stale-no-deepwiki-call-this-turn)')
+      } else if (tag === 'ab:' && freshness.agentBrowser === 0) {
+        missing.push('ab(stale-no-agent-browser-call-this-turn)')
+      }
     }
   }
   return missing
