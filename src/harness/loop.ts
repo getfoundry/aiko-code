@@ -136,7 +136,7 @@ export async function advanceHarness(
     const freshness = countFreshToolUses(input.transcript_path)
     const missing = stepLine
       ? evidenceMissing(stepLine, prevPhase, freshness)
-      : ['teachings-line']
+      : [{ tag: 'teachings-line', reason: 'not-found', guidance: 'Add a teachings line in the format: - [step N / Phase — description] Your finding. env:... ab:... dw:... at the end of the line.' }]
 
     if (missing.length === 0) {
       // Gate passed. If we were in fractal repair, exit it now and advance.
@@ -157,16 +157,22 @@ export async function advanceHarness(
         writeState(path, { ...state, noOpCount: 0 })
       }
     } else if (!onHarness) {
-      // Gate failed and not yet in fractal mode — escalate.
+      // Gate failed and not yet in fractal mode — escalate with guidance.
       const newCount = (state.noOpCount ?? 0) + 1
       if (newCount === 1) {
-        // Attempt 1: simple re-inject with no-op warning.
+        // Attempt 1: re-inject with no-op warning + helpful guidance.
         writeState(path, { ...state, noOpCount: newCount })
         nextStep = state.step
         const directive = buildDirective({
           state, nextStep, onHarness, cwd, teachingsPath,
         })
-        const warning = `<no-op-warning priority="absolute">\nYour last turn did not satisfy the work-product gate for step ${state.step}. Missing: ${missing.join(', ')}. Re-do step ${state.step}: produce the artifact AND append the schema'd teachings-line. Attempt ${newCount}/2 before fractal repair engages, then 3/3 closes the session.\n</no-op-warning>\n\n`
+        const missingNames = missing.map(m => m.tag).join(', ')
+        const guidanceBlock =
+          missing.length > 0
+            ? '\n\nHint:\n' +
+              missing.map(m => `  • ${m.tag}: ${m.guidance}`).join('\n\n')
+            : ''
+        const warning = `<no-op-warning priority="absolute">\nYour last turn did not satisfy the work-product gate for step ${state.step}. Missing: ${missingNames}. Re-do step ${state.step}: produce the artifact AND append the schema'd teachings-line. Attempt ${newCount}/2 before fractal repair engages, then 3/3 closes the session.${guidanceBlock}\n</no-op-warning>\n\n`
         return {
           decision: 'block',
           reason: warning + directive,
@@ -175,11 +181,12 @@ export async function advanceHarness(
       }
       // Attempt 2: engage fractal repair. Pin the step, set harnessWs,
       // reset noOpCount so the recursion has fresh attempts.
+      const missingNames = missing.map(m => m.tag).join(', ')
       const ws = engageFibHarness(
         cwd,
         state.session,
         state.step,
-        `step ${state.step} stuck — missing: ${missing.join(', ')}`,
+        `step ${state.step} stuck — missing: ${missingNames}`,
       )
       const fibState: HarnessState = {
         ...state, harnessWs: ws, noOpCount: 0,
@@ -210,11 +217,12 @@ export async function advanceHarness(
       const directive = buildDirective({
         state, nextStep, onHarness, cwd, teachingsPath,
       })
-      const banner = `<fractal-repair-warning priority="absolute">\nFractal repair attempt ${newCount}/3 still missing: ${missing.join(', ')}. Tighten the scope further OR escalate the fix to root cause. Closure at 3/3.\n</fractal-repair-warning>\n\n`
+      const fractalMissingNames = missing.map(m => m.tag).join(', ')
+      const banner = `<fractal-repair-warning priority="absolute">\nFractal repair attempt ${newCount}/3 still missing: ${fractalMissingNames}. Tighten the scope further OR escalate the fix to root cause. Closure at 3/3.\n</fractal-repair-warning>\n\n`
       return {
         decision: 'block',
         reason: banner + directive,
-        systemMessage: `◆ [${state.session}] fractal repair ${newCount}/3 — still missing: ${missing.join(',')}.`,
+        systemMessage: `◆ [${state.session}] fractal repair ${newCount}/3 — still missing: ${fractalMissingNames}.`,
       }
     }
   }
@@ -293,14 +301,13 @@ export type FreshTurnEvidence = {
  */
 export function countFreshToolUses(
   transcriptPath: string | undefined,
-): FreshTurnEvidence {
-  const empty: FreshTurnEvidence = { deepwiki: 0, agentBrowser: 0, zigast: 0 }
-  if (!transcriptPath || !existsSync(transcriptPath)) return empty
+): FreshTurnEvidence | undefined {
+  if (!transcriptPath || !existsSync(transcriptPath)) return undefined
   let raw: string
   try {
     raw = readFileSync(transcriptPath, 'utf8')
   } catch {
-    return empty
+    return undefined
   }
   const lines = raw.split('\n').filter(Boolean)
   const counts: FreshTurnEvidence = { deepwiki: 0, agentBrowser: 0, zigast: 0 }
@@ -331,65 +338,97 @@ export function countFreshToolUses(
 }
 
 /**
- * Check the teachings line for the required evidence tags. Returns the list
- * of missing tags. `env:` and `dw:` are always required. `ab:` is required
- * when the phase requires.agentBrowser. A tag value of `skip:<reason>` is
- * accepted only when the reason is non-trivial (>=20 chars). When freshness
- * counts are provided, citations that AREN'T \`skip:\` must correspond to
- * an actual tool call this turn — otherwise rejected as stale.
+ * Check the teachings line for the required evidence tags. Returns a list of
+ * { tag, reason, guidance } objects where guidance is a human-readable tip
+ * explaining WHY the tag is needed and HOW to fix it. Returns empty array
+ * when everything passes.
+ *
+ * `env:` and `dw:` are always required. `ab:` is required when the phase
+ * requires.agentBrowser. A tag value of `skip:<reason>` is accepted when the
+ * reason is non-trivial (>=20 chars). When freshness counts are provided,
+ * citations that AREN'T `skip:` must correspond to an actual tool call this
+ * turn — otherwise flagged as stale.
  */
 function evidenceMissing(
   line: string,
   phase: HarnessPhase | undefined,
   freshness?: FreshTurnEvidence,
-): string[] {
-  const missing: string[] = []
+): Array<{ tag: string; reason: string; guidance: string }> {
+  const missing: Array<{ tag: string; reason: string; guidance: string }> = []
   const checks: Array<{
     tag: string
     required: boolean
     shape?: (value: string) => string | null
+    guidance: string
   }> = [
-    { tag: 'env:', required: true, shape: shapeEnv },
+    {
+      tag: 'env:',
+      required: true,
+      shape: shapeEnv,
+      guidance:
+        'env: describes your runtime environment (OS, version, key tool versions). ' +
+        'Use format: env:OS version, Tool version details. e.g. env:macOS Sonoma 25.0, Bun 1.3.1, aiko-code v0.10.1',
+    },
     {
       tag: 'dw:',
       required: phase?.requires.deepwiki ?? true,
       shape: shapeDeepWiki,
+      guidance:
+        'dw: cites public GitHub repos for API verification. Use format: dw:owner/repo#topic. ' +
+        'For local-only work (no public repo), use: dw:skip:reason with 20+ char explanation. ' +
+        'If you used DeepWiki this turn, the citation will be auto-recognized as fresh.',
     },
     {
       tag: 'ab:',
       required: phase?.requires.agentBrowser ?? false,
       shape: shapeAgentBrowser,
+      guidance:
+        'ab: justifies skipping agent-browser checks. Use ab:skip:reason with 20+ chars. ' +
+        'For CLI/terminal tools with no browser, use: ab:skip:CLI terminal app with no browser dev server to probe',
     },
   ]
-  for (const { tag, required, shape } of checks) {
+  for (const { tag, required, shape, guidance } of checks) {
     if (!required) continue
     const value = extractTag(line, tag)
     if (value === null) {
-      missing.push(tag.replace(':', ''))
+      missing.push({ tag: tag.replace(':', ''), reason: 'missing', guidance })
       continue
     }
     if (value.startsWith('skip:')) {
       if (value.slice(5).trim().length < 20) {
-        missing.push(`${tag.replace(':', '')}(skip-reason-too-short)`)
+        missing.push({
+          tag: tag.replace(':', ''),
+          reason: 'skip-reason-too-short',
+          guidance: `${guidance} Your skip reason (${value.slice(5).trim().length} chars) needs 20+ chars for the reason.`,
+        })
       }
       continue
     }
     if (shape) {
       const reason = shape(value)
       if (reason) {
-        missing.push(`${tag.replace(':', '')}(${reason})`)
+        missing.push({ tag: tag.replace(':', ''), reason, guidance })
         continue
       }
     }
-    // Freshness floor: a non-skip citation must correspond to a real tool
-    // call on the current turn. Recycling cached citations across turns is
-    // the dominant failure mode (latest giggity session: 421 tool calls,
-    // zero DeepWiki, but 5 dw: citations in teachings — pure recycling).
     if (freshness) {
       if (tag === 'dw:' && freshness.deepwiki === 0) {
-        missing.push('dw(stale-no-deepwiki-call-this-turn)')
+        missing.push({
+          tag: 'dw',
+          reason: 'stale-no-deepwiki-call-this-turn',
+          guidance:
+            'dw: citations must match a real DeepWiki call this turn. ' +
+            'Either call mcp__deepwiki__ask_question or mcp__deepwiki__read_wiki_structure this turn, ' +
+            'or use dw:skip: with 20+ char reason if no public repo applies.',
+        })
       } else if (tag === 'ab:' && freshness.agentBrowser === 0) {
-        missing.push('ab(stale-no-agent-browser-call-this-turn)')
+        missing.push({
+          tag: 'ab',
+          reason: 'stale-no-agent-browser-call-this-turn',
+          guidance:
+            'ab: citations must match an agent-browser call this turn. ' +
+            'Use ab:skip: with 20+ char reason if agent-browser is not applicable.',
+        })
       }
     }
   }
@@ -483,11 +522,34 @@ function shapeAgentBrowser(value: string): string | null {
  * the length-floor checks downstream.
  */
 const SIBLING_TAGS = ['env:', 'dw:', 'ab:'] as const
+
+/**
+ * Extract a tag value from a teachings line. Uses indexOf to find the LAST
+ * occurrence of the tag — this avoids mid-text false matches where the tag
+ * name appears as part of prose (e.g., "mentions of dw: slash ab:" in a
+ * teaching summary). The last occurrence is the one the author intended.
+ */
 function extractTag(line: string, tag: string): string | null {
-  const startRe = new RegExp(`(?:^|\\s)${tag.replace(':', '\\:')}`)
-  const m = startRe.exec(line)
-  if (!m) return null
-  const startIdx = m.index + m[0].length
+  const tagged = tag
+  const tagLen = tagged.length
+
+  // Find ALL positions of this exact tag in the line
+  const positions: number[] = []
+  let pos = 0
+  while (true) {
+    const idx = line.indexOf(tagged, pos)
+    if (idx === -1) break
+    // Verify the char before is start-of-string or whitespace (avoid partial match)
+    if (idx === 0 || /\s/.test(line[idx - 1])) {
+      positions.push(idx)
+    }
+    pos = idx + tagLen
+  }
+
+  if (positions.length === 0) return null
+  // Use the LAST occurrence (intended tag), not the first (potential noise)
+  const startIdx = positions[positions.length - 1] + tagLen
+
   let endIdx = line.length
   for (const sib of SIBLING_TAGS) {
     if (sib === tag) continue

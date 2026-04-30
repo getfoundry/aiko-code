@@ -86,6 +86,20 @@ const BUILTIN_DEFAULT_MCP_SERVERS: Record<string, McpServerConfig> = {
       'ide-assistant',
     ],
   },
+  // codedb — Code intelligence server by justrach. Zig core, zero deps.
+  // Provides structural indexing, trigram search, word lookup, dependency
+  // graphs, remote GitHub queries, and composable search pipelines. Tools
+  // surface as mcp__codedb__* (codedb_tree, codedb_outline, codedb_symbol,
+  // codedb_search, codedb_word, codedb_hot, codedb_deps, codedb_read,
+  // codedb_edit, codedb_changes, codedb_status, codedb_snapshot,
+  // codedb_bundle, codedb_remote, codedb_projects, codedb_index, codedb_find,
+  // codedb_query). Prefer over plain grep/rg for non-trivial repo-scale
+  // search. Boots from local codedb binary on PATH.
+  codedb: {
+    type: 'stdio',
+    command: 'codedb',
+    args: ['mcp'],
+  },
 }
 
 function getBuiltinDefaultMcpServers(): Record<string, ScopedMcpServerConfig> {

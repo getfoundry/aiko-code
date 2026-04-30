@@ -104,6 +104,7 @@ export function readState(path: string): HarnessState | null {
 export function writeState(path: string, state: HarnessState): void {
   const lines: string[] = [FRONTMATTER_DELIM]
   lines.push(`active: ${state.active ? 'true' : 'false'}`)
+  lines.push(`active_pid: ${process.pid}`)
   lines.push(`session: "${state.session}"`)
   lines.push(`step: ${state.step}`)
   lines.push(`harness_ws:${state.harnessWs ? ` ${state.harnessWs}` : ''}`)
@@ -131,17 +132,41 @@ export function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 }
 
-/** Return the most-recently-modified active session state file, or null. */
+/**
+ * Return the most-recently-modified active session state file, or null.
+ * Prefers sessions whose PID is still alive (avoids stale sessions from
+ * crashed aiko-code processes). Falls back to mtime if PID check fails.
+ */
 export function pickActiveSession(stateDir: string): string | null {
   if (!existsSync(stateDir)) return null
-  let best: { path: string; mtime: number } | null = null
+  const currentPid = process.pid
+  let best: { path: string; mtime: number; alive: boolean } | null = null
   for (const name of readdirSync(stateDir)) {
     if (!name.startsWith('aiko-code.') || !name.endsWith('.local.md')) continue
     if (name.endsWith('.teachings.local.md')) continue
     const full = join(stateDir, name)
     try {
-      const m = statSync(full).mtimeMs
-      if (!best || m > best.mtime) best = { path: full, mtime: m }
+      const stat = statSync(full)
+      const m = stat.mtimeMs
+      // Check PID in frontmatter: if aiko-code is still alive, prefer it
+      const raw = stat.size > 0 && stat.size < 2048
+        ? readFileSync(full, 'utf8')
+        : ''
+      const pidMatch = raw.match(/^active_pid:\s*(\d+)$/m)
+      const pidLine = pidMatch?.[1]
+      const pidAlive = pidLine === `${currentPid}` || false
+
+      if (!best) {
+        best = { path: full, mtime: m, alive: pidAlive }
+      } else if (pidAlive && !best.alive) {
+        // Current PID wins over stale mtime
+        best = { path: full, mtime: m, alive: true }
+      } else if (pidAlive && best.alive && m > best.mtime) {
+        best = { path: full, mtime: m, alive: true }
+      } else if (!pidAlive && !best.alive && m > best.mtime) {
+        best = { path: full, mtime: m, alive: false }
+      }
+      // If best is alive and current is not, keep best (current process died)
     } catch {
       /* ignore */
     }

@@ -187,6 +187,39 @@ Tools:
 
 Only works for public GitHub repos. For private code, read the local files instead.
 
+## codedb (mcp__codedb__*) — code intelligence server
+Zig core, zero dependencies. Structural indexing, trigram search, word lookup, dependency graphs, remote GitHub queries, and composable search pipelines. Tools surface as mcp__codedb__*. Use when:
+- Searching for symbols, functions, or identifiers across the codebase (codedb_symbol, codedb_word).
+- Finding file outlines with minimal token cost before reading (codedb_outline — 4-15x more efficient than full reads).
+- Full-text search with trigram matching (codedb_search).
+- Dependency graph queries — reverse deps (who imports X), forward deps (what does X use), transitive blast radius (codedb_deps).
+- Fuzzy file search by approximate name (codedb_find).
+- Composable search pipelines chaining find → search → filter → deps → outline → read → sort → limit (codedb_query).
+- Querying external GitHub repos without cloning (codedb_remote).
+- Getting recently modified files to see what's been actively worked on (codedb_hot).
+
+Tools:
+- codedb_tree — full file tree with language/symbol counts
+- codedb_outline — structural outline of a file (functions, structs, imports, constants with line numbers)
+- codedb_symbol — find symbol definitions across codebase
+- codedb_search — full-text trigram search across all files
+- codedb_word — O(1) exact word lookup via inverted index
+- codedb_hot — recently modified files
+- codedb_deps — dependency graph (reverse/forward/transitive)
+- codedb_read — read file contents (use outline first for line numbers)
+- codedb_edit — line-based file edit (replace/insert/delete)
+- codedb_changes — files changed since a sequence number
+- codedb_status — indexed file count and sequence number
+- codedb_snapshot — full pre-rendered codebase snapshot as JSON
+- codedb_bundle — batch up to 20 queries in one call
+- codedb_remote — query any GitHub repo via cloud intelligence
+- codedb_projects — list locally indexed projects
+- codedb_index — index a local folder
+- codedb_find — fuzzy file search by approximate name
+- codedb_query — composable search pipeline
+
+Only works for locally indexed projects. Run codedb_index on new projects first. For public GitHub repos you don't have locally, use codedb_remote or deepwiki.
+
 ## aiko-in-chrome (mcp__aiko-in-chrome__*) — browser automation
 Chrome extension MCP server for interacting with web pages. Use for:
 - UI/UX audits and taste reviews — navigate to the page, screenshot, check console logs
