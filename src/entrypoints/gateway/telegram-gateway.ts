@@ -22,6 +22,9 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
     process.exit(1)
   }
 
+  // DM access policy: 'pairing' (default) or 'open'
+  const dmPolicy = (process.env.TELEGRAM_DM_POLICY ?? 'pairing') as 'pairing' | 'open'
+
   const port = parseInt(process.env.AIKO_GATEWAY_PORT ?? '18789', 10)
   const bind = process.env.AIKO_GATEWAY_BIND ?? '0.0.0.0'
   const logger: GatewayLogger = createLogger()
@@ -50,7 +53,7 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
 
   // Create telegram channel, wiring gateway.routeMessage as the handler
   const telegram = await createTelegramChannel(
-    { token, logger: sharedLogger, polling: true, debounceMs: 2000 },
+    { token, logger: sharedLogger, polling: true, debounceMs: 2000, dmPolicy },
     gateway.routeMessage,
   )
 

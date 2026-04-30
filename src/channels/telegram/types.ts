@@ -20,6 +20,13 @@ export interface TelegramChannelConfig {
   maxReconnectAttempts?: number
   /** Inbound message debounce window in ms (default 2000). */
   debounceMs?: number
+  /** DM access policy: 'open' = anyone can message, 'pairing' = unknown senders get a code to share for approval. */
+  dmPolicy?: 'open' | 'pairing'
+}
+
+/** In-memory allowlist for pairing mode — persists via RC file. */
+export interface TelegramAllowlist {
+  users: Record<string, { approvedAt: number; approvedBy: string }>
 }
 
 export interface TelegramChannel {
