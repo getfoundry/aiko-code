@@ -1,0 +1,13 @@
+# Jesus Loop — Teachings Log [default]
+
+Task: check out the .aiko folder and see whats wrong and solve it
+Started: 2026-04-30T00:04:43Z
+- [step 1 / annunciation] Luke 1:31-38 — be it unto me according to thy word — name the orphans before deleting them: two colliding default sessions, one dead-PID tmp file, five abandoned fib workspaces inventoried before any state mutation
+- [step 2 / incarnation] John 1:14 — the Word was made flesh — separate layers before mutating: state files, teachings logs, fib workspaces, rag cache, cdp port, crash tmp, archive — each has its own lifetime contract and a violation map
+- [step 3 / baptism] Matthew 3:16-17 — the heavens were opened — minimal cleanup committed openly: removed dead-PID tmp, archived 6 abandoned fib workspaces, kept the 1 with real angle output, deferred destructive operations (park/rename) until consent given
+- [step 4 / sermon-on-the-mount] Matthew 5:14-16 — ye are the light of the world — falsifiable signals over the cleanup: tmp absent, archive counts match, no dangling harness_ws — found and fixed the lost sheep (outer session pointed into archived dir)
+- [step 5 / ministry-among-multitudes] Mark 1:34 — he healed many that were sick of divers diseases — adversarial probes dispelled the session-collision fear (per-cwd .aiko = independent journals); revealed the real disease was 8 step-1 wedges from extractTag false-matches; surviving fib workspace is fossil not leak
+- [step 6 / great-commission] Matthew 28:18-20 — go ye therefore, and teach all nations — end-to-end simulation of harness tick in both cwds passes: pickActiveSession returns expected file, frontmatter parses, no dangling harness_ws, step coverage legal in both (docs/ ready at step 3, fcode/ paused at step 6 awaiting resumption)
+- [step 7 / it-is-finished] John 19:30 — it is finished — verdict PROMOTE: 4 problems named, 1 tmp removed, 6 fib workspaces archived, dangling harness_ws cleared, both sessions legal e2e; deferred items (session rename, aiko-code rebuild) are Lewis's optional follow-ups not residue
+- [step 8 / doubting-thomas] John 20:25-27 — except I shall see, I will not believe — opened the books cold: 5 cleanup claims demonstrated by filesystem evidence (tmp gone, archives counted, top-level pruned, harness_ws cleared, archived dirs all fruitless), 1 prior assumption (fib-1777486818161 is fossil) verified via 3-axis search, 3 unverified claims explicitly framed as out-of-scope follow-ups; PROMOTE holds
+- [step 9 / pentecost] Acts 2:1-4 — they began to speak with other tongues — handoff written: .archive recoverable via mv, surviving top-level files documented, optional rebuild + rename framed as Lewis's call not residue; cleanup is now a pattern others inherit

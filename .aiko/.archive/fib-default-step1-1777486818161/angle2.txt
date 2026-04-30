@@ -1,0 +1,145 @@
+# Angle 2: Session Persistence & Concurrent Session Management — Survey Findings
+
+## Environment
+- Runtime: Bun/Node.js (TypeScript, aiko-code codebase)
+- Repo branch: main
+- Date: 2026-04-30
+
+---
+
+## 1. Session ID Generation
+
+`src/bootstrap/state.ts:331`: every new session gets a UUID via `randomUUID()`:
+```ts
+sessionId: randomUUID() as SessionId
+```
+
+Session IDs are **ephemeral per-process** — they exist only in the global `STATE` singleton. There is no disk-based session store (unlike openclaw which writes `sessions.json`). Sessions are identified by their UUID in PID files (`~/.aiko/sessions/<pid>.json`) and transcript files (`<sessionId>.jsonl` in the project directory).
+
+### Session switching / resuming
+
+`switchSession(sessionId, projectDir)` (state.ts:468) atomically swaps `sessionId` and `sessionProjectDir`. This is used by `--resume` / `/resume`. The caller provides the session ID of an existing transcript — there is no auto-discovery or "pick latest" logic in the switch itself.
+
+### Session regeneration
+
+`regenerateSessionId({ setCurrentAsParent: true })` (state.ts:435) creates a brand-new UUID, saves the old one as `parentSessionId`, and drops the old session's plan-slug from the cache. Used when starting a fresh conversation chain.
+
+---
+
+## 2. Session PID File Registry
+
+`src/utils/concurrentSessions.ts:59` — `registerSession()`:
+
+- Sessions are registered by writing `<pid>.json` into `~/.aiko/sessions/` (dir created with 0o700 permissions).
+- Each PID file contains: `{ pid, sessionId, cwd, startedAt, kind, entrypoint, ... }`
+- `kind` is set via `aiko_CODE_SESSION_KIND` env var or defaults to `'interactive'`.
+- Kinds: `'interactive' | 'bg' | 'daemon' | 'daemon-worker'`
+- Teammates/subagents are explicitly excluded (return false) — `getAgentId() != null`.
+
+**Cleanup**: `registerCleanup` unlinks the PID file on process exit. PID files are also updated when `--resume` switches sessions.
+
+### Stale PID cleanup
+
+`countConcurrentSessions()` (line 168): reads the sessions dir, checks each PID via `isProcessRunning()`, and **deletes stale files** from crashed sessions (except on WSL where cross-OS PID probing is unreliable). Strict filename guard: only `^\d+\.json$` matches.
+
+---
+
+## 3. Session Transcript Storage
+
+Transcripts are JSONL files: `<sessionId>.jsonl`. Path is derived from `getSessionProjectDir()` (explicit project dir) or `originalCwd` (default case). No central sessions manifest — the transcript filename itself is the session ID.
+
+---
+
+## 4. Session Ingress Authentication
+
+`src/utils/sessionIngressAuth.ts`:
+
+### Token lookup (3-tier priority):
+1. **Env var**: `aiko_CODE_SESSION_ACCESS_TOKEN` — set at spawn time by bridge, updated in-process via stdin messages.
+2. **File descriptor**: `aiko_CODE_WEBSOCKET_AUTH_FILE_DESCRIPTOR` — read from `/dev/fd/<N>` or `/proc/self/fd/<N>`, cached globally.
+3. **Well-known file**: `aiko_SESSION_INGRESS_TOKEN_FILE` or `/home/aiko/.aiko/remote/.session_ingress_token` — fallback for subprocesses.
+
+### Auth header generation (line 117):
+- `sk-ant-sid*` tokens: use `Cookie: sessionKey=<token>` + `X-Organization-Uuid`.
+- All other tokens: use `Authorization: Bearer <token>`.
+
+### Token distribution to child processes
+
+`src/bridge/sessionRunner.ts:56-80` — `buildChildEnv()`:
+- **Strict allowlist**: only specific system/runtime vars are passed to children.
+- `aiko_CODE_SESSION_ACCESS_TOKEN` is explicitly set from the parent's token to the child.
+- `aiko_CODE_OAUTH_TOKEN` is explicitly stripped.
+- This is the mechanism by which a child (spawned via `spawn`) authenticates to the same session without inheriting parent secrets.
+
+---
+
+## 5. External Session Creation — CAN A TELEGRAM BOT CREATE A SESSION?
+
+**Short answer: not directly through the aiko-code binary itself.**
+
+### What aiko-code supports for external sessions:
+
+1. **Bridge-spawned sessions** (`src/bridge/`): The bridge is a separate Go process that spawns child `aiko-code` processes. Each child gets:
+   - A `session_ingress_token` from the bridge's work secret
+   - `aiko_CODE_SESSION_ACCESS_TOKEN` env var
+   - Connection to the session via WebSocket (`wss://.../v1/sessions/ws/{id}/subscribe`)
+
+2. **WebSocket sessions** (`src/remote/SessionsWebSocket.ts`): Connects to `wss://api.anthropic.com/v1/sessions/ws/{sessionId}/subscribe` with OAuth Bearer auth. This is a **client-side** connection to an existing session on the server — it does not create new sessions.
+
+3. **Remote CCR** (`src/utils/authFileDescriptor.ts`): In the CCR (Cloud Compute Runtime) environment, tokens are injected via file descriptors by a Go env-manager. Subprocesses inherit tokens via well-known files at `/home/aiko/.aiko/remote/*.token`.
+
+### What aiko-code does NOT have:
+
+- **No HTTP webhook listener** for external session creation.
+- **No Telegram bot integration** (no Telegram channel code found).
+- **No RPC endpoint** that accepts "create a session" from arbitrary clients.
+- **No message queue or event bus** for external message injection.
+
+The only "external" entry point is the **bridge**, which is a Go service that manages session lifecycle server-side and spawns local processes. The bridge itself is not part of the aiko-code TypeScript binary — it's a separate Go service.
+
+**Comparison with openclaw** (from DeepWiki): OpenClaw has explicit `sessions.create` RPC, webhook-prefixed sessions (`hook:<uuid>`), and Telegram topic session handling (`<sessionId>-topic-<threadId>.jsonl`). aiko-code has none of these — it's a CLI tool, not a gateway service.
+
+---
+
+## 6. Current Session Count Limits
+
+### Concurrent session detection: no hard limit
+
+`countConcurrentSessions()` returns the count but there is **no max concurrent session gate** in the main CLI. The command `aiko ps` uses this count (line 2538 in main.tsx) to log telemetry:
+
+```ts
+void countConcurrentSessions().then(count => {
+  logEvent('tengu_concurrent_sessions', { ... })
+})
+```
+
+### GRPC server limit
+
+`src/grpc/server.ts:24`:
+```ts
+const MAX_SESSIONS = 1000
+```
+This is a **server-side** limit in the gRPC session manager. The check at line 195 rejects new sessions when `this.sessions.size >= 1000` — this is the CCR infrastructure limit, not the CLI binary.
+
+### Bridge session limits
+
+`src/bridge/bridgeMain.ts` and `src/bridge/bridgeApi.ts`: `config.maxSessions` is passed through — this is a bridge config value (not a CLI value). The CLI binary itself has no built-in concurrent session cap.
+
+### Transcript search limit
+
+`src/utils/agenticSessionSearch.ts:13`: `MAX_SESSIONS_TO_SEARCH = 100` — limits how many transcripts are included in agentic search queries.
+
+---
+
+## 7. Summary
+
+| Question | Answer |
+|----------|--------|
+| Can external sessions be created from CLI? | No. The binary is a CLI tool; no HTTP/RPC listener for external session creation. |
+| Can a Telegram bot create a session? | No. No Telegram integration exists in the aiko-code codebase. No webhook endpoint. No external message injection. |
+| How are sessions created? | Via `randomUUID()` at process startup. Existing sessions can be resumed via `--resume` by providing the session ID. |
+| Session lifecycle | Create (UUID at startup) -> register PID file -> operate (JSONL transcript) -> cleanup (PID file deleted on exit). |
+| Max concurrent sessions? | No hard limit in the CLI binary. gRPC server caps at 1000 (infrastructure-level, not CLI). `countConcurrentSessions()` is informational only. |
+| External auth mechanism | `aiko_CODE_SESSION_ACCESS_TOKEN` env var (from bridge), file descriptor injection (CCR), or well-known file (subprocesses). Tokens are JWT or `sk-ant-sid*` session keys. |
+| Transcript storage | JSONL files named `<sessionId>.jsonl` in the project directory, keyed by session UUID. |
+| PID registry | `~/.aiko/sessions/<pid>.json` — one file per live process, with stale cleanup on `countConcurrentSessions()`. |

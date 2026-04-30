@@ -1,0 +1,21 @@
+## DeepWiki: openclaw/openwall Gateway Daemon Lifecycle
+
+Key comparison points vs aiko-code:
+
+### OpenClaw Gateway (from deepwiki research)
+- **Start/supervision:** Can run foreground (`openclaw gateway run`) or background via native OS services. `openclaw onboard` installs it as a LaunchAgent (macOS), systemd user unit (Linux), or Scheduled Task (Windows). The `openclaw gateway install` command sets up the service config. The `openclaw gateway restart` command is preferred over chaining stop+start because `stop` disables the LaunchAgent.
+- **PID management:** Relies entirely on OS-level supervision (LaunchAgent, systemd). No custom PID file. Port-binding serves as the singleton lock — binds WebSocket listener on startup to port 18789; `EADDRINUSE` -> `GatewayLockError`. OS releases listener on process exit. `cleanStaleGatewayProcessesSync()` force-clears zombie PIDs.
+- **Service config paths:** macOS -> `~/Library/LaunchAgents/ai.openclaw.gateway.plist` (or profile-variant). Linux -> `~/.config/systemd/user/openclaw-gateway.service`. Config changes require gateway restart (no hot-reload for native plugin code).
+- **Plugin lifecycle:** Gateway discovers plugins from configured paths, workspace plugins, global plugins, bundled plugins. Loaded at startup. No hot-reload.
+- **Session management:** Gateway is source of truth. Two persistence layers: `sessions.json` for metadata, `<sessionId>.jsonl` append-only transcripts. Per-agent storage in `~/.openclaw/agents/<agentId>/sessions/`.
+- **Worker/agent subprocesses:** Gateway is a single always-on control plane. Agents run in two-stage acceptance pattern (immediate ack, then streamed events). Gateway lifecycle is distinct from agent runs.
+- **Graceful shutdown:** SIGINT/SIGTERM handlers stop the process. OS releases listener automatically. No separate lock file cleanup needed.
+- **Diagnostics:** `openclaw doctor` audits service config drift. `openclaw gateway status --deep` scans for extra gateway-like processes.
+
+### Contrast with aiko-code
+- aiko-code has NO daemon installation, NO PID management, NO OS-level supervision
+- aiko-code's "bridge" is an in-process bidirectional WebSocket+polling connection, not a background service
+- aiko-code uses file-based BridgePointer (TTL 4h) for crash recovery, not OS-level locks
+- aiko-code has no service install commands (`aiko install --systemd` etc. do not exist)
+
+env:macOS 25.0.0, Bun runtime, aiko-code main branch dw:openclaw/openclaw#Gateway daemon lifecycle ab:skip:DeepWiki-only research, no browser needed h1:openclaw uses native OS supervision (LaunchAgent/systemd) with port-binding singleton lock; aiko-code has zero daemon infrastructure — the bridge is an in-process WebSocket connection, not a background service

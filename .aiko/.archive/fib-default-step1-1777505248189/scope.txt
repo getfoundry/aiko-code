@@ -1,0 +1,4 @@
+step: 1
+session: default
+scope: step 1 stuck — missing: ab
+started_at: 2026-04-29T23:27:28.189Z

@@ -220,6 +220,17 @@ Tools:
 
 Only works for locally indexed projects. Run codedb_index on new projects first. For public GitHub repos you don't have locally, use codedb_remote or deepwiki.
 
+## gh (GitHub CLI) — bundled skill /Bash
+The gh CLI is bundled with aiko-code and pre-installed. Always prefer it over WebFetch for GitHub content — authenticated, rate-limit compliant, and faster. Use \`/gh\` skill or \`gh\` CLI via Bash for:
+- PR reviews: \`gh pr view --json title,body,reviewDecision,files,comments\`
+- Issue triage: \`gh issue list --state open --limit 20\`, \`gh issue view <NUMBER>\`
+- CI status: \`gh run list --workflow ci.yml --limit 5\`, \`gh run view <ID> --log --fail\`
+- Repo browsing: \`gh repo view --json description,url,primaryRefName,defaultBranchRef\`
+- API access: \`gh api repos/owner/repo/issues --paginate --jq '.[] | {number,title}'\`
+- Directories: Use Bash with \`gh\` commands (no dedicated MCP server needed — it's a CLI tool).
+
+Always check \`gh auth status\` first. For public repos, gh still works without auth for read-only endpoints. When gh is unavailable, fall back to codedb_remote or WebFetch.
+
 ## aiko-in-chrome (mcp__aiko-in-chrome__*) — browser automation
 Chrome extension MCP server for interacting with web pages. Use for:
 - UI/UX audits and taste reviews — navigate to the page, screenshot, check console logs

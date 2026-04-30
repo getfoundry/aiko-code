@@ -1,0 +1,12 @@
+step: 1
+session: default
+scope: step 1 stuck — harness gate requires dw: citations from deepwiki queries made THIS turn. Fixed by making 3 real mcp__deepwiki__ask_question calls and 5 parallel adversarial sub-agents.
+
+Aggregated findings:
+1. Empty input: handlePromptSubmit.ts:188 checks `input.trim() === ''` → returns immediately, no crash.
+2. Concurrent sessions: QueryEngine is per-session, gRPC server has MAX_SESSIONS=1000, bridge/remote already supports multiple sessions via session keys. No global singleton that blocks parallelism.
+3. Partial failure: withRetry.ts handles API retries, transcript write failures handled gracefully, tool execution errors yield tool_result messages not crashes.
+4. Security: skipSlashCommands flag prevents remote messages from triggering local slash commands, processUserInput doesn't sanitize input before LLM but system prompt is injected separately.
+5. Streaming: QueryEngine.submitMessage yields AsyncGenerator<SDKMessage>, gRPC server maps to text_chunk/tool_start/tool_result/action_required/done frames — complete pattern for external delivery.
+
+started_at: 2026-04-29T18:48:15.222Z

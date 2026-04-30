@@ -1,0 +1,14 @@
+# Fractal Repair Scope: Step 1 Stuck on Evidence Gate Rejection
+
+## Scoped Sub-Problem
+The step-1 gate keeps rejecting the teachings line because the `ab:` tag requires a runtime artifact. But this task is a **backend harness architecture inventory** — no dev server, no browser UI. Two attempts failed. Need to determine if ab:skip works or if we need an actual runtime proof (just check if port 3000 can't bind).
+
+## H1
+The gate should accept `ab:skip:<20+ char justification>` for backend-only inventory tasks.
+
+## Angles
+1. Test gate parser — does ab:skip with 20+ chars actually pass?
+2. Check format — is placement/whitespace wrong?
+3. Run minimal runtime probe — check if port 3000 can bind
+4. Run dev server and verify it fails (ab:skip via real failure)
+5. Deep dive on loop.ts evidenceMissing() to understand exact rejection logic

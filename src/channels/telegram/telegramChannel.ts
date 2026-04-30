@@ -13,7 +13,10 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { Bot } from 'grammy'
+import { run } from '@grammyjs/runner'
 import type { GrammyError, HttpError, Context } from 'grammy'
+import type { RunnerHandle } from '@grammyjs/runner'
+import type { Update } from 'grammy/types'
 import type { TelegramChannelConfig, TelegramChannel, TelegramDeliveryConfig, TelegramAllowlist } from './types.js'
 
 /** Default Telegram Bot API rate limit: 30 messages per second. */
@@ -27,6 +30,18 @@ const DEFAULT_PARSE_MODE = 'MarkdownV2' as const
 
 /** Default draft update interval in ms. */
 const DEFAULT_DRAFT_INTERVAL_MS = 500
+
+// Watchdog / stall detection (openclaw TelegramPollingSession pattern).
+/** Interval between watchdog pings (ms). */
+const WATCHDOG_INTERVAL_MS = 30_000
+/** Stall threshold: max ms without a getUpdates completing (ms). */
+const STALL_THRESHOLD_MS = 120_000
+/** Force-cycle: max ms to wait for graceful stop before killing (ms). */
+const FORCE_CYCLE_MS = 15_000
+
+// Liveness tracking (openclaw pattern: track time since last successful API call).
+let lastApiCallMs = Date.now()
+let apiCallSuccess = true
 
 /**
  * Escape special characters for Telegram MarkdownV2 parse mode.
@@ -133,6 +148,19 @@ export async function createTelegramChannel(
     info: rawLogger?.info ?? (() => {}),
     warn: rawLogger?.warn ?? (() => {}),
     error: rawLogger?.error ?? (() => {}),
+  }
+
+  // Liveness tracking middleware — tracks time since last successful API call.
+  // Matches openclaw's pattern of setting bot.api.config.onLivenessEvent.
+  // grammY's standard config may not have this field; it's an extension.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(bot.api.config as any).onLivenessEvent = (wasSuccessful: boolean) => {
+      lastApiCallMs = Date.now()
+      apiCallSuccess = wasSuccessful
+    }
+  } catch {
+    // Liveness tracking not supported on this grammY version; no-op
   }
 
   // Inbound message debouncer — prevents flooding the engine with
@@ -281,6 +309,7 @@ export async function createTelegramChannel(
     const chatId = ctx.chat.id
     const userId = ctx.from?.id
     const text = ctx.message.text || ctx.message.caption || ''
+    logger.info(`telegram: message from user=${userId} chat=${chatId} text="${text}"`)
 
     // ————————————————————————————————————————————
     // Pairing commands (always processed regardless of policy)
@@ -430,31 +459,140 @@ export async function createTelegramChannel(
   }
 
   // Catch grammY HTTP/Bot API errors globally.
-  bot.catch((err: GrammyError | HttpError) => {
-    logger.error(`telegram: bot error: ${err}`)
+  // Implements openclaw's 409 dirty-transport + retry pattern.
+  let transportDirty = false
+  let retryBackoff = 1 // seconds, exponential
+
+  bot.catch(async (err: GrammyError | HttpError) => {
+    const msg = err instanceof Error ? err.message : String(err)
+    const status = (err as { code?: number }).code
+    logger.error(`telegram: bot error: ${msg}`)
+    console.error(`[telegram:error] ${msg}`)
+
+    // Detect HTTP 409 conflict — marks transport dirty, forces fresh TCP socket.
+    if (status === 409 || msg.includes('Conflict')) {
+      if (transportDirty) {
+        logger.warn('telegram: transport already dirty, skipping restart')
+        return
+      }
+      transportDirty = true
+      logger.warn('telegram: 409 conflict detected — marking transport dirty, clearing webhook, forcing restart in 5s')
+      try {
+        await bot.api.deleteWebhook()
+      } catch { /* best effort */ }
+      // Wait 5s for handler cleanup, then restart
+      await new Promise(r => setTimeout(r, 5000))
+      pollingRunning = false // signal runner to stop
+      await new Promise(r => setTimeout(r, 1000))
+      pollingRunning = true // re-enable, runner will pick up new updates
+      transportDirty = false
+      retryBackoff = 1
+      logger.info('telegram: transport restarted after 409')
+    } else if (msg.includes('Timed out') || msg.includes('ECONNRESET') || msg.includes('ETIMEDOUT')) {
+      // Network error — exponential backoff on reconnect
+      const waitMs = retryBackoff * 1000
+      logger.warn(`telegram: network error (${msg}), retrying in ${waitMs}ms`)
+      await new Promise(r => setTimeout(r, waitMs))
+      retryBackoff = Math.min(retryBackoff * 2, 60)
+    } else {
+      // Other errors — reset backoff
+      retryBackoff = 1
+    }
   })
+
+  // Internal state for tracking update offsets
+  let pollingRunning = false
+  let lastUpdateId = 0
+  let lastGetUpdatesCompleted = Date.now()
+  let runner: RunnerHandle | null = null
+  let forceStopTimer: ReturnType<typeof setTimeout> | null = null
+
+  const processUpdate = async (update: { update_id: number }) => {
+    if (update.update_id > lastUpdateId) {
+      lastUpdateId = update.update_id
+    }
+    // Reset stall timer on each successful update
+    lastGetUpdatesCompleted = Date.now()
+    try {
+      await bot.handleUpdate(update as Update)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      logger.error(`telegram: error handling update ${update.update_id}: ${msg}`)
+    }
+  }
+
+  /** Start the runner with watchdog protection. */
+  async function startPolling() {
+    runner = run(bot, {
+      runner: { fetch: { timeout: 30, allowed_updates: [] } },
+    })
+    // Watchdog: periodically check if getUpdates is stalled.
+    let watchdogTimer: ReturnType<typeof setTimeout> | null = null
+    const startWatchdog = () => {
+      watchdogTimer = setInterval(() => {
+        if (!pollingRunning) return
+        const elapsed = Date.now() - lastGetUpdatesCompleted
+        if (elapsed > STALL_THRESHOLD_MS) {
+          logger.warn(`telegram: watchdog stall detected — no getUpdates for ${Math.round(elapsed / 1000)}s, stopping runner`)
+          runner?.stop()
+        }
+      }, WATCHDOG_INTERVAL_MS)
+    }
+    const stopWatchdog = () => {
+      if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null }
+    }
+    startWatchdog()
+
+    // On runner stop, clean up watchdog
+    runner.stop().then(() => {
+      stopWatchdog()
+      runner = null
+    }).catch(() => {
+      stopWatchdog()
+      runner = null
+    })
+
+    return runner
+  }
 
   return {
     async start() {
       if (config.polling !== false) {
-        // Start long polling with reconnect logic
-        let attempt = 0
-        while (attempt < maxReconnectAttempts) {
-          try {
-            await bot.start()
-            attempt = 0
-            logger.info('telegram: polling started')
-            return
-          } catch {
-            attempt++
-            logger.error(`telegram: reconnect attempt ${attempt}/${maxReconnectAttempts}`)
-            await new Promise(r => setTimeout(r, 5000))
+        pollingRunning = true
+        await startPolling()
+        logger.info('telegram: polling started')
+
+        // Wait for runner to stop (or be stopped externally)
+        await new Promise<void>(resolve => {
+          const check = () => {
+            if (!pollingRunning) { resolve() }
+            else if (runner?.isRunning() ?? false) {
+              setTimeout(check, 500)
+            } else { resolve() }
           }
-        }
+          check()
+        })
       }
     },
     async stop() {
-      bot.stop()
+      pollingRunning = false
+
+      // Force-cycle: kill runner after 15s even if graceful stop times out.
+      // Matches openclaw's forceCyclePromise pattern.
+      forceStopTimer = setTimeout(() => {
+        logger.warn('telegram: force-cycle timeout (15s), killing runner')
+        runner?.stop()
+      }, FORCE_CYCLE_MS)
+
+      // Stop the runner
+      try {
+        await runner?.stop()
+      } catch { /* ignore */ }
+      runner = null
+
+      // Clean up timers
+      clearTimeout(forceStopTimer)
+      forceStopTimer = null
       for (const entry of [...pending.values()]) {
         clearTimeout(entry.timer)
       }

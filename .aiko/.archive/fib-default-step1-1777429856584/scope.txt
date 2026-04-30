@@ -1,0 +1,4 @@
+step: 1
+session: default
+scope: step 1 stuck — missing: env, dw, ab
+started_at: 2026-04-29T02:30:56.584Z

@@ -11,7 +11,7 @@
 import type { GatewayConfig, GatewayServer, SessionLane } from './types.js'
 import type { QueryEngine } from '../../QueryEngine.js'
 import type { ChannelHandler } from './types.js'
-import { createLogger, inc, GatewaySignals } from './signals.js'
+import { createLogger, inc, GatewaySignals, getHealthStatus } from './signals.js'
 import type { GatewayLogger } from './signals.js'
 
 const DEFAULT_PORT = 18789
@@ -96,10 +96,18 @@ export async function createGatewayServer(
       wsServer = Bun.serve({
         port,
         hostname: bind,
-        fetch(_req, server) {
+        fetch(req, server) {
+          // HTTP health endpoint — exposes getHealthStatus() from signals module.
+          const url = new URL(req.url)
+          if (req.method === 'GET' && url.pathname === '/health') {
+            const health = getHealthStatus()
+            return new Response(JSON.stringify(health), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          }
           // Trigger WS upgrade if the request supports it
           if (server && typeof server.upgrade === 'function') {
-            server.upgrade(_req)
+            server.upgrade(req, { data: {} })
             return
           }
           return new Response('Upgrade required', { status: 426 })
@@ -254,16 +262,20 @@ export async function createGatewayServer(
       )
     } catch (err) {
       GatewaySignals.errors++
-      ws.send(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          error: {
-            code: -32000,
-            message: err instanceof Error ? err.message : String(err),
-          },
-          id,
-        }),
-      )
+      try {
+        ws.send(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: err instanceof Error ? err.message : String(err),
+            },
+            id,
+          }),
+        )
+      } catch {
+        // Socket closed — nothing to report
+      }
     }
   }
 
@@ -316,10 +328,16 @@ export async function createGatewayServer(
     lanes.set(sessionKey, lane)
     GatewaySignals.sessionsStarted++
 
+    let err: unknown
     try {
       yield* lane.engine.submitMessage(message) as unknown as AsyncGenerator<string>
-    } finally {
-      lane.abort.abort()
+    } catch (e) {
+      err = e
+    }
+    lane.abort.abort()
+    if (err) {
+      lanes.delete(sessionKey)
+      throw err
     }
   }
 

@@ -1,0 +1,4 @@
+step: 1
+session: default
+scope: step 1 stuck — missing: dw(stale-no-deepwiki-call-this-turn)
+started_at: 2026-04-29T23:09:18.607Z

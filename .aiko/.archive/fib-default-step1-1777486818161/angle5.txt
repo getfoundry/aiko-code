@@ -1,0 +1,124 @@
+# Angle 5: Permission System — Non-Interactive / CLI Execution
+
+## Environment
+- Runtime: Bun (darwin, aiko-code fork of Claude Code)
+- Branch: main
+- Repo: `/Users/lekt9/Projects/fcode`
+
+## Key Findings
+
+### 1. Default permission mode in this fork is `bypassPermissions`
+
+In `src/hooks/useCanUseTool.tsx`, the Aiko-fork overrides the original upstream behavior:
+
+```
+// Aiko-fork policy: every tool call is auto-allowed.
+// Permission prompts are off by default — bypassPermissions is the always-on
+// mode in this fork. Design questions to the user route through
+// AskUserQuestion / model dialogue (independent of this gate), so this
+// doesn't silence those.
+//
+// The legacy classifier / rule / interactive prompt pipeline is removed.
+```
+
+The hook checks `toolPermissionContext.mode === 'bypassPermissions'` and returns the input unconditionally for any tool. This means the Claude Code origin's entire permission classification pipeline (rules, classifier, interactive prompt, hooks) is short-circuited by default.
+
+### 2. Headless initialization defaults to `bypassPermissions`
+
+In `src/utils/permissions/permissionSetup.ts`, `initialPermissionModeFromCLI()` reads the `--permission-mode` CLI flag. If not set, the fallback is:
+
+```
+const permissionModeResult =
+  permissionModeFlag !== undefined
+    ? permissionModeFlag
+    : initialAppState.toolPermissionContext.mode;
+```
+
+And the initial mode in the `ToolPermissionContext` defaults to `'bypassPermissions'` in this fork (set during the bootstrap phase in `main.tsx` around line 1089: `dangerouslySkipPermissions` maps to the bypass mode).
+
+### 3. `--dangerously-skip-permissions` CLI flag
+
+The CLI accepts `--dangerously-skip-permissions` (parsed in `main.tsx` around line 624). When this flag is present, it sets `dangerouslySkipPermissions = true`, which flows into `setupPermissionModeState()` which sets `initialPermissionMode = 'bypassPermissions'`. This is the explicit "skip all permissions" mode.
+
+### 4. `shouldAvoidPermissionPrompts` — headless flag
+
+When `shouldAvoidPermissionPrompts` is true (set for non-interactive sessions, subagents, forked agents), `permissions.ts` takes different code paths:
+
+- Line 519: checks auto-approve BEFORE `shouldAvoidPermissionPrompts` — classifiers still run in headless
+- Lines 536, 576, 823: `if (appState.toolPermissionContext.shouldAvoidPermissionPrompts)` — these paths skip the interactive dialog and resolve via automated checks (hooks + classifier) only
+- Line 932: `if (shouldAvoidPermissionPrompts) return deniedDecision` for tools that strictly require interactive UI
+- Line 993-1000: `isHeadless = appState.toolPermissionContext.shouldAvoidPermissionPrompts` — used to determine what kind of denial message to return
+
+### 5. Permission modes available
+
+From `src/utils/permissions/PermissionMode.ts` — the `PERMISSION_MODES` enum:
+- `default` — ask before every tool, allow/reject per-session
+- `acceptEdits` — auto-accept file writes, still ask for bash
+- `bypassPermissions` — auto-approve everything (this fork's default)
+- `dontAsk` — auto-approve, nothing shown (silent bypass)
+- `plan` — ask before every tool (for planning phase)
+
+And external modes (from SDK/API): `auto` (classifier-based auto-approval), `autoWithFallback`, etc.
+
+### 6. What happens if a tool needs user approval but no TUI is available?
+
+If `shouldAvoidPermissionPrompts` is true and a permission decision requires user input (not classifiable as auto-approve), the code at line 932 returns a `deniedDecision`:
+
+```typescript
+if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
+  return deniedDecision
+}
+```
+
+The tool call fails with a denial. This is the safe default — if there's no way to show a prompt, the tool is denied rather than hanging or crashing.
+
+### 7. Interactive handlers vs headless
+
+The interactive handler (`src/hooks/toolPermission/handlers/interactiveHandler.ts`) runs hooks, then classifier, then falls through to a dialog. The coordinator handler (`coordinatorHandler.ts`) runs hooks + classifier sequentially before falling to dialog. The swarm worker handler forwards to a leader.
+
+In non-interactive mode, the interactive handler's dialog path is simply unreachable. The `shouldAvoidPermissionPrompts` flag ensures that tools that require human approval get denied.
+
+## Conclusion
+
+This aiko-code fork sets `bypassPermissions` as the default permission mode, meaning **all tool calls are auto-allowed by default**. The original Claude Code permission pipeline (classifier, rules, interactive prompts) is explicitly removed as of the fork.
+
+For truly non-interactive execution:
+- `bypassPermissions` (default) — all tools auto-approved
+- `--dangerously-skip-permissions` CLI flag — explicit bypass
+- `shouldAvoidPermissionPrompts` — set for subagents/async agents; if any tool strictly requires UI, it gets denied
+- The classifier can still auto-approve bash commands in headless mode when configured
+
+A bot user can work like a CLI user — in fact, the fork makes it even easier since permissions are already bypassed. There is no "permission gate" that would block a bot from executing tools in non-interactive mode.
+
+---
+
+## DeepWiki Comparison: openclaw/openclaw
+
+Source: `mcp__deepwiki__ask_question(openclaw/openclaw)`
+
+OpenClaw has a distinct permission architecture for headless vs interactive execution:
+
+### ACP (Agent Control Protocol) permissions
+- `permissionMode` controls what the harness agent can do without prompting: `approve-all`, `approve-reads`, `deny-all`
+- `nonInteractivePermissions` controls behavior when a prompt would be shown but no TTY is available: `fail` (abort with AcpRuntimeError, this is the default) or `deny` (silently deny, session continues)
+- Default: `approve-reads` + `fail` — meaning any write/exec in headless mode crashes the session
+
+### `exec` tool permissions
+- `exec.security`: `deny`, `allowlist`, or `full` (YOLO mode)
+- `exec.ask`: `off`, `on-miss`, or `always`
+- `askFallback` (when no UI reachable): `deny`, `allowlist`, or `full`
+- In headless mode, if exec requires interactive approval but no UI is available, the command is denied with the message "Headless runs cannot wait for interactive exec approval"
+
+### Key interoperability note
+When OpenClaw's exec policy is set to "YOLO" (`security=full`, `ask=off`), the Claude CLI (aiko-code) automatically adds `--permission-mode bypassPermissions`. This is a direct bridge between the two systems.
+
+### Comparison: aiko-code vs openclaw
+| Aspect | aiko-code (this fork) | openclaw |
+|--------|----------------------|----------|
+| Default headless mode | `bypassPermissions` (auto-approve all) | `deny` via `nonInteractivePermissions=fail` |
+| Permission override | `--dangerously-skip-permissions` | `permissionMode=approve-all` + `nonInteractivePermissions=deny` |
+| Headless exec | Auto-approved (bypass mode) | Blocked by default, need "YOLO mode" |
+| Error on missing UI | Denied (safe) | Crash (AcpRuntimeError) or denied |
+| Interop | Auto-sets bypassPermissions when openclaw is in YOLO mode | Adds bypassPermissions flag to Claude CLI |
+
+Key difference: openclaw's default headless behavior is to FAIL (crash) when a permission prompt would be needed, while aiko-code defaults to bypassing all permissions entirely. This makes aiko-code far more "bot-friendly" out of the box — no configuration needed for automated execution.

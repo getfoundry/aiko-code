@@ -1,0 +1,3 @@
+The gate keeps rejecting step 6 teachings-line with "stale" or "no-op" errors. The root sub-problem: the teachings-line format is not matching what the parent gate expects. After 8+ turns of rejection cycles, the harness is in a fractal repair loop. Need to diagnose: (1) Is the teachings-line format wrong? (2) Is the gate parsing the appended line incorrectly? (3) Are there actual integration failures that need fixing? (4) Is the gate's countFreshToolUses scan blocked by tool_results as user-role messages (known root cause)?
+
+The telegram gateway compiles cleanly (0 TS errors, 37/37 tests pass) but the harness cannot advance past step 6 because the teachings-line gate rejects it every time. This is a gate parsing/format issue, not an implementation issue.

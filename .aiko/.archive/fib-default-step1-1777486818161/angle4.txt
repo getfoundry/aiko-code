@@ -1,0 +1,107 @@
+# Angle 4: Bridge/Daemon Architecture Audit
+
+## Runtime + Context
+- Platform: macOS (darwin) 25.0.0
+- Runtime: Bun
+- Branch: main
+- Repo: aiko-code (current working directory)
+
+## Findings
+
+### 1. REPL Bridge (`src/bridge/bridgeMain.ts` — ~5MB, 28751 tokens)
+
+The "REPL bridge" is a **bidirectional remote-control connection** between the aiko-code CLI running in your terminal and the aiko.ai cloud platform. It is NOT a background daemon process that runs independently. Here is the architecture:
+
+- `bridgeMain()` is the interactive entrypoint: it runs inside the **same process** as the TUI REPL. It does not fork or daemonize.
+- It creates a BridgeApiClient that polls the server for work (messages, tool calls), and simultaneously opens a WebSocket ingress that pushes local messages to the server.
+- Session state (cwd, session ID, git context, OAuth tokens, branch) is gathered at bootstrap and injected into the bridge.
+- The bridge polls for work, processes SDK messages bidirectionally, manages JWT token refresh, and can spawn headless worker subprocesses.
+
+**Parent/child coordination:**
+- `createSessionSpawner()` in `src/bridge/sessionRunner.ts` spawns child processes via `child_process.spawn()`. The child is a headless bridge instance that processes work items.
+- Child env is explicitly allowlisted (no API keys inherited). Authentication uses `aiko_CODE_SESSION_ACCESS_TOKEN`.
+- Workers can run in same-dir or worktree mode. Output is captured via stdout/stderr pipes.
+- There is a BridgePointer system (`src/bridge/bridgePointer.ts`) for crash recovery: a file-based pointer (TTL 4h) tracks active bridge sessions per directory. On next startup, `aiko remote-control` detects stale pointers and offers resume.
+
+### 2. Bridge Initialization (`src/bridge/initReplBridge.ts`)
+
+- Owns the REPL-specific bootstrap: gates, cwd, session ID, git context, OAuth, title derivation.
+- Calls `initBridgeCore()` (the bootstrap-free core) after gathering this state.
+- Split out of `replBridge.ts` specifically to avoid pulling in `sessionStorage` imports (which transitively pull in ~1300 modules). This keeps `daemonBridge.ts` lightweight.
+- Called via dynamic import by `useReplBridge` (auto-start in TUI) and `print.ts` (SDK -p mode).
+
+### 3. When Bridge Mode is Active (`src/bridge/bridgeEnabled.ts`)
+
+Two-layer check:
+- **Build-time gate:** `feature('BRIDGE_MODE')` — the GrowthBook string literal is only referenced when bridge mode is enabled at build time (negative ternary pattern prevents string literal leakage in external builds).
+- **Runtime gate:** `isBridgeEnabled()` checks:
+  1. Must be a `isaikoAISubscriber()` (excludes Bedrock/Vertex/Foundry, apiKeyHelper/gateway, env-var API keys, Console API logins)
+  2. GrowthBook feature flag `tengu_ccr_bridge` must be true
+  3. Version compatibility check against minimum bridge version
+
+- **Blocking entitlement:** `waitForBridgeEntitlement()` has a fast path (cached true) and slow path (awaits GrowthBook init, max ~5s). If gate is false, it blocks startup.
+
+### 4. Daemon/Supervisor Commands
+
+**There are NO `aiko ps`, `aiko kill`, or `aiko status` daemon management commands.**
+
+The architecture does NOT use a traditional daemon with PID management. Here is what exists:
+
+- `/remote-control` command (alias `/rc`): Manages the bidirectional bridge connection in the TUI. When a session ends, the bridge polls the server and waits for new work — it's a long-lived connection within the same process, not a separate daemon.
+- `--remoteControl` CLI flag: Can enable remote control at startup via command-line option.
+- `DAEMON` feature gate (`src/commands.ts:82-84`): Imports `./commands/remoteControlServer/index.js` — but this directory does NOT exist in the source snapshot. This is either conditionally compiled or an internal-only command.
+- `KAIROS` feature gate (assistant mode): `--assistant` flag forces assistant mode. The assistant command is also a stub in the snapshot (`export default null`).
+- `aiko-code assistant` CLI: Shows a session chooser (uses `AssistantSessionChooser`) for connecting to bridge sessions. No `aiko ps` equivalent.
+
+**No PID file, no lock file, no process supervisor script exists in the codebase.**
+
+### 5. Shutdown Lifecycle (`src/utils/gracefulShutdown.ts`)
+
+The cleanup chain is:
+
+1. `onExit` from `signal-exit` package catches process signals
+2. If scroll-draining (reading terminal scrollback), waits for drain to complete
+3. Calls `cleanupTerminalModesSync()` — synchronously sends terminal escape sequences (Kitty keyboard disable, focus reporting, mouse tracking, alt-screen exit, cursor show) via `writeSync`. This runs BEFORE any async cleanup to prevent terminal corruption.
+4. Runs all registered cleanup functions via `runCleanupFunctions()` (async)
+5. Flushes analytics events (Datadog, 1P event logger)
+6. Logs diagnostics no-PII report
+7. Exits with `process.exit(code)` — code 0 for success, 1 for error
+
+**Important:** The bridge bypasses `init.ts` and its graceful shutdown handler. The headless bridge (`runBridgeHeadless`) must exit explicitly via `process.exit(0)`. The bridge writes its own cleanup (JWT refresh scheduler, capacity wake, session spawner termination) through AbortController signals rather than the global cleanup registry.
+
+### 6. Exit Patterns (`src/cli/exit.ts`)
+
+Two centralized exit helpers used across ~60 call sites:
+- `cliError(msg)`: writes to stderr, `process.exit(1)`
+- `cliOk(msg)`: writes to stdout, `process.exit(0)`
+
+Both use `return undefined as never` for TypeScript control-flow narrowing so callers don't need trailing `return` statements.
+
+## Conclusions
+
+**Can aiko-code run as a standalone background process?**
+
+No. aiko-code is fundamentally a **TUI (Ink/React) application** that runs in the foreground terminal. The "bridge" is a long-lived bidirectional WebSocket+HTTP polling connection WITHIN the same process, not a separate background daemon.
+
+The closest thing to a background mode is:
+1. The headless bridge worker (`runBridgeHeadless`) which is a non-interactive subset of `bridgeMain()` — but this is **spawned by a supervisor process**, not run standalone.
+2. The Agent SDK mode (`--assistant`) which allows programmatic interaction via the SDK query API.
+
+**Is there a PID management system?**
+
+No PID management system exists. There is:
+- **BridgePointer** — a file-based crash-recovery mechanism that tracks active sessions per directory with a 4-hour TTL. This is for session resume after crash, not for PID management.
+- **SessionRunner** — manages child process spawning for bridge work items, but these are ephemeral workers, not persistent daemons.
+- **CronTasksLock** — uses `getSessionId()` for lock IDs, designed to work with daemon callers, but this is just a distributed lock, not a PID registry.
+
+**What is the shutdown lifecycle?**
+
+1. Signal received -> signal-exit fires
+2. If scroll-draining: wait for drain
+3. Synchronous terminal cleanup (writeSync escape sequences)
+4. Async cleanup functions (registered via cleanupRegistry)
+5. Flush analytics (Datadog, 1P events)
+6. Log diagnostics
+7. process.exit()
+
+The bridge bypasses this chain entirely, using its own cleanup (AbortController-based teardown of polling loops, JWT schedulers, etc.).

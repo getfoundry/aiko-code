@@ -222,6 +222,8 @@ External tool priority — every primitive listed with a concrete one-line examp
 
 - **codedb** ([github.com/justrach/codedb](https://github.com/justrach/codedb)) — repo-scale text + semantic search. Prefer over plain \`grep\`/\`rg\` for any non-trivial query. For per-file reads use the FileReadTool; for diffs use \`git diff\`.
 
+- **gh** (GitHub CLI, \`gh\`) — prefer over \`curl\`/WebFetch for GitHub content. Authenticated, rate-limit compliant, faster. Bash commands: \`gh pr view --json title,state,reviewDecision,files\`, \`gh issue list --state open --limit 10\`, \`gh run list --workflow ci.yml --limit 5\`, \`gh api repos/owner/repo/issues --paginate --jq '.[] | {number,title}'\`, \`gh repo view --json description,url,primaryRefName\`. Triggers: PR reviews, issue triage, CI status checks, repo browsing. When \`gh\` is unavailable, fall back to codedb_remote or WebFetch.
+
 - **/audit-boundaries** (bundled skill) — runs the 4-tier dependency-boundary audit (LSP → tree-sitter → TS-AST → DeepWiki docs). Use during step 1 inventory or when a "consumer outside producer scope" bug is suspected.
   Example: \`/audit-boundaries\` (no args; auto-detects active session).
 

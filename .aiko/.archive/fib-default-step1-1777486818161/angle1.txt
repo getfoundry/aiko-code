@@ -1,0 +1,87 @@
+# Angle 1: Input-Source-Agnostic QueryEngine Verification
+
+## Environment
+- Runtime: Node.js (compiled JS at /Users/lekt9/Projects/fcode/dist/)
+- Repo branch: main
+- Source: ~/Projects/fcode
+
+## 1. QueryEngine.ts — `submitMessage()` and input acceptance
+
+File: /Users/lekt9/Projects/fcode/src/QueryEngine.ts
+
+`submitMessage()` (line ~210) signature:
+```ts
+async *submitMessage(
+  prompt: string | ContentBlockParam[],
+  options?: { uuid?: string; isMeta?: boolean },
+): AsyncGenerator<SDKMessage, void, unknown>
+```
+
+The prompt is accepted as a raw string OR array of OpenAI-compatible content blocks. There is zero coupling to stdin, TUI, or any input transport. The method accepts a `QueryEngineConfig` that itself takes:
+- `cwd`, `commands`, `tools`, `mcpClients` — runtime configuration
+- `verbose`, `thinkingConfig`, `maxTurns`, `maxBudgetUsd` — execution tuning
+- `initialMessages`, `abortController`, `readFileCache` — state
+- `onToolCall`, `onToolResult`, `onMessageStart`, `onMessageContent`, `onDone` — callbacks for the caller to consume output
+- `postSamplingHooks`, `maxToolInputTokens`, `agentDefinitions`, `bridgeOrigin`, `skipSlashCommands` — behavioral flags
+
+**Key finding**: There is an `InputSource` type referenced in the comments/struct (line ~20), but it is NOT used to gate any logic. All tool calling, MCP interaction, permission handling, and message flow go through the same internal pipeline regardless of where the prompt text came from.
+
+## 2. query.ts — where user prompts enter the system
+
+File: /Users/lekt9/Projects/fcode/src/query.ts
+
+This file contains the legacy `ask()` function and `run()` that coordinates the headless REPL. The `ask()` function:
+- Receives a string prompt
+- Calls `processUserInput()` → creates `UserMessage` → feeds into QueryEngine
+- Returns `{ querySource, sessionId, messages, isPartial }`
+
+The only stdin/terminal coupling in `query.ts` is in `run()` (lines ~1786-1825) where it checks `promptSource` to decide whether to show a TUI prompt or use a piped prompt. This is purely a UI coordination concern and is in the entrypoint, not in QueryEngine.
+
+**Key finding**: `querySource` is used only for analytics/metadata (promptCategory.ts lines 594-642 show `querySource` determines `promptSource` label like 'sdk', 'webchat', 'mcp', 'bridge', 'mobile', 'cli'). It does NOT affect the execution path or tool behavior.
+
+## 3. tools.ts and Tool.ts — input-source independence
+
+Files: /Users/lekt9/Projects/fcode/src/tools.ts, /Users/lekt9/Projects/fcode/src/Tool.ts
+
+Tool definitions accept context objects (`toolCallContext`, `toolUseContext`) that contain:
+- `cwd`, `workspacePath`, `messages`, `readFileState`
+- `getAppState`, `setAppState`, `setInProgressToolUseIDs`
+- `hasPermissionsToUseTool`, `bridgeOrigin`
+
+There is no `stdin` reference, no `process.stdin`, no terminal-specific code in any Tool implementation. The `QuerySource` type (imported at Tool.ts:76 from `./constants/querySource.js`) is only used for analytics metadata propagation, not for conditional behavior.
+
+## 4. `process.stdin` binding locations — all in the UI layer
+
+`process.stdin` appears in these source files:
+- `src/main.tsx` (lines ~861-884) — `getInputPrompt()`, handles piped stdin for CLI mode. This is the REPL input layer.
+- `src/bridge/bridgeMain.ts` — `isTTY` checks for spawn-mode dialog. Bridge/remote control layer.
+- `src/services/mcp/auth.ts` — `isTTY` check for OAuth browser flow.
+- `src/utils/earlyInput.ts` — early input buffering for TUI.
+- `src/utils/gracefulShutdown.ts` — stdin handling for process cleanup.
+- `src/utils/renderOptions.ts` — TUI rendering check.
+
+**All `process.stdin` binding is confined to the entrypoint/UI layers (main.tsx, bridgeMain.ts, etc.). The core pipeline (QueryEngine, processUserInput, Tool calling, MCP handling) has ZERO stdin coupling.**
+
+## Conclusion: Can a non-stdin input (like Telegram messages) plug into QueryEngine directly?
+
+**YES, with minimal changes.** The QueryEngine is already input-source-agnostic:
+
+1. `submitMessage()` accepts a string or content block array — any transport can call this.
+2. The `QueryEngineConfig` callbacks (`onToolCall`, `onMessageContent`, `onDone`) allow the caller to receive streaming output — a Telegram bot handler could consume this AsyncGenerator directly.
+3. The `skipSlashCommands` and `bridgeOrigin` config flags already exist for remote input (see processUserInput.ts lines 127-132: "When true, input starting with `/` is treated as plain text. Used for remotely-received messages (bridge/CCR) that should not trigger local slash commands or skills."). This is exactly the pattern a Telegram adapter would use.
+4. `QuerySource` metadata can be set to `'sdk'` or a custom value for analytics — no code changes needed.
+
+**What would need to change for a Telegram adapter:**
+
+- **Nothing in the core pipeline.** QueryEngine, processUserInput, and all Tools are already transport-independent.
+- A thin adapter layer that:
+  1. Instantiates `QueryEngine` with appropriate config (tools, cwd, MCP clients).
+  2. On incoming Telegram message: calls `await [...queryEngine.submitMessage(telegramText, { skipSlashCommands: true, bridgeOrigin: true })]`.
+  3. Extracts the final text content from the yielded SDKMessage stream.
+  4. Sends the response back via Telegram Bot API.
+- The only config concern is that some tools (e.g., terminal-based tools) may assume a TTY environment. These are already gated — `processUserInput` short-circuits unsafe commands (line ~426 comment), and the `hasPermissionsToUseTool` system would need to be wired for the Telegram context.
+
+**Cross-reference with OpenClaw (deepwiki research):**
+OpenClaw uses a very similar pattern: `dispatchInboundMessage` → channel-agnostic `runReplyAgent` → `runAgentTurnWithFallback`. Their channel plugins (Telegram, WhatsApp, etc.) receive normalized message context and pass it through in-process API calls — no stdin/stdout coupling between channel and runtime. OpenClaw passes `messageChannel` and `messageProvider` as context to the agent engine, similar to how aiko's `bridgeOrigin` + `querySource` work.
+
+H1: The aiko-code QueryEngine is genuinely transport-agnostic. A Telegram adapter requires only a thin wrapper (~200 lines) with no core pipeline modifications.

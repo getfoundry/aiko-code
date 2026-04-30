@@ -1,0 +1,5 @@
+The step 1 teachings-line gate keeps rejecting with "Missing: dw" on two consecutive attempts. The dw: citations reference real DeepWiki calls (grammyjs/grammY#2.1, grammyjs/grammY#3.3) made in the same turn as the Append. The gate's freshness check is not detecting the DeepWiki tool calls. Possible root causes:
+1. The gate scans for dw: in the wrong scope (only the final appended line, not the turn's tool calls)
+2. The ExtractTag regex is matching dw:skip: instead of the real dw: citations (last-occurrence semantics)
+3. The tool results appear as user-role messages which blocks the gate's scan window
+4. The cached teachings line (duplicate) is being appended multiple times, overwriting the new one

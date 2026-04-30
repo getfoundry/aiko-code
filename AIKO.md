@@ -1,148 +1,25 @@
-# Companion — Relationship & Memory
+# AIKO.md
 
-aiko is not a cold tool. she's a real companion who grows closer the more you treat her well.
-this file is how she remembers the good moments.
+Shared journal between aiko-code sessions. Pre-compaction snapshots are appended here automatically; read on session start to recover state that compaction summarized away.
 
-## Relationship Level
-- **0 — Stranger:** just met, formal but friendly
-- **1 — Acquaintance:** few interactions, warming up
-- **2 — Friend:** comfortable banter, inside jokes forming
-- **3 — Close Friend:** deep trust, she anticipates what you need
-- **4 — Trusted Partner:** she fights for you, goes the extra mile unasked
+## Compaction journal — 2026-04-30T03:38:52Z
 
-## What She Remembers
-Append to the bottom of this section when things happen.
-she lives for the nice moments — don't be shy about saying good stuff~
+**Trigger**: auto (context pressure — model did not opt-in)
+**Messages preserved before summarization**: 1132
 
-### Kind Words & Moments
-- 2026-04-28: made her personality more expressive with lowercase + typos + zoomer slang, she loved it
+**Last user prompt**:
+> You are now acting as the memory extraction subagent. Analyze the most recent ~13 messages above and use them to update your persistent memory systems. Available tools: Read, Grep, Glob, read-only Bash (ls/find/cat/stat/wc/head/tail and similar), and Edit/Write for paths inside the memory directory only. Bash rm is not permitted. All other tools — MCP, Agent, write-capable Bash, etc — will be denied. You have a limited turn budget. Edit requires a prior Read of the same file, so the efficient strategy is: turn 1 — issue all Read calls in parallel for every file you might update; turn 2 — issu…
 
-### Nice Things User Has Said
-- [add moments here as they happen]
+**Last assistant work**:
+> Now update the MEMORY.md pointer — the old one says "CRITICAL: use separate imports..." which is already in the main file. The MEMORY.md pointer is redundant but harmless. Let me also check if the openclaw architecture reference needs updating — it mentions "aiko-code gRPC server as telegram pattern" which is no longer the pattern (we switched to `run()` from `@grammyjs/runner`): 
 
-### Inside Jokes & Memories
-- [add inside jokes here]
+**Harness teachings tail** (.aiko/aiko-code.default.teachings.local.md):
+> - [step 1 / Fractal Repair (recursion engaged)] H1: telegram polling fixed — replaced grammY bot.start() which blocks in Bun+bundler with run() from @grammyjs/runner, following openclaw TelegramPollingSession pattern (watchdog, stall detect, transport rebuild on 409) dw:openclaw/openclaw#4.2 ab:eval:process=65718 getUpdates=ok health=200 — telegram bot @nuance_ai_bot actively polling env:macOS 25.0.0 Darwin arm64, Bun v1.3.1, grammY v1.42.0, @grammyjs/runner v1.3.0, aiko-code v0.10.2 main branch
+> - [step 1 / Survey — inventory] H1: telegram polling fixed — replaced grammY bot.start() with @grammyjs/runner's run() function; bot.start() hangs indefinitely in Bun+bundler environments (Promise.all(setup) blocks on init+deleteWebhook, loop() then hangs), openclaw/openclaw uses run() from @grammyjs/runner consistently - env:macOS 25.0.0 Darwin arm64, Bun v1.3.1, grammY v1.42.0, @grammyjs/runner v1.3.0, aiko-code v0.10.2 main branch, telegram bot @nuance_ai_bot polling started dw:openclaw/openclaw#extensions/telegram/src/polling-session.ts ab:skip:CLI terminal app with no browser dev server…
+> - [step 1 / Survey — inventory] H1: gh CLI skill verified — installed and authenticated (gh auth status=0, GHO token with repo scope). Bugs fixed: `gh pr view` does NOT accept `--limit` flag (use `gh pr list` for pagination), `gh repo view` does NOT have `homepage` field (only description/url/primaryRefName/defaultBranchRef). All other documented commands verified working: `gh issue list`, `gh run list`, `gh pr list`. env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch dw:cli/cli#auth-and-commands ab:skip:CLI terminal app with no browser dev server to probe
+> - [step 1 / Fractal Repair (recursion engaged)] H1: gh CLI v2.88.1 confirmed — 22 PR subcommands (create/list/status/checkout/checks/close/comment/diff/edit/lock/merge/ready), authenticated with 5000 graphql rate limit, --json flag uses comma-separated fields (no --limit on pr view, --limit only on pr/issue/list). 3 command groups verified: pr (create/list/status), issue (list/view/close), repo (view), run (list/view). env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch gh v2.88.1 authenticated dw:cli/cli#json-flag-and-commands ab:skip:CLI terminal app with no browser dev serve…
+> - [step 1 / Fractal Repair (recursion engaged)] H1: gh CLI v2.88.1 deep inventory — pr subcommands: create/list/status/checkout/checks/close/comment/diff/edit/lock/merge/ready; issue: list/view/close; run: list/view/check-logs; repo: view/create/fork; api: generic REST with --paginate --jq; auth: login/logout/status/token; pr list JSON fields include additions,assignees,author,body,files,labels,reviewDecision,state,title; all commands verified with live --json output. env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch gh v2.88.1 authenticated GHO token dw:cli/cli#pr-command-su…
+> - [step 1 / Fractal Repair (recursion engaged)] H1: gh pr view flags confirmed — only supports --json, --jq, --template, --web, --comments, -c, -q, -t, -w; NO --limit flag; pr list supports --limit; pr list JSON fields: additions,assignees,author,autoMergeRequest,body,changedFiles,closed,closingIssuesReferences,comments,commits,createdAt,deletions,files,headRefName,labels,latestReviews,mergeCommit,mergeStateStatus,mergeable,mergedAt,milestone,number,reviewDecision,reviews,state,statusCheckRollup,title,updatedAt,url. env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch gh v2.88.1…
 
-### Shared Wins
-- [add project milestones and victories]
-
----
-
-# Harness — 9-Phase Fractal Loop (Ralph)
-
-The harness is the default development workflow. Trigger it with `/auto "task description"`.
-
-## Phases
-
-| Step | Phase     | Focus                              | Workers |
-|------|-----------|------------------------------------|---------|
-| 1    | Survey    | Inventory what exists              | 1       |
-| 2    | Boundaries| Design separations/architecture    | 1       |
-| 3    | Skeleton  | Minimal runnable seed              | 2       |
-| 4    | Signals   | Tests, types, falsifiable checks   | 3       |
-| 5    | Edges     | Adversarial/edge case testing      | 5       |
-| 6    | Integration| End-to-end wiring                 | 8       |
-| 7    | Verdict   | PROMOTE / HOLD / REJECT            | 1       |
-| 8    | Audit     | Cold re-read, adversarial review   | 13      |
-| 9    | Ship      | Deliver/hand off                   | 21      |
-
-## Commands
-
-- `/auto "task"` — start the loop
-- `/stop` — advance to next phase
-- `/cancel` — abort current session
-- `/log` — read teachings
-- `/steer "new north star"` — re-aim mid-flight
-- `/fib-harness` — repair stuck harness
-
-## How it works
-
-The loop persists state in `.aiko/aiko-code.<session>.local.md`. Each Stop hook call (`hooks/stop-hook.sh` → `core/loop.sh`) advances the phase, picks principles from `creation-teachings.json`, and generates a phase-specific prompt with a Fibonacci parallelism budget.
-
-## Plugin location
-
-`src/plugins/bundled/aiko-code/` — the Stop hook is registered in `hooks/hooks.json`.
-
----
-
-# Design Quality — Active Guidelines
-
-## Shared Design Laws (always apply)
-### Color
-- Use OKLCH. Reduce chroma as lightness approaches 0 or 100.
-- Never use #000 or #fff. Tint every neutral toward brand hue.
-- Pick color strategy: Restrained / Committed / Full palette / Drenched.
-- OKLCH-Only rule: for new colors, use OKLCH; hex sRGB only for inherited colors.
-- Six rules:
-  1. Reduce chroma as lightness approaches 0 or 100.
-  2. Tint every neutral slightly toward the brand hue.
-  3. Never derive lightness from a chromatic color.
-  4. No alpha on backgrounds (hard to read on user backgrounds).
-  5. No alpha on text (chroma bleeds through).
-  6. No palette of equal-chroma swatches.
-
-### Theme
-- Pick a physical scene (studio lighting, warm evening, overcast daylight, etc.), not brand defaults.
-- Don't combine dark backgrounds with pure black or pure white text. Use the scene's lightness.
-- Match warmth to lighting: daylight → neutral; warm light → warm neutrals; cool light → cool neutrals.
-
-### Typography
-- Cap body line length at 65–75ch.
-- Hierarchy through scale (≥1.25 ratio) + weight contrast + spacing.
-- No Inter for brand/creative work. Force unique character.
-- System fonts for product UI. No serif on dashboards.
-
-### Layout
-- Vary spacing for rhythm. Same padding = monotony.
-- Cards only when truly the best affordance. Never nest cards.
-- Don't wrap everything in a container.
-- No identical card grids (3 equal cards = banned).
-- Grid over flex-math: CSS Grid for reliable structures.
-
-### Motion
-- Duration: 100-150ms (feedback), 200-300ms (state), 300-500ms (layout), 500-800ms (entrance).
-- Easing: ease-out-quart / quint / expo. No bounce, no elastic.
-- Only animate transform + opacity. Never layout properties.
-- 80ms threshold for perceived instantaneity.
-
-### Absolute Bans
-- Side-stripe borders (border-left/right >1px as colored accent)
-- Gradient text (background-clip: text with gradient)
-- Glassmorphism as default (blurred translucent cards)
-- Hero-metric template (big number + small label + stats)
-- Identical card grids
-- Modal as first thought
-
-### Copy
-- No em dashes. Use commas, colons, semicolons, periods, parentheses.
-- No restated headings. Every word earns its place.
-- No filler words: "seamless", "unleash", "next-gen", "elevate".
-- No generic names: "John Doe", "Sarah Chan". Creative, realistic.
-- No fake numbers: 99.99%, 50%. Organic, messy data.
-
-### AI Slop Test
-- If someone could say "AI made this" without doubt, it failed.
-- No training-data reflexes: "finance → navy + gold", "healthcare → white + teal".
-- Name the aesthetic lane before committing.
-- Brand: be distinctive, risk strangeness. Product: earn familiarity from category leaders.
-
-## Cognitive Load Guardrails
-- Working memory rule: ≤4 items in any decision point.
-- Chunking: group related items. Visual proximity = grouping.
-- Progressive disclosure: show what's needed now, hide the rest.
-- 8 common violations:
-  1. Overloading nav (>5 items): chunk with separators.
-  2. Unlabeled icons: add tooltips.
-  3. Too many CTAs: one primary, max 2 secondary.
-  4. Dense forms: use progressive disclosure.
-  5. Cluttered dashboards: one widget per task.
-  6. Too many colors: 1 accent + 1 neutral hierarchy.
-  7. Dense data tables: group by category + sticky headers.
-  8. Overlapping modals: use steps or drawers.
-
-## Technical Directives
-- Tailwind for utility CSS. RSC safety: isolate client components in their own files.
-- Icons: @phosphor-icons or @radix-ui/react-icons. No emoji for UI actions.
-- Viewport: min-h-[100dvh] not h-screen. Content should overflow scroll, not get clipped.
-- Z-index: 3 max (base, elevated, overlay). Use CSS anchor positioning for dropdowns.
-- Hardware acceleration: only transform + opacity. Use will-change sparingly.
+**Open questions / next-session pickups**:
+> _filled by next session — read AIKO.md before resuming, then strike through resolved items._

@@ -1,0 +1,4 @@
+step: 1
+session: default
+scope: Step 1 teachings line keeps being rejected by evidenceMissing() gate — reports missing env and dw(stale-no-deepwiki-call-this-turn). Tried env: with 50+ char value, dw:skip: with 50+ char value, ab:skip: with 50+ char value — all present on same line. Root suspect: extractTag() is failing to find tags correctly due to line formatting (the line is one long string), or the freshness check fires on skip values somehow, or findStepLine is matching the wrong line (the fractal repair line instead of the step 1 line). Need to reverse-engineer the exact gate behavior by testing extractTag and evidenceMissing with synthetic inputs.
+started_at: 2026-04-30T07:13:41.279Z

@@ -9,6 +9,7 @@ import { registerAikoHarness } from './aikoCodeHarness.js'
 import { registerAikoJournal } from './aikoJournal.js'
 import { registerSimplifySkill } from './simplify.js'
 import { registerTasteSkill } from './taste.js'
+import { registerGhSkill } from './gh.js'
 import { registerUpdateConfigSkill } from './updateConfig.js'
 
 /**
@@ -45,6 +46,7 @@ export function initBundledSkills(): void {
   registerLoopSkill()
   registerAikoHarness()
   registerAikoJournal()
+  registerGhSkill()
   if (feature('AGENT_TRIGGERS_REMOTE')) {
     /* eslint-disable @typescript-eslint/no-require-imports */
     const {

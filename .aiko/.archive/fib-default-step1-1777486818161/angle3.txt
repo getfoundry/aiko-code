@@ -1,0 +1,82 @@
+# Transport Layer Audit — Step 1 Survey
+
+## What exists
+
+### Client-side transports (all connect OUT to a remote server)
+
+1. **WebSocketTransport** (`src/cli/transports/WebSocketTransport.ts`)
+   - Full-duplex WS client using `ws` (Node) or `bun:websocket` (Bun)
+   - Ping/pong heartbeats every 10s, keepalive every 5min
+   - Exponential backoff reconnect (1s → 30s cap, 10min total budget)
+   - Sleep/wake detection (resets budget on long gap between retries)
+   - Permanent close codes: 1002, 4001, 4003, 1008
+   - Used as the default transport when `aiko_CODE_USE_CCR_V2` and `aiko_CODE_POST_FOR_SESSION_INGRESS_V2` are not set
+
+2. **SSETransport** (`src/cli/transports/SSETransport.ts`)
+   - One-way SSE read stream from `.../worker/events/stream` (derived from session URL)
+   - Uses POST for writes (via SerialBatchEventUploader, same as HybridTransport)
+   - SSE frame parser: handles `data:`, `event:`, retry headers
+   - Reconnect: exponential backoff 1s → 30s, 10min budget
+   - Permanent HTTP codes: 401, 403, 404
+   - Activated when `aiko_CODE_USE_CCR_V2` env var is truthy
+
+3. **HybridTransport** (`src/cli/transports/HybridTransport.ts`)
+   - WS for reads (incoming events from server)
+   - HTTP POST for writes (outgoing via SerialBatchEventUploader with 100ms batching)
+   - Activated when `aiko_CODE_POST_FOR_SESSION_INGRESS_V2` env var is truthy
+
+4. **SessionsWebSocket** (`src/remote/SessionsWebSocket.ts`)
+   - Separate WS client for the sessions endpoint (not the CCR/streaming endpoint)
+   - Connects to `.../sessions/{id}` endpoint
+   - Used by SDK remote session manager
+   - Reconnect: 2s delay, max 5 attempts, 30s ping interval
+   - Permanent close: 4003 (unauthorized)
+   - 3 retries for 4001 (session not found — transient during compaction)
+   - mtTLS support via `getWebSocketTLSOptions`
+
+5. **CCR relay** (`src/upstreamproxy/relay.ts`)
+   - TCP-to-WS relay: listens on localhost TCP, tunnels HTTP CONNECT over WS to CCR upstreamproxy
+   - Used for corporate proxy scenarios (MITM TLS, inject credentials)
+
+### Transport selection logic (`src/cli/transports/transportUtils.ts`)
+
+```
+if aiko_CODE_USE_CCR_V2:      → SSETransport (SSE reads + POST writes)
+else if aiko_CODE_POST_FOR_SESSION_INGRESS_V2: → HybridTransport (WS reads + POST writes)
+else:                          → WebSocketTransport (full WS, reads + writes)
+```
+
+### sessionIngress.ts
+- HTTP POST-only API for appending session logs/transcripts
+- Uses axios with retry (10 attempts, 500ms base delay)
+- Sequential per-session wrapper to prevent concurrent writes
+- Not a transport layer — it's a data ingestion endpoint
+
+## Server-side listener?
+
+**No server-side WebSocket or HTTP listener exists for external client connections.**
+
+All transports in `src/cli/transports/` are CLIENT-side — they connect outward to a remote aiko-code server. The `createServer`/`.listen()` calls found in the codebase are all for:
+- OAuth redirect listeners (auth-code-listener, mcp auth, xaaIdpLogin) — loopback only, localhost, for OAuth flows
+- LSP connection (`.listen()` on IPC/stdio, not HTTP)
+- Test servers (codexOAuth.test.ts)
+- Server-side logger (createServerLogger — internal logging pipeline)
+
+There is no `WebSocketServer`, no HTTP server accepting external connections, and no inbound WS upgrade handler in the aiko-code codebase.
+
+## Can we add a server-side WS listener easily?
+
+**Yes, fairly easy.** The pattern is well-established in the codebase via openclaw/openclaw:
+- Use Node's `http.createServer` + `ws` library's `WebSocketServer`
+- Hook `wss.handleUpgrade()` on the HTTP server's `upgrade` event
+- Set up per-connection auth (challenge-response with nonce)
+- Parse JSON frames and dispatch by `type`/`method` field
+
+The openclaw Gateway protocol shows exactly this pattern:
+1. HTTP server on `127.0.0.1:18789`
+2. WS upgrade at `/` (and `/voiceclaw/realtime` for voice)
+3. Auth: server sends `connect.challenge` with nonce → client responds with `connect` + credentials
+4. Frame protocol: `{type:"req"|"res"|"event"|"hello"}` JSON text frames
+5. Per-session state management after auth
+
+The main question would be: **what address to bind to?** Currently the app only talks outbound. Binding to `0.0.0.0` or `127.0.0.1` with a config flag would be the minimal addition. The existing transport interface (`Transport`) already defines the `onclose/onerror/onmessage/send/start/close` shape that both client and server transports implement.

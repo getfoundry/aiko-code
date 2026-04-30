@@ -1,0 +1,4 @@
+step: 2
+session: default
+scope: step 2 stuck — missing: dw
+started_at: 2026-04-30T04:21:55.227Z
