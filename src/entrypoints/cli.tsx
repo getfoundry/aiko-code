@@ -394,6 +394,19 @@ async function main(): Promise<void> {
     process.env.aiko_CODE_SIMPLE = '1';
   }
 
+  // Fast-path for `aiko-code telegram [subcommand]`: skip the Ink TUI entirely.
+  // The telegram command is a standalone CLI that manages the gateway daemon
+  // (start/install/uninstall). Running it through the TUI hijacks stdin and
+  // breaks subcommands. feature() stays inline for build-time DCE.
+  if (feature('DAEMON') && args[0] === 'telegram') {
+    profileCheckpoint('cli_telegram_path');
+    const { enableConfigs } = await import('../utils/config.js');
+    enableConfigs();
+    const { default: telegramCmd } = await import('../commands/telegram/telegram.js');
+    await telegramCmd(args.slice(1));
+    return;
+  }
+
   // No special flags detected, load and run the full CLI
   if (process.env.AIKO_DISABLE_EARLY_INPUT !== '1') {
     const {
