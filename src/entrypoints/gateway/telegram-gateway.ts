@@ -246,16 +246,15 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
   }
   const codebaseRoot = detectCodebase()
 
-  // Load self-knowledge content once at startup so the system prompt is
-  // pre-populated with what aiko-code IS, rather than just pointing at a
-  // directory and hoping the model greps. README is the canonical source
-  // of "what this project does"; AIKO.md (if present) holds session-state
-  // and live engineering notes.
-  let selfKnowledge = ''
-  if (codebaseRoot) {
+  // Read README + AIKO.md + package.json fresh on each spawn so live edits
+  // (e.g. updated docs, latest engineering notes) flow into the bot's system
+  // prompt without a gateway restart. Three small file reads (~1ms) is
+  // negligible next to the model call.
+  function loadSelfKnowledge(): string {
+    if (!codebaseRoot) return ''
     try {
-      const fs = await import('node:fs')
-      const readSafe = (p: string, max = 12_000): string => {
+      const fs = require('node:fs') as typeof import('node:fs')
+      const readSafe = (p: string, max: number): string => {
         try {
           const text = fs.readFileSync(p, 'utf-8')
           return text.length > max ? text.slice(0, max) + `\n... [truncated, full file at ${p}]` : text
@@ -269,19 +268,16 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
         const pkg = JSON.parse(pkgRaw) as { name?: string; version?: string; description?: string }
         pkgSummary = `Name: ${pkg.name}\nVersion: ${pkg.version}\nDescription: ${pkg.description}`
       } catch { /* ignore */ }
-
       const parts: string[] = []
       if (pkgSummary) parts.push(`## package.json\n${pkgSummary}`)
       if (readme) parts.push(`## README.md\n${readme}`)
       if (aikoMd) parts.push(`## AIKO.md (live engineering notes)\n${aikoMd}`)
-      selfKnowledge = parts.join('\n\n')
-    } catch (err) {
-      logger.warn?.(`telegram: could not load self-knowledge: ${err}`)
-    }
+      return parts.join('\n\n')
+    } catch { return '' }
   }
 
   if (codebaseRoot) {
-    logger.info(`telegram: codebase-aware mode — root=${codebaseRoot} self-knowledge=${selfKnowledge.length}b`)
+    logger.info(`telegram: codebase-aware mode — root=${codebaseRoot} self-knowledge=${loadSelfKnowledge().length}b (re-read per spawn)`)
   } else {
     logger.info(`telegram: no codebase detected — set AIKO_CODE_REPO to enable self-aware mode`)
   }
@@ -292,6 +288,7 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
   ): AsyncGenerator<string> {
     const sessionId = uuidForSession(sessionKey)
     const isFirst = !sessionEstablished.has(sessionId)
+    const selfKnowledge = loadSelfKnowledge()
     const codebasePrompt = codebaseRoot
       ? `You are aiko-code, an AI coding assistant, currently running as a Telegram bot.\n`
         + `Your own codebase lives at: ${codebaseRoot}\n\n`
