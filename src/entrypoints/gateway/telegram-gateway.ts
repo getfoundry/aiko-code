@@ -159,27 +159,158 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
 
   const shutdownHandle = createShutdownHandle()
 
-  // Create gateway server
+  // Subprocess-based engine: shells out to `aiko-code -p` per message, the
+  // same code path the interactive REPL exercises (and proven to work). The
+  // in-process QueryEngine route is unsuitable here — it requires hundreds
+  // of dependencies (auth, MCP, hooks, settings, output styles, file cache,
+  // app state) wired up the way print.ts does. Replicating that inline is a
+  // multi-day refactor; subprocess gives us the right behavior immediately.
+  //
+  // sessionKey -> stable UUIDv4-shaped id so --resume reuses the conversation
+  const { spawn } = await import('node:child_process')
+  const { createHash } = await import('node:crypto')
+  const sessionUuids = new Map<string, string>()
+
+  function uuidForSession(sessionKey: string): string {
+    const cached = sessionUuids.get(sessionKey)
+    if (cached) return cached
+    const h = createHash('sha256').update(sessionKey).digest('hex')
+    // Format as RFC4122-ish UUID (version/variant bits not strictly enforced
+    // by the CLI's --session-id parser, but kept canonical-shaped):
+    const uuid =
+      `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-` +
+      `8${h.slice(17, 20)}-${h.slice(20, 32)}`
+    sessionUuids.set(sessionKey, uuid)
+    return uuid
+  }
+
+  const aikoBin = process.env.AIKO_CODE_BIN ?? 'aiko-code'
+
+  // Tracks which session UUIDs already have a saved transcript so we only
+  // pass --resume on follow-up messages. Seeded from disk so gateway
+  // restarts don't try to recreate an existing session (errors with
+  // "Session ID already in use").
+  const sessionEstablished = new Set<string>()
+  try {
+    const { readdirSync } = await import('node:fs')
+    const projectsDir = `${process.env.HOME}/.aiko/projects`
+    for (const proj of readdirSync(projectsDir)) {
+      try {
+        for (const f of readdirSync(`${projectsDir}/${proj}`)) {
+          const m = f.match(/^([0-9a-f-]{36})\.jsonl$/)
+          if (m) sessionEstablished.add(m[1])
+        }
+      } catch { /* ignore unreadable subdirs */ }
+    }
+    logger.info(`telegram: seeded sessionEstablished with ${sessionEstablished.size} known sessions`)
+  } catch (err) {
+    logger.warn?.(`telegram: could not seed sessionEstablished: ${err}`)
+  }
+
+  async function* engineRoute(
+    sessionKey: string,
+    message: string,
+  ): AsyncGenerator<string> {
+    const sessionId = uuidForSession(sessionKey)
+    // First message creates the session via --session-id; subsequent
+    // messages must use --resume instead (passing both with the same id
+    // errors with "Session ID already in use" / "can only be used with
+    // --continue or --resume if --fork-session is also specified").
+    const isFirst = !sessionEstablished.has(sessionId)
+    const args = [
+      '--print',
+      '--dangerously-skip-permissions',
+      ...(isFirst ? ['--session-id', sessionId] : ['--resume', sessionId]),
+      message,
+    ]
+    logger.info(`telegram: spawning ${aikoBin} ${args.join(' ')}`)
+    const child = spawn(aikoBin, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: process.env,
+    })
+    sessionEstablished.add(sessionId)
+
+    const stderrChunks: string[] = []
+    child.stderr.on('data', (d: Buffer) => stderrChunks.push(d.toString()))
+
+    // Stream stdout chunks as they arrive.
+    let resolveChunk: ((v: { value: string; done: boolean }) => void) | null = null
+    const pendingChunks: string[] = []
+    let finished = false
+    let exitErr: Error | null = null
+
+    child.stdout.on('data', (d: Buffer) => {
+      const chunk = d.toString()
+      if (resolveChunk) {
+        const r = resolveChunk
+        resolveChunk = null
+        r({ value: chunk, done: false })
+      } else {
+        pendingChunks.push(chunk)
+      }
+    })
+
+    child.on('close', (code) => {
+      finished = true
+      if (code !== 0) {
+        exitErr = new Error(
+          `aiko-code exited ${code}: ${stderrChunks.join('').slice(-500)}`,
+        )
+      }
+      if (resolveChunk) {
+        const r = resolveChunk
+        resolveChunk = null
+        r({ value: '', done: true })
+      }
+    })
+
+    child.on('error', (err) => {
+      finished = true
+      exitErr = err
+      if (resolveChunk) {
+        const r = resolveChunk
+        resolveChunk = null
+        r({ value: '', done: true })
+      }
+    })
+
+    while (true) {
+      if (pendingChunks.length > 0) {
+        yield pendingChunks.shift()!
+        continue
+      }
+      if (finished) {
+        if (exitErr) throw exitErr
+        return
+      }
+      const next = await new Promise<{ value: string; done: boolean }>(
+        (resolve) => { resolveChunk = resolve },
+      )
+      if (next.done) {
+        if (exitErr) throw exitErr
+        return
+      }
+      if (next.value) yield next.value
+    }
+  }
+
+  // Create gateway server. The factory returns a stub QueryEngine — gateway's
+  // routeMessage path is overridden below by passing engineRoute directly to
+  // the telegram channel.
   const gateway = await createGatewayServer(
     { port, bind, mode: 'remote' },
-    (_cfg: any) => {
-      // Dynamically import QueryEngine to avoid circular require issues
-      return (async () => {
-        const { QueryEngine } = await import('../../QueryEngine.js')
-        return new QueryEngine({ cwd: process.cwd() } as any) as any
-      })() as any
-    },
+    (_cfg: any) => ({ submitMessage: () => (async function*(){})() } as any),
   )
 
-  // Create telegram channel, wiring gateway.routeMessage as the handler
+  // Create telegram channel, wiring the subprocess engine as the handler.
   const telegram = await createTelegramChannel(
     { token, logger: sharedLogger, polling: true, debounceMs: 2000, dmPolicy },
-    gateway.routeMessage,
+    engineRoute,
   )
 
   // Register telegram as a known channel on the gateway
   gateway.registerChannel('telegram', {
-    onMessage(sessionKey: string, content: string) {
+    onMessage(_sessionKey: string, _content: string) {
       inc('messagesRouted')
     },
   })

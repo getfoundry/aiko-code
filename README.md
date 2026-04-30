@@ -37,6 +37,7 @@ aiko Code sits between the Anthropic SDK and your preferred API. The [OpenAI shi
 - **Terminal-first UX**: Built with Ink (React for CLI). Streaming output, session logging, Vim-style keybindings, interactive menus.
 - **Team memory**: Shared file-based memory system at `~/.aiko/projects/<project>/memory/` that persists across sessions and can be synced across teams.
 - **Vim mode**: Built-in vim keybindings for navigation during sessions.
+- **Telegram bot gateway**: Run aiko-code as a Telegram bot with persistent per-chat sessions. Each Telegram chat maps to a stable session UUID, so conversations continue across messages and across gateway restarts. See [Telegram bot](#telegram-bot) below.
 
 ## Installation
 
@@ -209,6 +210,37 @@ teachings log. The Stop hook picks the most-recently-modified session.
                   "command": "<plugin-root>/scripts/statusline.sh" }
   ```
   The exact path is printed when you run `/guide`.
+
+## Telegram bot
+
+Run aiko-code as a Telegram bot — DM the bot from anywhere and it answers using a persistent per-chat session.
+
+```bash
+# Install (writes ~/.aiko/telegram.json + LaunchAgent on macOS / systemd unit on Linux)
+aiko-code telegram install --token=YOUR_BOT_TOKEN
+
+# Or run in the foreground for testing
+AIKO_TELEGRAM_TOKEN=YOUR_BOT_TOKEN aiko-code telegram start
+```
+
+How it works:
+
+- Each Telegram chat is assigned a stable session UUID (sha256 of the chat key), so every message in that chat continues the same aiko-code session — including across gateway restarts.
+- The first message in a chat spawns `aiko-code --print --session-id <uuid> ...` to create the session; every follow-up uses `aiko-code --print --resume <uuid> ...` so context is preserved.
+- On startup the gateway scans `~/.aiko/projects/*/<uuid>.jsonl` and seeds its known-sessions set, so a restart goes straight to `--resume` instead of trying to recreate the session.
+- Streamed output is edited into a single Telegram message (`*Thinking...*` placeholder, then progressive edits) at the configured draft interval.
+
+Access control:
+
+- Default DM policy is `pairing` — users send `/pair` to get a code, the owner runs `/approve <userId>` to allow them. Set `TELEGRAM_DM_POLICY=open` to skip the pairing gate.
+- `/who` lists allowed users, `/unapprove` shows the current allowlist. The allowlist lives at `~/.aiko/telegram-allowlist.json`.
+
+Environment knobs:
+
+- `AIKO_TELEGRAM_TOKEN` — Bot API token (required)
+- `AIKO_GATEWAY_PORT` — Gateway WS port (default `18789`)
+- `TELEGRAM_DM_POLICY` — `pairing` (default) or `open`
+- `AIKO_CODE_BIN` — Override the `aiko-code` binary the gateway shells out to (default: `aiko-code` on `PATH`)
 
 ## Configuration
 

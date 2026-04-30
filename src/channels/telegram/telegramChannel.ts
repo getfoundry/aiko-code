@@ -58,7 +58,8 @@ const TELEGRAM_ALLOWLIST_PATH = join(homedir(), '.aiko', 'telegram.json')
 function loadAllowlist(): TelegramAllowlist {
   if (existsSync(TELEGRAM_ALLOWLIST_PATH)) {
     try {
-      return JSON.parse(readFileSync(TELEGRAM_ALLOWLIST_PATH, 'utf-8')) as TelegramAllowlist
+      const parsed = JSON.parse(readFileSync(TELEGRAM_ALLOWLIST_PATH, 'utf-8')) as Partial<TelegramAllowlist>
+      return { ...parsed, users: parsed.users ?? {} } as TelegramAllowlist
     } catch { /* ignore corrupt file */ }
   }
   return { users: {} }
@@ -72,17 +73,16 @@ function saveAllowlist(data: TelegramAllowlist) {
   writeFileSync(TELEGRAM_ALLOWLIST_PATH, JSON.stringify(data, null, 2), 'utf-8')
 }
 
-/** Generate a random pairing code like "ABC-DEF". */
+/** Generate a random pairing code like "ABCD-EFGH". */
 function generatePairingCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no ambiguous chars (0/O, 1/I/L)
-  const half = Math.floor(Math.random() * 13 * 36 * 36 * 36)
-  const second = Math.floor(Math.random() * 13 * 36 * 36 * 36)
-  function encode(n: number): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 32 chars, no ambiguous (0/O, 1/I/L)
+  const N = chars.length
+  function encode(): string {
     let s = ''
-    for (let i = 0; i < 4; i++) { s = chars[n % 36] + s; n = Math.floor(n / 36) }
+    for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * N)]
     return s
   }
-  return `${encode(half)}-${encode(second)}`
+  return `${encode()}-${encode()}`
 }
 
 /** Check if a user ID is in the allowlist. */
@@ -263,6 +263,7 @@ export async function createTelegramChannel(
   }
 
   async function flushPending(sessionKey: string) {
+    // flushPending sessionKey=${sessionKey} messages=${pending.get(sessionKey)?.messages.length}
     flushing.add(sessionKey)
     const entry = pending.get(sessionKey)
     if (!entry) {
@@ -271,6 +272,7 @@ export async function createTelegramChannel(
     }
     // Batch debounce messages
     const combined = entry.messages.join('\n')
+    // calling gatewayRoute with: ${combined.slice(0, 80)}
     try {
       const gen = gatewayRoute(sessionKey, combined)
       // We need the chat ID to send replies. Extract it from the session key
@@ -309,69 +311,60 @@ export async function createTelegramChannel(
     const chatId = ctx.chat.id
     const userId = ctx.from?.id
     const text = ctx.message.text || ctx.message.caption || ''
+    // message from userId=${userId} chatId=${chatId} text="${text}"
     logger.info(`telegram: message from user=${userId} chat=${chatId} text="${text}"`)
 
     // ————————————————————————————————————————————
     // Pairing commands (always processed regardless of policy)
     // ————————————————————————————————————————————
     if (text.startsWith('/approve ')) {
-      // Admin approves a new user: /approve <pairing_code>
-      // The admin is the one who runs this command.
-      if (!userId) return
+      // Admin approves a new user: /approve <userId>
       const codeArg = text.slice(9).trim()
-      // Find which pending code matches — we don't store codes per-user in the allowlist,
-      // so we match by finding approved users from the code author.
-      // Simpler approach: /approve <userId> directly (the arg is the numeric user ID).
       const targetId = codeArg
       if (!targetId || isNaN(parseInt(targetId, 10))) {
         await ctx.reply(
-          'Please use _/approve <userId>_ to allow someone.\n\n'
-          + 'Users ask for a pairing code via _/pair_ — tell them you received it.\n'
-          + 'Example: _/approve 123456789_',
-          { parse_mode: 'MarkdownV2' },
+          'Use /approve <userId> to allow someone.\n\n'
+          + 'Users ask for a code via /pair — tell them you received it.\n'
+          + 'Example: /approve 123456789',
         )
         return
       }
       const now = Date.now()
-      const fromName = ctx.from.first_name || 'an admin'
+      const fromName = ctx.from?.first_name || 'an admin'
       allowlist.users[targetId] = { approvedAt: now, approvedBy: fromName }
       saveAllowlist(allowlist)
       const displayName = (await getUserName(parseInt(targetId, 10))) ?? targetId
-      await ctx.reply(
-        `Allowed: *${escapeMarkdownV2(displayName)}* (user \`${targetId}\`). They can now message this bot.`,
-        { parse_mode: 'MarkdownV2' },
-      )
+      await ctx.reply(`Allowed: ${displayName} (user ${targetId}). They can now message this bot.`)
       return
     }
 
     if (text === '/unapprove') {
-      // Unapprove: list current users
       const keys = Object.keys(allowlist.users)
       if (keys.length === 0) {
-        await ctx.reply('No users are currently allowed.', { parse_mode: 'MarkdownV2' })
+        await ctx.reply('No users are currently allowed.')
         return
       }
       const lines = keys.map((id) => {
         const u = allowlist.users[id]
         const when = new Date(u.approvedAt).toLocaleDateString()
-        return `_\`${escapeMarkdownV2(id)}\`_ — approved ${when}`
+        return `${id} — approved ${when}`
       })
-      await ctx.reply(`*Allowed users (${keys.length}):*\n\n` + lines.join('\n'), { parse_mode: 'MarkdownV2' })
+      await ctx.reply(`Allowed users (${keys.length}):\n\n` + lines.join('\n'))
       return
     }
 
     if (text === '/who') {
       const keys = Object.keys(allowlist.users)
       if (keys.length === 0) {
-        await ctx.reply('No users are currently allowed to message this bot.', { parse_mode: 'MarkdownV2' })
+        await ctx.reply('No users are currently allowed to message this bot.')
         return
       }
       const lines = keys.map((id) => {
         const u = allowlist.users[id]
         const when = new Date(u.approvedAt).toLocaleDateString()
-        return `- \`${escapeMarkdownV2(id)}\` (approved \`${u.approvedBy}\`, ${when})`
+        return `- ${id} (approved ${u.approvedBy}, ${when})`
       })
-      await ctx.reply(`*Who's allowed* (${keys.length}):\n\n` + lines.join('\n'), { parse_mode: 'MarkdownV2' })
+      await ctx.reply(`Who's allowed (${keys.length}):\n\n` + lines.join('\n'))
       return
     }
 
@@ -379,44 +372,37 @@ export async function createTelegramChannel(
     if (text === '/start') {
       if (config.dmPolicy === 'pairing') {
         return ctx.reply(
-          '*Welcome!*\n\n'
-          + 'This bot is private — I need to approve you before we chat.\n\n'
-          + 'Send me _/pair_ to get a pairing code to share.\n\n'
-          + 'For help, see _/help_.',
-          { parse_mode: 'MarkdownV2' },
+          'Welcome!\n\n'
+          + 'This bot is private — the owner needs to approve you before we chat.\n\n'
+          + 'Send /pair to get a pairing code to share.\n\n'
+          + 'For help, see /help.',
         )
       }
-      return ctx.reply(
-        '*Welcome!*\n\n'
-        + 'You can send me messages and I will think about them.',
-        { parse_mode: 'MarkdownV2' },
-      )
+      return ctx.reply('Welcome! You can send me messages and I will think about them.')
     }
 
     if (text === '/help') {
-      let body = '*Help*\n\nSend me a message and I will think about it.'
+      let body = 'Help\n\nSend me a message and I will think about it.'
       if (config.dmPolicy === 'pairing') {
-        body += '\n\n*Commands:*\n'
-        body += '/pair \u2014 get a code to ask the owner for access\n'
-        body += '/approve <userId> \u2014 allow someone (owner only)\n'
-        body += '/who \u2014 list who has access\n'
-        body += '/unapprove \u2014 list allowed users\n'
+        body += '\n\nCommands:\n'
+        body += '/pair — get a code to ask the owner for access\n'
+        body += '/approve <userId> — allow someone (owner only)\n'
+        body += '/who — list who has access\n'
+        body += '/unapprove — list allowed users\n'
       }
-      body += '\n'
-      body += '/help \u2014 show this message'
-      return ctx.reply(body, { parse_mode: 'MarkdownV2' })
+      body += '\n/help — show this message'
+      return ctx.reply(body)
     }
 
     // ————————————————————————————————————————————
     // /pair command — request access code
     // ————————————————————————————————————————————
-    if (text.trim() === '/pair' && config.dmPolicy === 'pairing' && userId) {
+    if (text.trim() === '/pair' && config.dmPolicy === 'pairing') {
       const code = generatePairingCode()
       await ctx.reply(
         'Here is your pairing code — share it with the bot owner:\n\n'
-        + '`' + code + '`\n\n'
-        + 'Once they approve you with `/approve ' + userId + '`, you are good to go!',
-        { parse_mode: 'MarkdownV2' },
+        + code + '\n\n'
+        + 'Once they approve you with /approve ' + userId + ', you are good to go!',
       )
       return
     }
@@ -424,17 +410,15 @@ export async function createTelegramChannel(
     // ————————————————————————————————————————————
     // DM access check (pairing mode)
     // ————————————————————————————————————————————
-    if (config.dmPolicy === 'pairing' && userId) {
-      const allowed = isUserAllowed(userId, allowlist)
+    if (config.dmPolicy === 'pairing') {
+      const allowed = userId !== undefined && isUserAllowed(userId, allowlist)
       if (!allowed) {
-        // First-time user — generate a pairing code and give them the flow
         const code = generatePairingCode()
         await ctx.reply(
           'This bot is private.\n\n'
           + 'Send this code to the owner so they can approve you:\n\n'
-          + '`' + code + '`\n\n'
+          + code + '\n\n'
           + 'Once approved, just message me like normal!',
-          { parse_mode: 'MarkdownV2' },
         )
         return
       }
@@ -506,6 +490,7 @@ export async function createTelegramChannel(
   let lastGetUpdatesCompleted = Date.now()
   let runner: RunnerHandle | null = null
   let forceStopTimer: ReturnType<typeof setTimeout> | null = null
+  let watchdogTimer: ReturnType<typeof setInterval> | null = null
 
   const processUpdate = async (update: { update_id: number }) => {
     if (update.update_id > lastUpdateId) {
@@ -523,35 +508,13 @@ export async function createTelegramChannel(
 
   /** Start the runner with watchdog protection. */
   async function startPolling() {
+    pollingRunning = true
     runner = run(bot, {
       runner: { fetch: { timeout: 30, allowed_updates: [] } },
     })
-    // Watchdog: periodically check if getUpdates is stalled.
-    let watchdogTimer: ReturnType<typeof setTimeout> | null = null
-    const startWatchdog = () => {
-      watchdogTimer = setInterval(() => {
-        if (!pollingRunning) return
-        const elapsed = Date.now() - lastGetUpdatesCompleted
-        if (elapsed > STALL_THRESHOLD_MS) {
-          logger.warn(`telegram: watchdog stall detected — no getUpdates for ${Math.round(elapsed / 1000)}s, stopping runner`)
-          runner?.stop()
-        }
-      }, WATCHDOG_INTERVAL_MS)
-    }
-    const stopWatchdog = () => {
-      if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null }
-    }
-    startWatchdog()
-
-    // On runner stop, clean up watchdog
-    runner.stop().then(() => {
-      stopWatchdog()
-      runner = null
-    }).catch(() => {
-      stopWatchdog()
-      runner = null
-    })
-
+    // Drop pending updates so deleteWebhook does not loop on a backlog.
+    await bot.api.deleteWebhook({ drop_pending_updates: true })
+    logger.info('telegram: polling started')
     return runner
   }
 
@@ -560,15 +523,12 @@ export async function createTelegramChannel(
       if (config.polling !== false) {
         pollingRunning = true
         await startPolling()
-        logger.info('telegram: polling started')
-
-        // Wait for runner to stop (or be stopped externally)
+        // Wait until pollingRunning becomes false (stop() was called).
         await new Promise<void>(resolve => {
           const check = () => {
-            if (!pollingRunning) { resolve() }
-            else if (runner?.isRunning() ?? false) {
-              setTimeout(check, 500)
-            } else { resolve() }
+            if (!pollingRunning) resolve()
+            else if (runner?.isRunning() ?? false) setTimeout(check, 500)
+            else resolve()
           }
           check()
         })
@@ -578,7 +538,6 @@ export async function createTelegramChannel(
       pollingRunning = false
 
       // Force-cycle: kill runner after 15s even if graceful stop times out.
-      // Matches openclaw's forceCyclePromise pattern.
       forceStopTimer = setTimeout(() => {
         logger.warn('telegram: force-cycle timeout (15s), killing runner')
         runner?.stop()
@@ -591,11 +550,12 @@ export async function createTelegramChannel(
       runner = null
 
       // Clean up timers
+      if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null }
       clearTimeout(forceStopTimer)
       forceStopTimer = null
-      for (const entry of [...pending.values()]) {
+      pending.forEach((entry) => {
         clearTimeout(entry.timer)
-      }
+      })
       pending.clear()
       logger.info('telegram: stopped')
     },
