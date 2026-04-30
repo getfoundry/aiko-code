@@ -121,8 +121,8 @@ const telegram: TelegramCommand = {
   subcommands: {
     start: {
       description: 'Start the gateway + Telegram bot (foreground)',
-      async run(_opts: TelegramSubcommandOpts) {
-        let token = process.env.AIKO_TELEGRAM_TOKEN ?? ''
+      async run(opts: TelegramSubcommandOpts) {
+        let token = process.env.AIKO_TELEGRAM_TOKEN || (opts.token ?? '')
         if (!token) {
           const rc = loadConfig()
           token = rc.token
@@ -163,12 +163,12 @@ const telegram: TelegramCommand = {
 
     install: {
       description: 'Install as a background service (LaunchAgent/systemd)',
-      async run(_opts: TelegramSubcommandOpts) {
-        const token = process.env.AIKO_TELEGRAM_TOKEN || ''
+      async run(opts: TelegramSubcommandOpts) {
+        const token = process.env.AIKO_TELEGRAM_TOKEN || opts.token || ''
         const port = parseInt(process.env.AIKO_GATEWAY_PORT ?? '18789', 10)
 
         if (!token) {
-          console.error('[error] AIKO_TELEGRAM_TOKEN is required')
+          console.error('[error] token is required')
           console.error('  aiko-code telegram install --token=BOT_TOKEN')
           console.error('  or: AIKO_TELEGRAM_TOKEN=... aiko-code telegram install')
           process.exit(1)
@@ -279,3 +279,4 @@ const telegram: TelegramCommand = {
 }
 
 export default telegram
+export { telegram }

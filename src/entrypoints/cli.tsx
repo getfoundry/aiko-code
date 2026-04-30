@@ -397,13 +397,47 @@ async function main(): Promise<void> {
   // Fast-path for `aiko-code telegram [subcommand]`: skip the Ink TUI entirely.
   // The telegram command is a standalone CLI that manages the gateway daemon
   // (start/install/uninstall). Running it through the TUI hijacks stdin and
-  // breaks subcommands. feature() stays inline for build-time DCE.
-  if (feature('DAEMON') && args[0] === 'telegram') {
+  // breaks subcommands.
+  if (args[0] === 'telegram') {
     profileCheckpoint('cli_telegram_path');
     const { enableConfigs } = await import('../utils/config.js');
     enableConfigs();
-    const { default: telegramCmd } = await import('../commands/telegram/telegram.js');
-    await telegramCmd(args.slice(1));
+    const { telegram } = await import('../commands/telegram/telegram.js');
+
+    // Handle --help / -h on the telegram command itself
+    if (args[1] === '--help' || args[1] === '-h' || args[1] === undefined) {
+      console.log(`\nUsage: aiko-code telegram <subcommand> [options]
+
+Subcommands:
+  start        Start the gateway + Telegram bot (foreground)
+  install      Install as a background service (LaunchAgent/systemd)
+  uninstall    Remove background service and config
+
+Options:
+  --token=TOKEN   Telegram bot token (required for start/install)\n`);
+      return;
+    }
+
+    const sub = args[1];
+    const subCmd = telegram.subcommands[sub];
+    if (!subCmd) {
+      console.error(`[error] unknown telegram subcommand: ${sub}`);
+      console.error('Available: start, install, uninstall');
+      process.exit(1);
+    }
+
+    // parse --token from remaining args (supports --token=val and --token val)
+    const opts: Record<string, string> = {};
+    for (let i = 2; i < args.length; i++) {
+      if (args[i] === '--token' && args[i + 1]) {
+        opts.token = args[i + 1];
+        i++;
+      } else if (args[i].startsWith('--token=')) {
+        opts.token = args[i].slice('--token='.length);
+      }
+    }
+
+    await subCmd.run(opts as any);
     return;
   }
 
