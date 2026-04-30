@@ -232,15 +232,31 @@ How it works:
 
 Access control:
 
-- Default DM policy is `pairing` — users send `/pair` to get a code, the owner runs `/approve <userId>` to allow them. Set `TELEGRAM_DM_POLICY=open` to skip the pairing gate.
-- `/who` lists allowed users, `/unapprove` shows the current allowlist. The allowlist lives at `~/.aiko/telegram-allowlist.json`.
+- Default DM policy is `pairing` — when a new user DMs the bot they get a pairing code (e.g. `Y2AP-TU32`). They share it with you; you approve them.
+- Approve from the CLI (works from any terminal — no need to open Telegram on your phone):
+
+  ```bash
+  aiko-code telegram pending                       # list outstanding codes
+  aiko-code telegram approve --token Y2AP-TU32     # approve by pairing code
+  aiko-code telegram approve --token 123456789     # or by userId
+  ```
+
+  Approvals take effect on the next inbound message — no gateway restart needed.
+
+- Or approve from inside the bot: send `/approve <code-or-userId>` as a DM. `/who` lists allowed users, `/unapprove` shows the allowlist. State lives at `~/.aiko/telegram.json` (allowlist) and `~/.aiko/telegram-pending-pairs.json` (pending codes).
+- Set `TELEGRAM_DM_POLICY=open` to skip the pairing gate entirely.
+
+Self-aware mode:
+
+The gateway auto-detects its own codebase (resolves the `aiko-code` binary symlink to find the repo) and passes that path to the spawned aiko-code via `--append-system-prompt` + `--add-dir`. Ask the bot "how do you handle pairing codes?" and it'll grep its own source. Override with `AIKO_CODE_REPO=/path/to/repo` if auto-detection picks the wrong directory.
 
 Environment knobs:
 
-- `AIKO_TELEGRAM_TOKEN` — Bot API token (required)
+- `AIKO_TELEGRAM_TOKEN` — Bot API token (required; or pass `--token` to `start`/`install`)
 - `AIKO_GATEWAY_PORT` — Gateway WS port (default `18789`)
 - `TELEGRAM_DM_POLICY` — `pairing` (default) or `open`
 - `AIKO_CODE_BIN` — Override the `aiko-code` binary the gateway shells out to (default: `aiko-code` on `PATH`)
+- `AIKO_CODE_REPO` — Override codebase root for self-aware mode
 
 ## Configuration
 

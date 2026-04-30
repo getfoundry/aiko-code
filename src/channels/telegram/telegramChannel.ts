@@ -73,8 +73,35 @@ function saveAllowlist(data: TelegramAllowlist) {
   writeFileSync(TELEGRAM_ALLOWLIST_PATH, JSON.stringify(data, null, 2), 'utf-8')
 }
 
-/** Generate a random pairing code like "ABCD-EFGH". */
-function generatePairingCode(): string {
+/** RC path for persisting outstanding pairing codes (code -> userId). */
+const TELEGRAM_PENDING_PATH = join(homedir(), '.aiko', 'telegram-pending-pairs.json')
+
+interface PendingPair {
+  userId: number
+  chatId: number
+  name?: string
+  createdAt: number
+}
+
+function loadPending(): Record<string, PendingPair> {
+  if (existsSync(TELEGRAM_PENDING_PATH)) {
+    try {
+      return JSON.parse(readFileSync(TELEGRAM_PENDING_PATH, 'utf-8')) as Record<string, PendingPair>
+    } catch { /* ignore corrupt file */ }
+  }
+  return {}
+}
+
+function savePending(data: Record<string, PendingPair>) {
+  const dir = join(homedir(), '.aiko')
+  if (!existsSync(dir)) {
+    try { require('node:fs').mkdirSync(dir, { recursive: true }) } catch { /* best effort */ }
+  }
+  writeFileSync(TELEGRAM_PENDING_PATH, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+/** Generate a random pairing code like "ABCD-EFGH" and persist it. */
+function generatePairingCode(meta?: { userId: number; chatId: number; name?: string }): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 32 chars, no ambiguous (0/O, 1/I/L)
   const N = chars.length
   function encode(): string {
@@ -82,7 +109,13 @@ function generatePairingCode(): string {
     for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * N)]
     return s
   }
-  return `${encode()}-${encode()}`
+  const code = `${encode()}-${encode()}`
+  if (meta) {
+    const pending = loadPending()
+    pending[code] = { ...meta, createdAt: Date.now() }
+    savePending(pending)
+  }
+  return code
 }
 
 /** Check if a user ID is in the allowlist. */
@@ -318,22 +351,36 @@ export async function createTelegramChannel(
     // Pairing commands (always processed regardless of policy)
     // ————————————————————————————————————————————
     if (text.startsWith('/approve ')) {
-      // Admin approves a new user: /approve <userId>
-      const codeArg = text.slice(9).trim()
-      const targetId = codeArg
-      if (!targetId || isNaN(parseInt(targetId, 10))) {
+      // Owner approves a user, either by userId or by pairing code.
+      // Examples: /approve 123456789  OR  /approve Y2AP-TU32
+      const arg = text.slice(9).trim()
+      if (!arg) {
         await ctx.reply(
-          'Use /approve <userId> to allow someone.\n\n'
-          + 'Users ask for a code via /pair — tell them you received it.\n'
-          + 'Example: /approve 123456789',
+          'Use /approve <userId> or /approve <pairing-code>.\n\n'
+          + 'Examples:\n'
+          + '  /approve 123456789\n'
+          + '  /approve Y2AP-TU32',
         )
+        return
+      }
+      let targetId: number | null = null
+      const codeMatch = arg.match(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/i)
+      const pending = loadPending()
+      if (codeMatch && pending[arg.toUpperCase()]) {
+        targetId = pending[arg.toUpperCase()].userId
+        delete pending[arg.toUpperCase()]
+        savePending(pending)
+      } else if (/^\d+$/.test(arg)) {
+        targetId = parseInt(arg, 10)
+      } else {
+        await ctx.reply(`Unknown pairing code or userId: ${arg}`)
         return
       }
       const now = Date.now()
       const fromName = ctx.from?.first_name || 'an admin'
-      allowlist.users[targetId] = { approvedAt: now, approvedBy: fromName }
+      allowlist.users[String(targetId)] = { approvedAt: now, approvedBy: fromName }
       saveAllowlist(allowlist)
-      const displayName = (await getUserName(parseInt(targetId, 10))) ?? targetId
+      const displayName = (await getUserName(targetId)) ?? String(targetId)
       await ctx.reply(`Allowed: ${displayName} (user ${targetId}). They can now message this bot.`)
       return
     }
@@ -398,7 +445,7 @@ export async function createTelegramChannel(
     // /pair command — request access code
     // ————————————————————————————————————————————
     if (text.trim() === '/pair' && config.dmPolicy === 'pairing') {
-      const code = generatePairingCode()
+      const code = generatePairingCode({ userId: userId!, chatId, name: ctx.from?.first_name })
       await ctx.reply(
         'Here is your pairing code — share it with the bot owner:\n\n'
         + code + '\n\n'
@@ -411,9 +458,12 @@ export async function createTelegramChannel(
     // DM access check (pairing mode)
     // ————————————————————————————————————————————
     if (config.dmPolicy === 'pairing') {
+      // Reload allowlist per check so CLI-side `aiko-code telegram approve`
+      // takes effect immediately without a gateway restart.
+      allowlist = loadAllowlist()
       const allowed = userId !== undefined && isUserAllowed(userId, allowlist)
       if (!allowed) {
-        const code = generatePairingCode()
+        const code = generatePairingCode({ userId: userId!, chatId, name: ctx.from?.first_name })
         await ctx.reply(
           'This bot is private.\n\n'
           + 'Send this code to the owner so they can approve you:\n\n'

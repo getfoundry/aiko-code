@@ -207,26 +207,82 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
     logger.warn?.(`telegram: could not seed sessionEstablished: ${err}`)
   }
 
+  // Detect a codebase root for self-aware system prompt. Defaults to the
+  // gateway's cwd if it looks like a git repo, else AIKO_CODE_REPO env, else
+  // the bin's repo (resolved from process.execPath/argv[1] when running from
+  // a checkout — symlinks via realpath).
+  function detectCodebase(): string | null {
+    const env = process.env.AIKO_CODE_REPO
+    if (env) return env
+    try {
+      const { existsSync, realpathSync } = require('node:fs')
+      const path = require('node:path')
+      const candidates: string[] = [process.cwd()]
+      // Resolve argv[1] through symlinks so a global symlink at /opt/.../bin/aiko-code
+      // pointing at /Users/.../fcode/bin/aiko-code lands inside the repo.
+      try {
+        const resolved = realpathSync(process.argv[1] ?? '')
+        candidates.push(path.dirname(resolved))
+      } catch { /* ignore */ }
+      candidates.push(path.dirname(process.argv[1] ?? ''))
+      // Walk up several levels from each candidate looking for repo markers.
+      const seen = new Set<string>()
+      const walk = (start: string) => {
+        let cur = start
+        for (let i = 0; i < 6; i++) {
+          if (seen.has(cur)) break
+          seen.add(cur)
+          if (existsSync(`${cur}/package.json`) && existsSync(`${cur}/.git`)) return cur
+          cur = path.dirname(cur)
+        }
+        return null
+      }
+      for (const c of candidates) {
+        const hit = walk(c)
+        if (hit) return hit
+      }
+    } catch { /* best effort */ }
+    return null
+  }
+  const codebaseRoot = detectCodebase()
+  if (codebaseRoot) {
+    logger.info(`telegram: codebase-aware mode — root=${codebaseRoot}`)
+  } else {
+    logger.info(`telegram: no codebase detected — set AIKO_CODE_REPO to enable self-aware mode`)
+  }
+
   async function* engineRoute(
     sessionKey: string,
     message: string,
   ): AsyncGenerator<string> {
     const sessionId = uuidForSession(sessionKey)
-    // First message creates the session via --session-id; subsequent
-    // messages must use --resume instead (passing both with the same id
-    // errors with "Session ID already in use" / "can only be used with
-    // --continue or --resume if --fork-session is also specified").
     const isFirst = !sessionEstablished.has(sessionId)
+    const codebasePrompt = codebaseRoot
+      ? `You are aiko-code, an AI coding assistant, currently running as a Telegram bot.\n`
+        + `Your own codebase lives at: ${codebaseRoot}\n`
+        + `When asked about yourself, your features, your code, your behavior, or how you work, `
+        + `read the relevant files in that directory using the Read/Grep tools. `
+        + `Key entry points:\n`
+        + `  - src/entrypoints/gateway/telegram-gateway.ts  (this gateway)\n`
+        + `  - src/channels/telegram/telegramChannel.ts     (Telegram bot logic)\n`
+        + `  - src/QueryEngine.ts                            (core query loop)\n`
+        + `  - README.md                                     (user-facing docs)\n`
+        + `Replies appear in Telegram, so keep them short by default — expand only when the user asks for detail.`
+      : `You are aiko-code, an AI coding assistant, running as a Telegram bot. `
+        + `Replies appear in Telegram, so keep them concise by default.`
     const args = [
       '--print',
       '--dangerously-skip-permissions',
+      '--append-system-prompt', codebasePrompt,
+      ...(codebaseRoot ? ['--add-dir', codebaseRoot] : []),
       ...(isFirst ? ['--session-id', sessionId] : ['--resume', sessionId]),
       message,
     ]
-    logger.info(`telegram: spawning ${aikoBin} ${args.join(' ')}`)
+    logger.info(`telegram: spawning ${aikoBin} (session=${sessionId.slice(0,8)} first=${isFirst} codebase=${codebaseRoot ? 'yes' : 'no'})`)
     const child = spawn(aikoBin, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: process.env,
+      cwd: codebaseRoot ?? process.cwd(),
     })
     sessionEstablished.add(sessionId)
 
