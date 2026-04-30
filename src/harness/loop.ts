@@ -320,15 +320,31 @@ export function countFreshToolUses(
     const content = obj.message?.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
-      const b = block as { type?: string; name?: string; input?: { command?: string } }
+      const b = block as {
+        type?: string
+        name?: string
+        input?: { command?: string; file_path?: string; path?: string; file?: string }
+      }
       if (b?.type !== 'tool_use') continue
       const name = b.name ?? ''
       if (name === 'mcp__deepwiki__ask_question' || /deepwiki/i.test(name)) {
         counts.deepwiki++
         continue
       }
+      // Cache-first protocol (phases.ts DEEPWIKI_RAG): reading or grepping
+      // .aiko/dw-cache.local.md counts as fresh DeepWiki evidence — the cache
+      // is the prescribed reuse path, not a stale fallback.
+      if (name === 'Read' || name === 'mcp__muonry__read') {
+        const p = b.input?.file_path ?? b.input?.path ?? b.input?.file ?? ''
+        if (/\.aiko\/dw-cache\.local\.md$/.test(p)) counts.deepwiki++
+      }
+      if (name === 'Grep' || name === 'mcp__muonry__search') {
+        const p = b.input?.path ?? b.input?.file_path ?? ''
+        if (/\.aiko\/dw-cache\.local\.md$/.test(p)) counts.deepwiki++
+      }
       if (name === 'Bash') {
         const cmd = b.input?.command ?? ''
+        if (/\.aiko\/dw-cache\.local\.md/.test(cmd)) counts.deepwiki++
         if (/\bagent-browser\b/.test(cmd)) counts.agentBrowser++
         if (/\bzigast\b/.test(cmd)) counts.zigast++
       }
