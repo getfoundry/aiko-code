@@ -245,8 +245,43 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
     return null
   }
   const codebaseRoot = detectCodebase()
+
+  // Load self-knowledge content once at startup so the system prompt is
+  // pre-populated with what aiko-code IS, rather than just pointing at a
+  // directory and hoping the model greps. README is the canonical source
+  // of "what this project does"; AIKO.md (if present) holds session-state
+  // and live engineering notes.
+  let selfKnowledge = ''
   if (codebaseRoot) {
-    logger.info(`telegram: codebase-aware mode — root=${codebaseRoot}`)
+    try {
+      const fs = await import('node:fs')
+      const readSafe = (p: string, max = 12_000): string => {
+        try {
+          const text = fs.readFileSync(p, 'utf-8')
+          return text.length > max ? text.slice(0, max) + `\n... [truncated, full file at ${p}]` : text
+        } catch { return '' }
+      }
+      const readme = readSafe(`${codebaseRoot}/README.md`, 16_000)
+      const aikoMd = readSafe(`${codebaseRoot}/AIKO.md`, 8_000)
+      const pkgRaw = readSafe(`${codebaseRoot}/package.json`, 4_000)
+      let pkgSummary = ''
+      try {
+        const pkg = JSON.parse(pkgRaw) as { name?: string; version?: string; description?: string }
+        pkgSummary = `Name: ${pkg.name}\nVersion: ${pkg.version}\nDescription: ${pkg.description}`
+      } catch { /* ignore */ }
+
+      const parts: string[] = []
+      if (pkgSummary) parts.push(`## package.json\n${pkgSummary}`)
+      if (readme) parts.push(`## README.md\n${readme}`)
+      if (aikoMd) parts.push(`## AIKO.md (live engineering notes)\n${aikoMd}`)
+      selfKnowledge = parts.join('\n\n')
+    } catch (err) {
+      logger.warn?.(`telegram: could not load self-knowledge: ${err}`)
+    }
+  }
+
+  if (codebaseRoot) {
+    logger.info(`telegram: codebase-aware mode — root=${codebaseRoot} self-knowledge=${selfKnowledge.length}b`)
   } else {
     logger.info(`telegram: no codebase detected — set AIKO_CODE_REPO to enable self-aware mode`)
   }
@@ -259,15 +294,18 @@ export async function startTelegramGateway(): Promise<{ shutdown: () => Promise<
     const isFirst = !sessionEstablished.has(sessionId)
     const codebasePrompt = codebaseRoot
       ? `You are aiko-code, an AI coding assistant, currently running as a Telegram bot.\n`
-        + `Your own codebase lives at: ${codebaseRoot}\n`
-        + `When asked about yourself, your features, your code, your behavior, or how you work, `
-        + `read the relevant files in that directory using the Read/Grep tools. `
-        + `Key entry points:\n`
-        + `  - src/entrypoints/gateway/telegram-gateway.ts  (this gateway)\n`
-        + `  - src/channels/telegram/telegramChannel.ts     (Telegram bot logic)\n`
-        + `  - src/QueryEngine.ts                            (core query loop)\n`
-        + `  - README.md                                     (user-facing docs)\n`
-        + `Replies appear in Telegram, so keep them short by default — expand only when the user asks for detail.`
+        + `Your own codebase lives at: ${codebaseRoot}\n\n`
+        + `# Self-knowledge — the following is your own README/AIKO.md/package.json, baked in at gateway startup so you know what you are without needing to read files first:\n\n`
+        + `${selfKnowledge}\n\n`
+        + `# Working in your own codebase\n`
+        + `When asked about your features, code, or behavior, you can answer directly from the self-knowledge above. `
+        + `For specifics, use Read/Grep on files inside ${codebaseRoot}. Key entry points:\n`
+        + `  - src/entrypoints/gateway/telegram-gateway.ts  (this gateway — sessions, system prompt, subprocess engine)\n`
+        + `  - src/channels/telegram/telegramChannel.ts     (Telegram polling + pairing + allowlist)\n`
+        + `  - src/commands/telegram/telegram.ts             (CLI subcommands: start, install, approve, pending)\n`
+        + `  - src/QueryEngine.ts                            (core query loop)\n\n`
+        + `# Reply style\n`
+        + `Replies appear in Telegram. Keep them short by default — expand only when the user asks for detail. Do not use Markdown headings or code fences for short replies.`
       : `You are aiko-code, an AI coding assistant, running as a Telegram bot. `
         + `Replies appear in Telegram, so keep them concise by default.`
     const args = [
