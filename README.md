@@ -230,21 +230,48 @@ How it works:
 - On startup the gateway scans `~/.aiko/projects/*/<uuid>.jsonl` and seeds its known-sessions set, so a restart goes straight to `--resume` instead of trying to recreate the session.
 - Streamed output is edited into a single Telegram message (`*Thinking...*` placeholder, then progressive edits) at the configured draft interval.
 
-Access control:
+### Pairing flow
 
-- Default DM policy is `pairing` — when a new user DMs the bot they get a pairing code (e.g. `Y2AP-TU32`). They share it with you; you approve them.
-- Approve from the CLI (works from any terminal — no need to open Telegram on your phone):
+Default DM policy is `pairing` — strangers can't just message your bot.
 
-  ```bash
-  aiko-code telegram pending                       # list outstanding codes
-  aiko-code telegram approve --token Y2AP-TU32     # approve by pairing code
-  aiko-code telegram approve --token 123456789     # or by userId
-  ```
+```text
+   Friend                 Bot                       You (terminal)
+     │                     │                              │
+     │── DM "hi" ──────────▶                              │
+     │                     │── replies with code ─────────│
+     │◀─── "Y2AP-TU32" ────│      "Y2AP-TU32"             │
+     │                                                    │
+     │── sends code to you ───────────────────────────────▶
+     │                                                    │
+     │                            $ aiko-code telegram approve Y2AP-TU32
+     │                            ✓ approved Alice (123456789)
+     │                                                    │
+     │── DM again ─────────▶ chat unlocked, no restart    │
+```
 
-  Approvals take effect on the next inbound message — no gateway restart needed.
+CLI:
 
-- Or approve from inside the bot: send `/approve <code-or-userId>` as a DM. `/who` lists allowed users, `/unapprove` shows the allowlist. State lives at `~/.aiko/telegram.json` (allowlist) and `~/.aiko/telegram-pending-pairs.json` (pending codes).
-- Set `TELEGRAM_DM_POLICY=open` to skip the pairing gate entirely.
+```bash
+aiko-code telegram pending                  # list outstanding codes
+aiko-code telegram approve Y2AP-TU32        # approve by pairing code
+aiko-code telegram approve 123456789        # or by Telegram userId
+aiko-code telegram who                      # list approved users
+```
+
+Approvals take effect on the next inbound message — no gateway restart needed.
+
+In-chat alternative: send `/approve <code-or-userId>` as a DM to the bot. `/who` lists allowed users. State lives at `~/.aiko/telegram.json` (allowlist + token + port) and `~/.aiko/telegram-pending-pairs.json` (pending codes).
+
+If you've installed the bundled `aiko-code` plugin, the same flow is available as a slash command:
+
+```text
+/telegram pending
+/telegram approve Y2AP-TU32
+/telegram who
+```
+
+Set `TELEGRAM_DM_POLICY=open` to skip the pairing gate entirely.
+
 
 Self-aware mode:
 

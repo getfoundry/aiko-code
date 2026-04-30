@@ -142,6 +142,18 @@ const telegram: TelegramCommand = {
         console.log(`telegram: starting gateway + telegram channel`)
         console.log(`  token=${maskToken(token)}`)
         console.log(`  port=${port}`)
+        console.log('')
+        console.log('Pairing flow (default DM policy):')
+        console.log('  1. Friend DMs your bot → they get a code like Y2AP-TU32')
+        console.log('  2. They send you the code')
+        console.log('  3. From any terminal, run:')
+        console.log('       aiko-code telegram approve <code>')
+        console.log('  4. They DM again — chat unlocked, no restart needed.')
+        console.log('')
+        console.log('Other useful commands:')
+        console.log('  aiko-code telegram pending   # list outstanding codes')
+        console.log('  aiko-code telegram who       # list approved users')
+        console.log('')
 
         const { shutdown } = await startTelegramGateway()
 
@@ -277,54 +289,60 @@ const telegram: TelegramCommand = {
     },
 
     pending: {
-      description: 'List outstanding pairing codes (waiting for /approve)',
+      description: 'List outstanding pairing codes (waiting for approval)',
       async run(_opts: TelegramSubcommandOpts) {
         const path = join(homedir(), '.aiko', 'telegram-pending-pairs.json')
-        if (!existsSync(path)) {
+        const empty = () => {
           console.log('No pending pairing codes.')
-          return
+          console.log('')
+          console.log('To pair someone:')
+          console.log('  1. Have them DM your bot — they\'ll get a code like Y2AP-TU32.')
+          console.log('  2. Run: aiko-code telegram approve <code>')
         }
+        if (!existsSync(path)) { empty(); return }
         const raw = JSON.parse(readFileSync(path, 'utf-8')) as Record<string, { userId: number; chatId: number; name?: string; createdAt: number }>
         const entries = Object.entries(raw)
-        if (entries.length === 0) {
-          console.log('No pending pairing codes.')
-          return
-        }
+        if (entries.length === 0) { empty(); return }
         console.log(`Pending pairing codes (${entries.length}):\n`)
         for (const [code, meta] of entries) {
           const age = Math.round((Date.now() - meta.createdAt) / 60000)
           const who = meta.name ? `${meta.name} (${meta.userId})` : String(meta.userId)
           console.log(`  ${code}  ${who}  — ${age}m ago`)
         }
-        console.log(`\nApprove with: aiko-code telegram approve <code-or-userId>`)
+        console.log(`\nApprove with: aiko-code telegram approve <code>`)
       },
     },
 
     approve: {
       description: 'Approve a Telegram user by pairing code or userId',
       async run(opts: TelegramSubcommandOpts) {
-        const arg = (opts.token ?? '').trim() || (opts as { _?: string[] })._?.[0] || ''
+        const arg = ((opts as { _?: string[] })._?.[0] || (opts.token ?? '')).trim()
         if (!arg) {
           console.error('[error] missing pairing code or userId')
-          console.error('  aiko-code telegram approve --token=Y2AP-TU32')
-          console.error('  aiko-code telegram approve --token=123456789')
+          console.error('')
+          console.error('Usage:')
+          console.error('  aiko-code telegram approve Y2AP-TU32     # by pairing code')
+          console.error('  aiko-code telegram approve 123456789     # by Telegram userId')
+          console.error('')
+          console.error('Run `aiko-code telegram pending` to see outstanding codes.')
           process.exit(1)
         }
         const allowlistPath = join(homedir(), '.aiko', 'telegram.json')
         const pendingPath = join(homedir(), '.aiko', 'telegram-pending-pairs.json')
 
-        // Load existing allowlist (preserve token + port from config).
-        let allowlist: { users?: Record<string, { approvedAt: number; approvedBy: string }>; token?: string; port?: number } = {}
+        let allowlist: { users?: Record<string, { approvedAt: number; approvedBy: string; name?: string }>; token?: string; port?: number } = {}
         if (existsSync(allowlistPath)) {
           try { allowlist = JSON.parse(readFileSync(allowlistPath, 'utf-8')) } catch { /* corrupt */ }
         }
         if (!allowlist.users) allowlist.users = {}
 
         let targetId: number | null = null
+        let displayName: string | undefined
         const codeRe = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i
         if (codeRe.test(arg)) {
           if (!existsSync(pendingPath)) {
-            console.error(`[error] no pending pairings file at ${pendingPath}`)
+            console.error(`[error] no pending pairings — has anyone DM'd the bot yet?`)
+            console.error(`  Expected file: ${pendingPath}`)
             process.exit(1)
           }
           const pending = JSON.parse(readFileSync(pendingPath, 'utf-8')) as Record<string, { userId: number; chatId: number; name?: string; createdAt: number }>
@@ -335,19 +353,48 @@ const telegram: TelegramCommand = {
             process.exit(1)
           }
           targetId = pending[key].userId
+          displayName = pending[key].name
           delete pending[key]
           writeFileSync(pendingPath, JSON.stringify(pending, null, 2), 'utf-8')
         } else if (/^\d+$/.test(arg)) {
           targetId = parseInt(arg, 10)
         } else {
-          console.error(`[error] not a pairing code or userId: ${arg}`)
+          console.error(`[error] not a pairing code (XXXX-XXXX) or userId (digits): ${arg}`)
           process.exit(1)
         }
 
-        allowlist.users[String(targetId)] = { approvedAt: Date.now(), approvedBy: 'cli' }
+        allowlist.users[String(targetId)] = { approvedAt: Date.now(), approvedBy: 'cli', ...(displayName ? { name: displayName } : {}) }
         writeFileSync(allowlistPath, JSON.stringify(allowlist, null, 2), 'utf-8')
-        console.log(`approved: user ${targetId} — written to ${allowlistPath}`)
-        console.log('  (the running gateway will pick this up on the next message — no restart needed)')
+        const who = displayName ? `${displayName} (${targetId})` : `user ${targetId}`
+        console.log(`✓ approved ${who}`)
+        console.log(`  Written to ${allowlistPath}`)
+        console.log(`  The running gateway picks this up on their next message — no restart needed.`)
+      },
+    },
+
+    who: {
+      description: 'Show currently approved Telegram users',
+      async run(_opts: TelegramSubcommandOpts) {
+        const allowlistPath = join(homedir(), '.aiko', 'telegram.json')
+        if (!existsSync(allowlistPath)) {
+          console.log('No allowlist yet — run `aiko-code telegram start` first.')
+          return
+        }
+        let allowlist: { users?: Record<string, { approvedAt: number; approvedBy: string; name?: string }> } = {}
+        try { allowlist = JSON.parse(readFileSync(allowlistPath, 'utf-8')) } catch { /* ignore */ }
+        const users = allowlist.users ?? {}
+        const entries = Object.entries(users)
+        if (entries.length === 0) {
+          console.log('No approved users yet.')
+          console.log('Run `aiko-code telegram pending` to see who\'s waiting.')
+          return
+        }
+        console.log(`Approved users (${entries.length}):\n`)
+        for (const [id, meta] of entries) {
+          const when = new Date(meta.approvedAt).toISOString().slice(0, 16).replace('T', ' ')
+          const label = meta.name ? `${meta.name} (${id})` : id
+          console.log(`  ${label}  — approved ${when} via ${meta.approvedBy}`)
+        }
       },
     },
   },

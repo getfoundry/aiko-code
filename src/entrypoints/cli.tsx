@@ -409,12 +409,21 @@ async function main(): Promise<void> {
       console.log(`\nUsage: aiko-code telegram <subcommand> [options]
 
 Subcommands:
-  start        Start the gateway + Telegram bot (foreground)
-  install      Install as a background service (LaunchAgent/systemd)
-  uninstall    Remove background service and config
+  start                       Start the gateway + Telegram bot (foreground)
+  install [--token=TOKEN]     Install as a background service (LaunchAgent/systemd)
+  uninstall                   Remove background service and config
+  pending                     List outstanding pairing codes (waiting for approval)
+  approve <code|userId>       Approve a Telegram user — paste the code they DM'd
+  who                         Show currently approved users
+
+Pairing flow (default DM policy):
+  1. Friend DMs your bot — bot replies with a code like Y2AP-TU32.
+  2. They send you the code. You run:
+       aiko-code telegram approve Y2AP-TU32
+  3. They DM the bot again — chat is unlocked, no restart needed.
 
 Options:
-  --token=TOKEN   Telegram bot token (required for start/install)\n`);
+  --token=TOKEN   Telegram bot token (start/install) OR pairing code (approve)\n`);
       return;
     }
 
@@ -422,18 +431,26 @@ Options:
     const subCmd = telegram.subcommands[sub];
     if (!subCmd) {
       console.error(`[error] unknown telegram subcommand: ${sub}`);
-      console.error('Available: start, install, uninstall');
+      console.error('Available: start, install, uninstall, pending, approve, who');
+      console.error('Run `aiko-code telegram --help` for the pairing flow.');
       process.exit(1);
     }
 
-    // parse --token from remaining args (supports --token=val and --token val)
-    const opts: Record<string, string> = {};
+    // parse --token from remaining args (supports --token=val and --token val);
+    // any other non-flag arg is collected as a positional in opts._.
+    const opts: Record<string, unknown> = { _: [] as string[] };
+    const positional = opts._ as string[];
     for (let i = 2; i < args.length; i++) {
-      if (args[i] === '--token' && args[i + 1]) {
+      const a = args[i];
+      if (a === '--token' && args[i + 1]) {
         opts.token = args[i + 1];
         i++;
-      } else if (args[i].startsWith('--token=')) {
-        opts.token = args[i].slice('--token='.length);
+      } else if (a.startsWith('--token=')) {
+        opts.token = a.slice('--token='.length);
+      } else if (a.startsWith('--')) {
+        // unknown long flag — ignore for forward-compat
+      } else {
+        positional.push(a);
       }
     }
 
