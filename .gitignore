@@ -1,4 +1,7 @@
 node_modules/
+python/
+.aiko/
+docs/
 dist/
 *.tsbuildinfo
 .env
