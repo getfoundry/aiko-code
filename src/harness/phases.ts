@@ -47,6 +47,32 @@ const DEPENDENCY_BOUNDARY_AUDIT =
 const FIX_NOT_DOCUMENT =
   'Fix-not-document rule: when a probe surfaces a deterministic, reproducible failure on this turn (not a flake, not a hardware quirk, not a third-party outage), apply the root-cause fix on this same turn before declaring step done. "Document and defer" is reserved for non-deterministic failures, environment-only failures, or scope-creep failures that genuinely belong to a different task. The harness gate sees the difference: a teachings line that records a reproducible bug as `H1 not yet validated, deferred` without an attached fix is a no-op, not a discovery — re-do the step. The deterministic-vs-non-deterministic test: can you trigger the failure twice in a row by repeating the same input? If yes, it is deterministic and must be fixed now.'
 
+// ─── GSD borrows ────────────────────────────────────────────────────────────
+// Seven patterns lifted from gsd-build/get-shit-done, adapted to the 9-phase
+// loop. Each is a named string the gate reads as part of `apply` so it fires
+// every turn the relevant phase runs.
+
+const MUST_HAVES_DECL =
+  'Must-haves declaration (goal-backward contract): at the top of your architecture sketch, write a `must_haves:` block with three sub-keys — `truths:` (observable behaviors a human can verify, e.g. "user can paste a code and get approved"), `artifacts:` (specific file paths that must exist with a one-line `provides:` description), `key_links:` (producer→consumer pairs, e.g. `from: cli/telegram.ts to: channels/pairing-store.ts via: approvePairingCode()`). Step 7 Verdict reads this block and checks each item EXISTS, is SUBSTANTIVE, and is WIRED. Vague truths ("works correctly") are rejected — they must be testable from the outside.'
+
+const PLAN_SELF_VERIFY =
+  'Plan self-verification (pre-flight gate): before declaring boundaries done, walk the must_haves list and answer for each row: (a) is the truth observable without reading code? (b) does the artifact path point to a file you intend to create/edit, not a hand-wave? (c) does the key_link name a real symbol that will exist after build? If any answer is no, fix the must_haves block before exiting this step. Cheap pre-flight that prevents Step 7 from rejecting the whole arc.'
+
+const API_REALITY_CHECK =
+  'API reality check (one real call, no mocks): for every external API surface this integration touches, make ONE live call with real credentials and diff the actual response shape against what the code expects. Append the result to `.aiko/dw-cache.local.md` as `## <provider>#<endpoint> [<ISO>]` with: status, fields actually returned, fields the code expects, gotchas (null-able fields, undocumented rate limits, response wrapping). Code that passes types but expects fields the API does not return is the #2 source of integration failures (after "I never actually called it"). Do not skip this even if you have a recent dw: entry — APIs drift.'
+
+const STUB_SCAN =
+  'Stub-and-placeholder scan (audit slice): one of the audit sub-agents must run a stub scan across files changed this arc — `rg -n "TODO|FIXME|XXX|return null;|return undefined;|throw new Error\\\\(.not implemented|NotImplementedError|pass\\\\s*$|console\\\\.log\\\\(.debug" <changed-files>` plus a check for empty function bodies and unhandled promise rejections. Any hit is a verdict-blocker unless explicitly scoped out in the must_haves block. Catches the #1 "loop declared done but left placeholders" failure mode that ralph-style loops produce.'
+
+const GOAL_BACKWARD_VERIFY =
+  'Goal-backward verdict (3-level check + 3-state output): re-read the `must_haves:` block from Step 2. For each artifact verify three levels in order — (1) EXISTS: file present at declared path, (2) SUBSTANTIVE: real code, not stubs (run the stub scan against just this file), (3) WIRED: at least one other file in the arc imports or invokes the symbol it declares. For each truth, name the exact reproduction command/UI step that demonstrates it. Output exactly one of: `passed` (all must_haves green) → advance to Step 8, `gaps_found: <list of unmet truths/artifacts>` → loop back to Step 5 with the gap list as the scoped sub-problem, `human_needed: <checklist>` → stop and surface the checklist (used only when the truth requires real-world action — sending an email, observing a side effect). No fourth state.'
+
+const CHECKPOINT_FILE =
+  'Continue-here checkpoint (hand-off resilience): before declaring this step done, write `.aiko/aiko-code.<session>.continue-here.local.md` with four blocks — `<current_state>` (where the arc is, one paragraph), `<decisions_made>` (each decision + the WHY behind it, so a fresh session does not re-debate them), `<next_action>` (the single literal next move), `<files_in_flight>` (paths touched but not yet committed). Read by Step 1 of the next session if AIKO.md compaction did not fire. Delete it after a successful Step 9 Ship.'
+
+const ATOMIC_COMMIT =
+  'Atomic commit per phase (clean rollback points): each completed phase ends with a single `git commit` containing only the files this phase touched, with the message format `{type}({step}-{label}): {one-line outcome}` (e.g. `feat(3-skeleton): wire pairing-store stubs`). Never bundle multiple phases into one commit — the goal is that `git log --oneline` reads as the loop transcript. If the phase produced no code (Survey, Boundaries, Verdict, Audit), commit the journal/teachings updates with the same message format so the trail is unbroken.'
+
 export const PHASES: readonly HarnessPhase[] = [
   {
     step: 1,
@@ -74,7 +100,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which layers, contracts, and ownership boundaries does this work require? What changes shape, what stays stable?',
     apply:
-      `Write the architecture sketch: layers, interfaces, data flow, invariants. One short page. No code yet. State in-scope vs. out-of-scope.\n${DEEPWIKI_RAG} Cross-check seam choices against how upstream/peer projects draw the same line.`,
+      `Write the architecture sketch: layers, interfaces, data flow, invariants. One short page. No code yet. State in-scope vs. out-of-scope.\n${MUST_HAVES_DECL}\n${PLAN_SELF_VERIFY}\n${DEEPWIKI_RAG} Cross-check seam choices against how upstream/peer projects draw the same line.`,
     fibBudget: 1,
     requires: { deepwiki: true, agentBrowser: false },
   },
@@ -134,7 +160,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which end-to-end flows must work? Which user journeys, deploy paths, lifecycle transitions?',
     apply:
-      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${HUMAN_PREVIEW}\n${TASTE_SKILL_ROUTING}`,
+      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${API_REALITY_CHECK}\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${HUMAN_PREVIEW}\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 8,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -149,7 +175,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Given steps 1–6, does this artifact deserve to advance to audit? Promote, hold, or reject — pick one.',
     apply:
-      `Single-threaded. Render the verdict (PROMOTE / HOLD / REJECT) with specific evidence from steps 4–6. If HOLD or REJECT, name the exact gap and loop back. If PROMOTE, advance to step 8.\n${DEEPWIKI_RAG} If verdict cites a library behavior claim, back it with a DeepWiki citation, not vibes.`,
+      `Single-threaded. Render the verdict (PROMOTE / HOLD / REJECT) with specific evidence from steps 4–6. If HOLD or REJECT, name the exact gap and loop back. If PROMOTE, advance to step 8.\n${GOAL_BACKWARD_VERIFY}\n${DEEPWIKI_RAG} If verdict cites a library behavior claim, back it with a DeepWiki citation, not vibes.`,
     fibBudget: 1,
     requires: { deepwiki: true, agentBrowser: false },
   },
@@ -164,7 +190,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which slices need cold review? API contract, data model, error paths, perf, security, observability, docs, types, tests, deps, build, deploy, rollback. Also: does the UI match what the user expected to see?',
     apply:
-      `Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\n${DEEPWIKI_RAG} Cross-check every API claim, data-model invariant, and dep version against upstream wikis.\n${AGENT_BROWSER_PROBE} Run the available taste/critique skill alongside an agent-browser visual pass — render the actual page and screenshot to catch rendering issues code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow).\n${TASTE_SKILL_ROUTING}`,
+      `Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\n${STUB_SCAN}\n${CHECKPOINT_FILE}\n${DEEPWIKI_RAG} Cross-check every API claim, data-model invariant, and dep version against upstream wikis.\n${AGENT_BROWSER_PROBE} Run the available taste/critique skill alongside an agent-browser visual pass — render the actual page and screenshot to catch rendering issues code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow).\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 13,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -179,7 +205,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What needs to happen for the intended user to actually use this? List every artifact that must move.',
     apply:
-      `Spawn the publish fan-out (up to 21 parallel sub-agents). When the artifact is genuinely reachable by its user, output exactly: <promise>{COMPLETION_PROMISE}</promise>\n${DEEPWIKI_RAG} Verify release/publish steps (npm tag conventions, changelog format, doc URL anchors) against upstream norms.\n${AGENT_BROWSER_PROBE} Post-ship smoke: hit the deployed URL/built artifact in agent-browser and screenshot reachable success state.`,
+      `Spawn the publish fan-out (up to 21 parallel sub-agents). When the artifact is genuinely reachable by its user, output exactly: <promise>{COMPLETION_PROMISE}</promise>\n${ATOMIC_COMMIT}\n${DEEPWIKI_RAG} Verify release/publish steps (npm tag conventions, changelog format, doc URL anchors) against upstream norms.\n${AGENT_BROWSER_PROBE} Post-ship smoke: hit the deployed URL/built artifact in agent-browser and screenshot reachable success state.`,
     fibBudget: 21,
     requires: { deepwiki: true, agentBrowser: true },
   },
