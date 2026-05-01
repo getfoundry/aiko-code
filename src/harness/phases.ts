@@ -73,6 +73,15 @@ const CHECKPOINT_FILE =
 const ATOMIC_COMMIT =
   'Atomic commit per phase (clean rollback points): each completed phase ends with a single `git commit` containing only the files this phase touched, with the message format `{type}({step}-{label}): {one-line outcome}` (e.g. `feat(3-skeleton): wire pairing-store stubs`). Never bundle multiple phases into one commit — the goal is that `git log --oneline` reads as the loop transcript. If the phase produced no code (Survey, Boundaries, Verdict, Audit), commit the journal/teachings updates with the same message format so the trail is unbroken.'
 
+const CONTEXT_THRESHOLDS =
+  'Context budget self-check (4-state): at the end of every step, estimate your context usage and act on it — PEAK 0-30% (continue), GOOD 30-50% (continue), DEGRADING 50-70% (CHECKPOINT NOW: write `.aiko/aiko-code.<session>.context-state.local.md` with `last_step:`, `est_pct:`, `completed_this_segment:`, `key_decisions:` (with WHY), `next_action:` — then continue with the file as the working context), POOR 70%+ (you waited too long — checkpoint immediately and consider /clear before next step). The lightweight checkpoint fires before the heavier AIKO.md compaction path; both are local-only writes, no telemetry. Never reach POOR — the cost of an unprompted compaction is 10x the cost of a 50% checkpoint.'
+
+const CODEBASE_CACHE =
+  'Codebase cache (read first, populate on miss): before walking the affected scope, check for `.aiko/codebase/` and read whichever files exist — `STRUCTURE.md` (directory layout), `STACK.md` (detected tech + versions), `ARCHITECTURE.md` (components, data flow, patterns), `CONVENTIONS.md` (naming, file patterns), `INTEGRATIONS.md` (external services, APIs). If any are missing or older than 7 days (`stat -f %m <file>` vs `date +%s`), populate them as part of this turn (only the missing/stale ones — do not re-walk what is fresh). On greenfield repos with no `.aiko/codebase/`, run a one-shot scan and create all five before the inventory pass. Step 1 inventory then composes from cache + the affected scope, instead of re-walking the whole repo every arc.'
+
+const READ_ONLY_LINT =
+  'Read-only contract (build-phase guard): the `must_haves:` block declared in Step 2 Boundaries is READ-ONLY for build phases (Steps 3 Skeleton, 4 Signals, 5 Edges, 6 Integration). If you find yourself wanting to relax a `truths:` row, narrow an `artifacts:` path, or drop a `key_links:` pair to make the build pass — STOP. That is the worker rewriting the spec to fit the work, not the work to fit the spec. Surface the conflict instead: emit a teachings line `H1 spec-vs-build conflict: <truth/artifact/key_link> cannot be satisfied because <reason>` and let Step 7 Verdict decide gaps_found vs human_needed. Phase 2 owns the contract; build phases honor it. Same rule for `.planning/`-style state files in adjacent projects (PROJECT.md, ROADMAP.md, REQUIREMENTS.md): never edit during build phases.'
+
 export const PHASES: readonly HarnessPhase[] = [
   {
     step: 1,
@@ -85,7 +94,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What files, modules, contracts, and external systems does this task touch? Enumerate them precisely with paths.',
     apply:
-      `Read every file in the affected scope. Produce a written inventory: paths, current behavior, dependencies, owners. No edits. No proposals.\n${DEPENDENCY_BOUNDARY_AUDIT}\n${DEEPWIKI_RAG}\n${AGENT_BROWSER_PROBE} (initial-state screenshot of the affected UI surface, even if "working".)\n${TASTE_SKILL_ROUTING}`,
+      `${CODEBASE_CACHE}\nRead every file in the affected scope. Produce a written inventory: paths, current behavior, dependencies, owners. No edits. No proposals.\n${DEPENDENCY_BOUNDARY_AUDIT}\n${DEEPWIKI_RAG}\n${AGENT_BROWSER_PROBE} (initial-state screenshot of the affected UI surface, even if "working".)\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 1,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -115,7 +124,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What is the minimum file/function/route set that, once stubbed, lets every later step land cleanly?',
     apply:
-      `Write stubs and types, no real logic. Confirm it compiles, the test runner discovers it, the route resolves. Two parallel sub-agents may explore alternative skeletons.\n${DEEPWIKI_RAG} Verify skeleton signatures match upstream API surface exactly (method names, arg order, return shape).`,
+      `Write stubs and types, no real logic. Confirm it compiles, the test runner discovers it, the route resolves. Two parallel sub-agents may explore alternative skeletons.\n${READ_ONLY_LINT}\n${DEEPWIKI_RAG} Verify skeleton signatures match upstream API surface exactly (method names, arg order, return shape).`,
     fibBudget: 2,
     requires: { deepwiki: true, agentBrowser: false },
   },
@@ -130,7 +139,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What tests, type assertions, and observability does this feature need to be defensible? Three independent axes.',
     apply:
-      `Spawn three parallel sub-agents (Agent tool, single message, three tool_use blocks). Each owns one axis: types, tests, metrics. Each writes asserts that will fail until step 5.\n${DEEPWIKI_RAG} Verify assert shapes (test runner API, matcher names, metric field names) against upstream docs.\n${AGENT_BROWSER_PROBE} For runtime signals: capture a baseline metric trace (perf, network timing, eval of state) so step 5/6 have something to compare against.`,
+      `Spawn three parallel sub-agents (Agent tool, single message, three tool_use blocks). Each owns one axis: types, tests, metrics. Each writes asserts that will fail until step 5.\n${READ_ONLY_LINT}\n${DEEPWIKI_RAG} Verify assert shapes (test runner API, matcher names, metric field names) against upstream docs.\n${AGENT_BROWSER_PROBE} For runtime signals: capture a baseline metric trace (perf, network timing, eval of state) so step 5/6 have something to compare against.`,
     fibBudget: 3,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -145,7 +154,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'What inputs, conditions, race windows, and partial failures break this? Five adversarial probes. What does the user actually see when it breaks?',
     apply:
-      `Spawn five parallel sub-agents. Each probes one adversarial axis (empty, malformed, concurrent, partial-failure, hostile) and reports a failing case or a clean pass.\n${FIX_NOT_DOCUMENT}\n${DEEPWIKI_RAG} Look up known edge-case bugs / CVEs / issues filed upstream against the libraries you depend on.\n${AGENT_BROWSER_PROBE} UX empathy pass: hover states that break layout, click targets too small, mobile overflow, contrast failures, keyboard-only nav, screen-reader labels. Attach screenshots of every broken state. If the user described a bug visually, reason from their description/screenshot first.\n${TASTE_SKILL_ROUTING}`,
+      `Spawn five parallel sub-agents. Each probes one adversarial axis (empty, malformed, concurrent, partial-failure, hostile) and reports a failing case or a clean pass.\n${READ_ONLY_LINT}\n${CONTEXT_THRESHOLDS}\n${FIX_NOT_DOCUMENT}\n${DEEPWIKI_RAG} Look up known edge-case bugs / CVEs / issues filed upstream against the libraries you depend on.\n${AGENT_BROWSER_PROBE} UX empathy pass: hover states that break layout, click targets too small, mobile overflow, contrast failures, keyboard-only nav, screen-reader labels. Attach screenshots of every broken state. If the user described a bug visually, reason from their description/screenshot first.\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 5,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -160,7 +169,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which end-to-end flows must work? Which user journeys, deploy paths, lifecycle transitions?',
     apply:
-      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${API_REALITY_CHECK}\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${HUMAN_PREVIEW}\n${TASTE_SKILL_ROUTING}`,
+      `Spawn eight parallel sub-agents. Each runs one end-to-end path against the integrated artifact and reports pass/fail with evidence. Aggregate.\n${READ_ONLY_LINT}\n${CONTEXT_THRESHOLDS}\n${API_REALITY_CHECK}\n${DEEPWIKI_RAG} Verify integration contracts (auth, session, multi-tenant isolation) match upstream guidance.\n${AGENT_BROWSER_PROBE} Walk each user journey end-to-end in the real browser/Electron app: navigate → interact → screenshot → check console + network. Tail the main-process stdout/stderr in parallel for Electron. This is the e2e empathy gate.\n${HUMAN_PREVIEW}\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 8,
     requires: { deepwiki: true, agentBrowser: true },
   },
@@ -190,7 +199,7 @@ export const PHASES: readonly HarnessPhase[] = [
     problemMap:
       'Which slices need cold review? API contract, data model, error paths, perf, security, observability, docs, types, tests, deps, build, deploy, rollback. Also: does the UI match what the user expected to see?',
     apply:
-      `Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\n${STUB_SCAN}\n${CHECKPOINT_FILE}\n${DEEPWIKI_RAG} Cross-check every API claim, data-model invariant, and dep version against upstream wikis.\n${AGENT_BROWSER_PROBE} Run the available taste/critique skill alongside an agent-browser visual pass — render the actual page and screenshot to catch rendering issues code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow).\n${TASTE_SKILL_ROUTING}`,
+      `Spawn thirteen parallel sub-agents. Each audits one slice cold (no builder bias). Aggregate findings. Anything that cannot survive audit loops back before step 9.\n${CONTEXT_THRESHOLDS}\n${STUB_SCAN}\n${CHECKPOINT_FILE}\n${DEEPWIKI_RAG} Cross-check every API claim, data-model invariant, and dep version against upstream wikis.\n${AGENT_BROWSER_PROBE} Run the available taste/critique skill alongside an agent-browser visual pass — render the actual page and screenshot to catch rendering issues code review misses (overlapping elements, missing images, broken CSS, wrong font sizes, z-index, mobile overflow).\n${TASTE_SKILL_ROUTING}`,
     fibBudget: 13,
     requires: { deepwiki: true, agentBrowser: true },
   },

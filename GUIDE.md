@@ -30,6 +30,12 @@ Seven patterns lifted from `gsd-build/get-shit-done`, wired as named constants t
 6. **`CHECKPOINT_FILE`** → Step 8. Write `.aiko/aiko-code.<session>.continue-here.local.md` with `<current_state>`, `<decisions_made>` (with WHY), `<next_action>`, `<files_in_flight>`. Read by next session if compaction didn't fire.
 7. **`ATOMIC_COMMIT`** → Step 9. One `git commit` per phase, message format `{type}({step}-{label}): {outcome}`. `git log --oneline` reads as the loop transcript.
 
+### Reverse-yoinks (extras the GSD doc inspired)
+
+8. **`CONTEXT_THRESHOLDS`** → Steps 5, 6, 8. Self-check at end of step: PEAK 0-30% / GOOD 30-50% / DEGRADING 50-70% (write `.aiko/aiko-code.<session>.context-state.local.md` checkpoint) / POOR 70%+ (don't reach this). Lighter than waiting for AIKO.md compaction.
+9. **`CODEBASE_CACHE`** → Step 1. Read `.aiko/codebase/{STRUCTURE,STACK,ARCHITECTURE,CONVENTIONS,INTEGRATIONS}.md` first; populate any missing or >7d-stale ones this turn. Skips re-walking the repo every arc.
+10. **`READ_ONLY_LINT`** → Steps 3, 4, 5, 6. The `must_haves:` block from Step 2 is READ-ONLY during build phases. Worker that wants to relax a truth/artifact/key_link must surface a `H1 spec-vs-build conflict:` teachings line instead of editing the spec to fit.
+
 ## What we have that GSD doesn't
 
 | Capability                          | aiko-code `/guide`                                   | GSD                                |
