@@ -373,10 +373,7 @@ function evidenceMissing(
   // Loosened gate: every tag is optional. When present, each is shape-checked
   // so malformed citations still surface. The teachings line itself is still
   // required (the upstream caller flags missing step lines), but the worker
-  // chooses which tags are useful for this turn — a doc-only edit doesn't
-  // need dw:, a CLI fix doesn't need ab:, a stable-env fix doesn't need env:.
-  // Phase prompts still inject DEEPWIKI_RAG / AGENT_BROWSER_PROBE constants
-  // as nudges, not blockers.
+  // chooses which tags are useful for this turn.
   void phase
   const missing: Array<{ tag: string; reason: string; guidance: string }> = []
   const checks: Array<{
@@ -389,28 +386,40 @@ function evidenceMissing(
       shape: shapeEnv,
       guidance:
         'env: describes the runtime environment (OS, version, key tool versions). ' +
-        'Optional. When you do cite, format: env:macOS 25.0.0, Bun 1.3.1, aiko-code v0.10.5',
+        'Optional. Format: env:macOS 25.0.0, Bun 1.3.1, aiko-code v0.10.5',
     },
     {
       tag: 'dw:',
       shape: shapeDeepWiki,
       guidance:
-        'dw: cites a public GitHub repo via DeepWiki. Optional. ' +
-        'When you do cite, format: dw:owner/repo#topic',
+        'dw: cites a public GitHub repo via DeepWiki. Optional. Format: dw:owner/repo#topic',
     },
     {
       tag: 'ab:',
       shape: shapeAgentBrowser,
       guidance:
-        'ab: records an agent-browser artifact for UI work. Optional for non-UI turns. ' +
-        'When you do cite, point at a screenshot/console/network/eval result.',
+        'ab: records an agent-browser artifact for UI work. Optional for non-UI turns.',
     },
     {
       tag: 'unb:',
       shape: shapeUnbrowse,
       guidance:
         'unb: records an Unbrowse MCP artifact (unbrowse-ai/unbrowse-dev). Optional. ' +
-        'When you do cite, format: unb:<resource-or-action>#<detail>, e.g. unb:resolve#example.com or unb:execute#flow-id',
+        'Format: unb:<resource-or-action>#<detail>, e.g. unb:resolve#example.com',
+    },
+    {
+      tag: 'gh:',
+      shape: shapeGithub,
+      guidance:
+        'gh: cites a GitHub PR / issue / run touched this turn via the gh CLI. Optional. ' +
+        'Format: gh:owner/repo#PR-123 or gh:owner/repo#issue-456 or gh:owner/repo#run-789012',
+    },
+    {
+      tag: 'lsp:',
+      shape: shapeLsp,
+      guidance:
+        'lsp: cites a bundled-LSP / Serena symbol query that grounded this turn. Optional. ' +
+        'Format: lsp:<symbol>@<file>:<line> or lsp:refs/<symbol>=<count>',
     },
   ]
   for (const { tag, shape, guidance } of checks) {
@@ -443,6 +452,26 @@ function evidenceMissing(
 function shapeUnbrowse(value: string): string | null {
   if (value.length < 4) return 'too-short'
   if (/^(yes|no|ok|done)$/i.test(value)) return 'placeholder-only'
+  return null
+}
+
+/**
+ * `gh:` value must look like a real GitHub artifact reference: owner/repo#kind-id
+ * or at minimum owner/repo. Reject vague tokens.
+ */
+function shapeGithub(value: string): string | null {
+  if (!value.includes('/')) return 'missing-owner/repo-form'
+  if (value.length < 6) return 'too-short'
+  return null
+}
+
+/**
+ * `lsp:` value must look like a real symbol-query result. Require >=4 chars
+ * and reject pure placeholders.
+ */
+function shapeLsp(value: string): string | null {
+  if (value.length < 4) return 'too-short'
+  if (/^(yes|no|ok|done|n\/a)$/i.test(value)) return 'placeholder-only'
   return null
 }
 
