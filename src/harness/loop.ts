@@ -368,8 +368,16 @@ export function countFreshToolUses(
 function evidenceMissing(
   line: string,
   phase: HarnessPhase | undefined,
-  freshness?: FreshTurnEvidence,
+  _freshness?: FreshTurnEvidence,
 ): Array<{ tag: string; reason: string; guidance: string }> {
+  // Loosened gate: only `env:` is required. `dw:` and `ab:` are shape-checked
+  // when present (so a malformed citation still surfaces) but no longer
+  // rejected for absence — sometimes the work genuinely doesn't need a public
+  // upstream cite or a browser probe, and the freshness check was rejecting
+  // valid local-only turns. The phase prompts still encourage DeepWiki and
+  // agent-browser via DEEPWIKI_RAG / AGENT_BROWSER_PROBE constants; this
+  // change makes those advisory rather than gating.
+  void phase
   const missing: Array<{ tag: string; reason: string; guidance: string }> = []
   const checks: Array<{
     tag: string
@@ -387,27 +395,27 @@ function evidenceMissing(
     },
     {
       tag: 'dw:',
-      required: phase?.requires.deepwiki ?? true,
+      required: false,
       shape: shapeDeepWiki,
       guidance:
-        'dw: cites public GitHub repos for API verification. Use format: dw:owner/repo#topic. ' +
-        'For local-only work (no public repo), use: dw:skip:reason with 20+ char explanation. ' +
-        'If you used DeepWiki this turn, the citation will be auto-recognized as fresh.',
+        'dw: cites public GitHub repos for API verification. Optional. ' +
+        'When you do cite, use format: dw:owner/repo#topic.',
     },
     {
       tag: 'ab:',
-      required: phase?.requires.agentBrowser ?? false,
+      required: false,
       shape: shapeAgentBrowser,
       guidance:
-        'ab: justifies skipping agent-browser checks. Use ab:skip:reason with 20+ chars. ' +
-        'For CLI/terminal tools with no browser, use: ab:skip:CLI terminal app with no browser dev server to probe',
+        'ab: records an agent-browser artifact. Optional for non-UI work. ' +
+        'When you do cite, point at a screenshot/console/network/eval result.',
     },
   ]
   for (const { tag, required, shape, guidance } of checks) {
-    if (!required) continue
     const value = extractTag(line, tag)
     if (value === null) {
-      missing.push({ tag: tag.replace(':', ''), reason: 'missing', guidance })
+      if (required) {
+        missing.push({ tag: tag.replace(':', ''), reason: 'missing', guidance })
+      }
       continue
     }
     if (value.startsWith('skip:')) {
@@ -425,26 +433,6 @@ function evidenceMissing(
       if (reason) {
         missing.push({ tag: tag.replace(':', ''), reason, guidance })
         continue
-      }
-    }
-    if (freshness) {
-      if (tag === 'dw:' && freshness.deepwiki === 0) {
-        missing.push({
-          tag: 'dw',
-          reason: 'stale-no-deepwiki-call-this-turn',
-          guidance:
-            'dw: citations must match a real DeepWiki call this turn. ' +
-            'Either call mcp__deepwiki__ask_question or mcp__deepwiki__read_wiki_structure this turn, ' +
-            'or use dw:skip: with 20+ char reason if no public repo applies.',
-        })
-      } else if (tag === 'ab:' && freshness.agentBrowser === 0) {
-        missing.push({
-          tag: 'ab',
-          reason: 'stale-no-agent-browser-call-this-turn',
-          guidance:
-            'ab: citations must match an agent-browser call this turn. ' +
-            'Use ab:skip: with 20+ char reason if agent-browser is not applicable.',
-        })
       }
     }
   }
