@@ -415,6 +415,13 @@ function evidenceMissing(
         'Format: gh:owner/repo#PR-123 or gh:owner/repo#issue-456 or gh:owner/repo#run-789012',
     },
     {
+      tag: 'cdb:',
+      shape: shapeCodedb,
+      guidance:
+        'cdb: cites a codedb MCP query that grounded this turn. Optional. ' +
+        'Format: cdb:<tool>#<target>, e.g. cdb:symbol#advanceHarness or cdb:search#evidenceMissing',
+    },
+    {
       tag: 'lsp:',
       shape: shapeLsp,
       guidance:
@@ -470,6 +477,16 @@ function shapeGithub(value: string): string | null {
  * and reject pure placeholders.
  */
 function shapeLsp(value: string): string | null {
+  if (value.length < 4) return 'too-short'
+  if (/^(yes|no|ok|done|n\/a)$/i.test(value)) return 'placeholder-only'
+  return null
+}
+
+/**
+ * `cdb:` value must look like a real codedb MCP query reference. Require
+ * >=4 chars and reject pure placeholders.
+ */
+function shapeCodedb(value: string): string | null {
   if (value.length < 4) return 'too-short'
   if (/^(yes|no|ok|done|n\/a)$/i.test(value)) return 'placeholder-only'
   return null
