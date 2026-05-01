@@ -370,60 +370,58 @@ function evidenceMissing(
   phase: HarnessPhase | undefined,
   _freshness?: FreshTurnEvidence,
 ): Array<{ tag: string; reason: string; guidance: string }> {
-  // Loosened gate: only `env:` is required. `dw:` and `ab:` are shape-checked
-  // when present (so a malformed citation still surfaces) but no longer
-  // rejected for absence — sometimes the work genuinely doesn't need a public
-  // upstream cite or a browser probe, and the freshness check was rejecting
-  // valid local-only turns. The phase prompts still encourage DeepWiki and
-  // agent-browser via DEEPWIKI_RAG / AGENT_BROWSER_PROBE constants; this
-  // change makes those advisory rather than gating.
+  // Loosened gate: every tag is optional. When present, each is shape-checked
+  // so malformed citations still surface. The teachings line itself is still
+  // required (the upstream caller flags missing step lines), but the worker
+  // chooses which tags are useful for this turn — a doc-only edit doesn't
+  // need dw:, a CLI fix doesn't need ab:, a stable-env fix doesn't need env:.
+  // Phase prompts still inject DEEPWIKI_RAG / AGENT_BROWSER_PROBE constants
+  // as nudges, not blockers.
   void phase
   const missing: Array<{ tag: string; reason: string; guidance: string }> = []
   const checks: Array<{
     tag: string
-    required: boolean
     shape?: (value: string) => string | null
     guidance: string
   }> = [
     {
       tag: 'env:',
-      required: true,
       shape: shapeEnv,
       guidance:
-        'env: describes your runtime environment (OS, version, key tool versions). ' +
-        'Use format: env:OS version, Tool version details. e.g. env:macOS Sonoma 25.0, Bun 1.3.1, aiko-code v0.10.1',
+        'env: describes the runtime environment (OS, version, key tool versions). ' +
+        'Optional. When you do cite, format: env:macOS 25.0.0, Bun 1.3.1, aiko-code v0.10.5',
     },
     {
       tag: 'dw:',
-      required: false,
       shape: shapeDeepWiki,
       guidance:
-        'dw: cites public GitHub repos for API verification. Optional. ' +
-        'When you do cite, use format: dw:owner/repo#topic.',
+        'dw: cites a public GitHub repo via DeepWiki. Optional. ' +
+        'When you do cite, format: dw:owner/repo#topic',
     },
     {
       tag: 'ab:',
-      required: false,
       shape: shapeAgentBrowser,
       guidance:
-        'ab: records an agent-browser artifact. Optional for non-UI work. ' +
+        'ab: records an agent-browser artifact for UI work. Optional for non-UI turns. ' +
         'When you do cite, point at a screenshot/console/network/eval result.',
     },
+    {
+      tag: 'unb:',
+      shape: shapeUnbrowse,
+      guidance:
+        'unb: records an Unbrowse MCP artifact (unbrowse-ai/unbrowse-dev). Optional. ' +
+        'When you do cite, format: unb:<resource-or-action>#<detail>, e.g. unb:resolve#example.com or unb:execute#flow-id',
+    },
   ]
-  for (const { tag, required, shape, guidance } of checks) {
+  for (const { tag, shape, guidance } of checks) {
     const value = extractTag(line, tag)
-    if (value === null) {
-      if (required) {
-        missing.push({ tag: tag.replace(':', ''), reason: 'missing', guidance })
-      }
-      continue
-    }
+    if (value === null) continue
     if (value.startsWith('skip:')) {
       if (value.slice(5).trim().length < 20) {
         missing.push({
           tag: tag.replace(':', ''),
           reason: 'skip-reason-too-short',
-          guidance: `${guidance} Your skip reason (${value.slice(5).trim().length} chars) needs 20+ chars for the reason.`,
+          guidance: `${guidance} Your skip reason (${value.slice(5).trim().length} chars) needs 20+ chars.`,
         })
       }
       continue
@@ -432,11 +430,20 @@ function evidenceMissing(
       const reason = shape(value)
       if (reason) {
         missing.push({ tag: tag.replace(':', ''), reason, guidance })
-        continue
       }
     }
   }
   return missing
+}
+
+/**
+ * `unb:` value must look like a real Unbrowse MCP artifact. Require >=4 chars
+ * and reject single-word placeholders.
+ */
+function shapeUnbrowse(value: string): string | null {
+  if (value.length < 4) return 'too-short'
+  if (/^(yes|no|ok|done)$/i.test(value)) return 'placeholder-only'
+  return null
 }
 
 /**
