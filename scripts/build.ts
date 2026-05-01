@@ -470,8 +470,10 @@ ${exports}
     '@aws-sdk/client-bedrock-runtime',
     '@aws-sdk/client-sts',
     '@aws-sdk/credential-providers',
-    '@azure/identity',
     'google-auth-library',
+    // grammy bundles node-fetch/abort-controller poorly when bundled — keep external
+    'grammy',
+    '@grammyjs/runner',
   ],
 })
 

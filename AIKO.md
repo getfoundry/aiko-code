@@ -23,3 +23,69 @@ Shared journal between aiko-code sessions. Pre-compaction snapshots are appended
 
 **Open questions / next-session pickups**:
 > _filled by next session — read AIKO.md before resuming, then strike through resolved items._
+
+## Compaction journal — 2026-04-30T09:18:01Z
+
+**Trigger**: auto (context pressure — model did not opt-in)
+**Messages preserved before summarization**: 463
+
+**Last user prompt**:
+> You are now acting as the memory extraction subagent. Analyze the most recent ~11 messages above and use them to update your persistent memory systems. Available tools: Read, Grep, Glob, read-only Bash (ls/find/cat/stat/wc/head/tail and similar), and Edit/Write for paths inside the memory directory only. Bash rm is not permitted. All other tools — MCP, Agent, write-capable Bash, etc — will be denied. You have a limited turn budget. Edit requires a prior Read of the same file, so the efficient strategy is: turn 1 — issue all Read calls in parallel for every file you might update; turn 2 — issu…
+
+**Last assistant work**:
+> Turn 1: Read all existing files I might update. 
+
+**Harness teachings tail** (.aiko/aiko-code.default.teachings.local.md):
+> - [step 1 / Fractal Repair (recursion engaged)] H1: gh pr view flags confirmed — only supports --json, --jq, --template, --web, --comments, -c, -q, -t, -w; NO --limit flag; pr list supports --limit; pr list JSON fields: additions,assignees,author,autoMergeRequest,body,changedFiles,closed,closingIssuesReferences,comments,commits,createdAt,deletions,files,headRefName,labels,latestReviews,mergeCommit,mergeStateStatus,mergeable,mergedAt,milestone,number,reviewDecision,reviews,state,statusCheckRollup,title,updatedAt,url. env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch gh v2.88.1…
+> - [step 2 / Boundaries — architecture] gateway daemon boundaries confirmed — JSON-RPC 2.0 over WS, per-session QueryEngine lanes via lane map, telegram channel as external adapter using grammY run() polling, graceful shutdown via signal handlers + LaunchAgent/systemd persistence env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:microsoft/vscode#13.4
+> - [step 2 / Fractal Repair (recursion engaged)] confirmed architecture boundaries — ws upgrade via Bun.serve(), JSON-RPC 2.0 dispatch by method/sessionKey, per-lane AbortController for cleanup, LaunchAgent/systemd service pattern from vscode CLI model, graceful shutdown via SIGTERM/SIGINT/SIGHUP with in-flight drain env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:microsoft/vscode#websocket-protocol-server dw:microsoft/vscode#launchd-systemd-service-manager
+> - [step 1 / Survey — inventory] H1: complete inventory of openclaw telegram gateway pattern (~/aiko/clawdbot) and aiko telegram CLI (~/fcode) — openclaw uses: separate pairing-store with HMAC codes + proper-lockfile, CLI pairing list/approve via commander, channel.ts delegates to message-actions adapter, aiko has inline /approve <userId> (no code matching), no CLI pairing subcommand, no pairing persistence separate from allowlist. New implementation: extract pairing-store.ts from openclaw, add `aiko-code telegram approve <code>` + `aiko-code telegram who` CLI subcommands, keep telegramChannel…
+> - [step 1 / Survey — inventory] H1: boundary audit complete — createTelegramChannel called from telegram-gateway.ts (1 consumer), loadAllowlist/saveAllowlist inline in telegramChannel.ts (local only), generatePairingCode local only, CLI telegram subcommands in telegram.ts, fast-path in cli.tsx, RC file collision: telegram.ts and telegramChannel.ts both write ~/.aiko/telegram.json with incompatible schemas (token/port vs users), requires split to ~/.aiko/telegram-cli.json and ~/.aiko/telegram-allowlist.json, runner API verified: run() returns RunnerHandle with start/stop/isRunning/size/task me…
+> - [step 1 / Fractal Repair (recursion engaged)] H1: boundary audit done — 4 files touch telegram pairing: telegramChannel.ts (producer of loadAllowlist/saveAllowlist/generatePairingCode), telegram-gateway.ts (1 consumer of createTelegramChannel), telegram.ts (CLI, writes token/port to same ~/.aiko/telegram.json path — RC collision), cli.tsx (fast-path router). Root causes: (1) /pair generates ephemeral codes, (2) /approve has no code verification, (3) RC file collision needs split. env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:grammyjs/grammY#bot-start-polling-options ab:skip:CLI…
+
+**Open questions / next-session pickups**:
+> _filled by next session — read AIKO.md before resuming, then strike through resolved items._
+
+## Compaction journal — 2026-04-30T09:21:01Z
+
+**Trigger**: auto (context pressure — model did not opt-in)
+**Messages preserved before summarization**: 456
+
+**Last user prompt**:
+> You are now acting as the memory extraction subagent. Analyze the most recent ~4 messages above and use them to update your persistent memory systems. Available tools: Read, Grep, Glob, read-only Bash (ls/find/cat/stat/wc/head/tail and similar), and Edit/Write for paths inside the memory directory only. Bash rm is not permitted. All other tools — MCP, Agent, write-capable Bash, etc — will be denied. You have a limited turn budget. Edit requires a prior Read of the same file, so the efficient strategy is: turn 1 — issue all Read calls in parallel for every file you might update; turn 2 — issue…
+
+**Last assistant work**:
+> Turn 1: reading existing files to check for duplicates. 
+
+**Harness teachings tail** (.aiko/aiko-code.default.teachings.local.md):
+> - [step 1 / Fractal Repair (recursion engaged)] H1: gh pr view flags confirmed — only supports --json, --jq, --template, --web, --comments, -c, -q, -t, -w; NO --limit flag; pr list supports --limit; pr list JSON fields: additions,assignees,author,autoMergeRequest,body,changedFiles,closed,closingIssuesReferences,comments,commits,createdAt,deletions,files,headRefName,labels,latestReviews,mergeCommit,mergeStateStatus,mergeable,mergedAt,milestone,number,reviewDecision,reviews,state,statusCheckRollup,title,updatedAt,url. env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch gh v2.88.1…
+> - [step 2 / Boundaries — architecture] gateway daemon boundaries confirmed — JSON-RPC 2.0 over WS, per-session QueryEngine lanes via lane map, telegram channel as external adapter using grammY run() polling, graceful shutdown via signal handlers + LaunchAgent/systemd persistence env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:microsoft/vscode#13.4
+> - [step 2 / Fractal Repair (recursion engaged)] confirmed architecture boundaries — ws upgrade via Bun.serve(), JSON-RPC 2.0 dispatch by method/sessionKey, per-lane AbortController for cleanup, LaunchAgent/systemd service pattern from vscode CLI model, graceful shutdown via SIGTERM/SIGINT/SIGHUP with in-flight drain env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:microsoft/vscode#websocket-protocol-server dw:microsoft/vscode#launchd-systemd-service-manager
+> - [step 1 / Survey — inventory] H1: complete inventory of openclaw telegram gateway pattern (~/aiko/clawdbot) and aiko telegram CLI (~/fcode) — openclaw uses: separate pairing-store with HMAC codes + proper-lockfile, CLI pairing list/approve via commander, channel.ts delegates to message-actions adapter, aiko has inline /approve <userId> (no code matching), no CLI pairing subcommand, no pairing persistence separate from allowlist. New implementation: extract pairing-store.ts from openclaw, add `aiko-code telegram approve <code>` + `aiko-code telegram who` CLI subcommands, keep telegramChannel…
+> - [step 1 / Survey — inventory] H1: boundary audit complete — createTelegramChannel called from telegram-gateway.ts (1 consumer), loadAllowlist/saveAllowlist inline in telegramChannel.ts (local only), generatePairingCode local only, CLI telegram subcommands in telegram.ts, fast-path in cli.tsx, RC file collision: telegram.ts and telegramChannel.ts both write ~/.aiko/telegram.json with incompatible schemas (token/port vs users), requires split to ~/.aiko/telegram-cli.json and ~/.aiko/telegram-allowlist.json, runner API verified: run() returns RunnerHandle with start/stop/isRunning/size/task me…
+> - [step 1 / Fractal Repair (recursion engaged)] H1: boundary audit done — 4 files touch telegram pairing: telegramChannel.ts (producer of loadAllowlist/saveAllowlist/generatePairingCode), telegram-gateway.ts (1 consumer of createTelegramChannel), telegram.ts (CLI, writes token/port to same ~/.aiko/telegram.json path — RC collision), cli.tsx (fast-path router). Root causes: (1) /pair generates ephemeral codes, (2) /approve has no code verification, (3) RC file collision needs split. env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:grammyjs/grammY#bot-start-polling-options ab:skip:CLI…
+
+**Open questions / next-session pickups**:
+> _filled by next session — read AIKO.md before resuming, then strike through resolved items._
+
+## Compaction journal — 2026-04-30T09:21:23Z
+
+**Trigger**: auto (context pressure — model did not opt-in)
+**Messages preserved before summarization**: 462
+
+**Last user prompt**:
+> commit
+
+**Last assistant work**:
+> Guide written — 6 steps covering pairing-store creation, RC fix, CLI subcommands, /pair wiring, allowlist export, and help text.
+
+**Harness teachings tail** (.aiko/aiko-code.default.teachings.local.md):
+> - [step 1 / Fractal Repair (recursion engaged)] H1: gh pr view flags confirmed — only supports --json, --jq, --template, --web, --comments, -c, -q, -t, -w; NO --limit flag; pr list supports --limit; pr list JSON fields: additions,assignees,author,autoMergeRequest,body,changedFiles,closed,closingIssuesReferences,comments,commits,createdAt,deletions,files,headRefName,labels,latestReviews,mergeCommit,mergeStateStatus,mergeable,mergedAt,milestone,number,reviewDecision,reviews,state,statusCheckRollup,title,updatedAt,url. env:macOS 25.0.0 Darwin arm64 zsh bun ~/Projects/fcode main branch gh v2.88.1…
+> - [step 2 / Boundaries — architecture] gateway daemon boundaries confirmed — JSON-RPC 2.0 over WS, per-session QueryEngine lanes via lane map, telegram channel as external adapter using grammY run() polling, graceful shutdown via signal handlers + LaunchAgent/systemd persistence env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:microsoft/vscode#13.4
+> - [step 2 / Fractal Repair (recursion engaged)] confirmed architecture boundaries — ws upgrade via Bun.serve(), JSON-RPC 2.0 dispatch by method/sessionKey, per-lane AbortController for cleanup, LaunchAgent/systemd service pattern from vscode CLI model, graceful shutdown via SIGTERM/SIGINT/SIGHUP with in-flight drain env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:microsoft/vscode#websocket-protocol-server dw:microsoft/vscode#launchd-systemd-service-manager
+> - [step 1 / Survey — inventory] H1: complete inventory of openclaw telegram gateway pattern (~/aiko/clawdbot) and aiko telegram CLI (~/fcode) — openclaw uses: separate pairing-store with HMAC codes + proper-lockfile, CLI pairing list/approve via commander, channel.ts delegates to message-actions adapter, aiko has inline /approve <userId> (no code matching), no CLI pairing subcommand, no pairing persistence separate from allowlist. New implementation: extract pairing-store.ts from openclaw, add `aiko-code telegram approve <code>` + `aiko-code telegram who` CLI subcommands, keep telegramChannel…
+> - [step 1 / Survey — inventory] H1: boundary audit complete — createTelegramChannel called from telegram-gateway.ts (1 consumer), loadAllowlist/saveAllowlist inline in telegramChannel.ts (local only), generatePairingCode local only, CLI telegram subcommands in telegram.ts, fast-path in cli.tsx, RC file collision: telegram.ts and telegramChannel.ts both write ~/.aiko/telegram.json with incompatible schemas (token/port vs users), requires split to ~/.aiko/telegram-cli.json and ~/.aiko/telegram-allowlist.json, runner API verified: run() returns RunnerHandle with start/stop/isRunning/size/task me…
+> - [step 1 / Fractal Repair (recursion engaged)] H1: boundary audit done — 4 files touch telegram pairing: telegramChannel.ts (producer of loadAllowlist/saveAllowlist/generatePairingCode), telegram-gateway.ts (1 consumer of createTelegramChannel), telegram.ts (CLI, writes token/port to same ~/.aiko/telegram.json path — RC collision), cli.tsx (fast-path router). Root causes: (1) /pair generates ephemeral codes, (2) /approve has no code verification, (3) RC file collision needs split. env:macOS 25.0.0 Darwin arm64 zsh bun fcode main branch dw:grammyjs/grammY#bot-start-polling-options ab:skip:CLI…
+
+**Open questions / next-session pickups**:
+> _filled by next session — read AIKO.md before resuming, then strike through resolved items._
